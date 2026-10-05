@@ -78,3 +78,6 @@ ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 .DS_Store
+
+# Specification & Internal Documents
+PRD_Core_Photo_AI_Agent.md
