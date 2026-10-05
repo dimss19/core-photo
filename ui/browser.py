@@ -1,7 +1,7 @@
-"""Photo Browser Screen (PRD Section 21).
-Enables browsing, searching (Hole ID, Tray, Interval), inspecting thumbnails,
-and viewing metadata without 3D complexity.
-Designed with Light Mode aesthetics, clean filters, and gallery cards.
+"""Photo Browser Screen (Professional Industrial Redesign).
+Provides fast browsing, structured search (Hole ID, Tray, Interval, Status),
+compact thumbnail grid, and instant deep inspector (Large Preview, Metadata, Validation, Transfer).
+Zero emojis, strict professional standards.
 """
 
 from pathlib import Path
@@ -12,6 +12,27 @@ from PIL import Image
 from core.app_context import get_app_context
 from core.logger import get_logger
 from database.models import PhotoModel
+from ui.theme import (
+    COLOR_ACCENT,
+    COLOR_ACCENT_HOVER,
+    COLOR_BG,
+    COLOR_BORDER,
+    COLOR_BORDER_STRONG,
+    COLOR_CHARCOAL,
+    COLOR_ERROR,
+    COLOR_PANEL,
+    COLOR_PANEL_ALT,
+    COLOR_SUCCESS,
+    COLOR_SUCCESS_BG,
+    COLOR_SUCCESS_BORDER,
+    COLOR_TEXT_HINT,
+    COLOR_TEXT_MUTED,
+    COLOR_TEXT_PRIMARY,
+    COLOR_WARNING,
+    COLOR_WARNING_BG,
+    COLOR_WARNING_BORDER,
+    get_font,
+)
 
 logger = get_logger(__name__)
 
@@ -20,10 +41,10 @@ class BrowserView(ctk.CTkFrame):
     """Photo gallery and inspection browser."""
 
     def __init__(self, master, navigate_fn: Callable[[str], None], **kwargs):
-        super().__init__(master, fg_color="#F8FAFC", **kwargs)
+        super().__init__(master, fg_color=COLOR_BG, **kwargs)
         self.navigate_fn = navigate_fn
         self.ctx = get_app_context()
-        self._thumb_cache = []
+        self._thumb_cache: List[ctk.CTkImage] = []
         self._selected_photo: Optional[PhotoModel] = None
         self._preview_ctk_img: Optional[ctk.CTkImage] = None
 
@@ -34,25 +55,27 @@ class BrowserView(ctk.CTkFrame):
         self.grid_columnconfigure(1, weight=2)  # Inspector details
         self.grid_rowconfigure(1, weight=1)
 
-        # ----------------- Top Filter Bar -----------------
-        filter_bar = ctk.CTkFrame(self, fg_color="#FFFFFF", corner_radius=10, border_width=1, border_color="#E2E8F0")
-        filter_bar.grid(row=0, column=0, columnspan=2, sticky="ew", padx=20, pady=(14, 8))
+        # =========================================================================
+        # 1. TOP FILTER BAR
+        # =========================================================================
+        filter_bar = ctk.CTkFrame(self, fg_color=COLOR_PANEL, corner_radius=6, border_width=1, border_color=COLOR_BORDER)
+        filter_bar.grid(row=0, column=0, columnspan=2, sticky="ew", padx=20, pady=(16, 10))
 
         title_box = ctk.CTkFrame(filter_bar, fg_color="transparent")
-        title_box.pack(side="left", padx=(16, 16), pady=10)
+        title_box.pack(side="left", padx=16, pady=10)
 
         ctk.CTkLabel(
             title_box,
-            text="🔍 Photo Browser",
-            font=ctk.CTkFont(size=16, weight="bold"),
-            text_color="#1E293B"
+            text="PHOTO BROWSER",
+            font=get_font(14, "bold"),
+            text_color=COLOR_CHARCOAL,
         ).pack(anchor="w")
 
         ctk.CTkLabel(
             title_box,
-            text="Jelajahi dan cari foto drill core dari sesi aktif.",
-            font=ctk.CTkFont(size=11),
-            text_color="#64748B"
+            text="Filter and inspect core photography archives.",
+            font=get_font(10),
+            text_color=COLOR_TEXT_MUTED,
         ).pack(anchor="w")
 
         # Search & Filter inputs
@@ -61,95 +84,132 @@ class BrowserView(ctk.CTkFrame):
 
         self.search_entry = ctk.CTkEntry(
             controls_box,
-            placeholder_text="Cari Hole ID atau Tray...",
-            width=220,
-            height=34,
-            fg_color="#F8FAFC",
-            border_color="#CBD5E1"
+            placeholder_text="Filter Hole ID or Tray...",
+            width=210,
+            height=32,
+            font=get_font(11),
+            fg_color=COLOR_PANEL_ALT,
+            border_color=COLOR_BORDER_STRONG,
+            border_width=1,
         )
-        self.search_entry.pack(side="left", padx=5)
+        self.search_entry.pack(side="left", padx=4)
         self.search_entry.bind("<KeyRelease>", lambda e: self.refresh())
 
         self.status_filter = ctk.CTkOptionMenu(
             controls_box,
-            values=["Semua Status", "VALID", "PROCESSED", "INVALID", "TRANSFERRED"],
+            values=["All Statuses", "VALID", "PROCESSED", "INVALID", "TRANSFERRED"],
             command=lambda v: self.refresh(),
-            height=34,
-            width=135,
-            fg_color="#F1F5F9",
-            text_color="#1E293B",
-            button_color="#E2E8F0",
-            button_hover_color="#CBD5E1"
+            height=32,
+            width=130,
+            font=get_font(11),
+            fg_color=COLOR_PANEL_ALT,
+            text_color=COLOR_CHARCOAL,
+            button_color=COLOR_BORDER,
+            button_hover_color=COLOR_BORDER_STRONG,
         )
-        self.status_filter.pack(side="left", padx=5)
+        self.status_filter.pack(side="left", padx=4)
 
         btn_refresh = ctk.CTkButton(
             controls_box,
-            text="Segarkan",
-            width=80,
-            height=34,
-            corner_radius=6,
-            fg_color="#1D4ED8",
-            hover_color="#1E40AF",
-            command=self.refresh
+            text="Refresh",
+            width=70,
+            height=32,
+            font=get_font(11, "bold"),
+            corner_radius=4,
+            fg_color=COLOR_CHARCOAL,
+            hover_color="#27272A",
+            text_color="#FFFFFF",
+            command=self.refresh,
         )
-        btn_refresh.pack(side="left", padx=5)
+        btn_refresh.pack(side="left", padx=4)
 
-        # ----------------- Left: Scrollable Thumbnail Grid -----------------
+        # =========================================================================
+        # 2. LEFT: Scrollable Thumbnail Grid
+        # =========================================================================
         self.grid_container = ctk.CTkScrollableFrame(
             self,
-            fg_color="#FFFFFF",
-            corner_radius=10,
+            fg_color=COLOR_PANEL,
+            corner_radius=6,
             border_width=1,
-            border_color="#E2E8F0"
+            border_color=COLOR_BORDER,
         )
-        self.grid_container.grid(row=1, column=0, sticky="nsew", padx=(20, 8), pady=(0, 14))
+        self.grid_container.grid(row=1, column=0, sticky="nsew", padx=(20, 8), pady=(0, 16))
         self.grid_container.grid_columnconfigure((0, 1, 2), weight=1)
 
-        # ----------------- Right: Inspector Details -----------------
+        # =========================================================================
+        # 3. RIGHT: Photo Inspector Panel
+        # =========================================================================
         self.detail_panel = ctk.CTkScrollableFrame(
             self,
-            fg_color="#FFFFFF",
-            corner_radius=10,
+            fg_color=COLOR_PANEL,
+            corner_radius=6,
             border_width=1,
-            border_color="#E2E8F0"
+            border_color=COLOR_BORDER,
         )
-        self.detail_panel.grid(row=1, column=1, sticky="nsew", padx=(8, 20), pady=(0, 14))
+        self.detail_panel.grid(row=1, column=1, sticky="nsew", padx=(8, 20), pady=(0, 16))
 
         ctk.CTkLabel(
             self.detail_panel,
-            text="Detail Foto Terpilih",
-            font=ctk.CTkFont(size=15, weight="bold"),
-            text_color="#1E293B"
-        ).pack(anchor="w", padx=16, pady=(12, 2))
+            text="SELECTED PHOTO INSPECTOR",
+            font=get_font(13, "bold"),
+            text_color=COLOR_CHARCOAL,
+        ).pack(anchor="w", padx=16, pady=(14, 2))
 
         ctk.CTkLabel(
             self.detail_panel,
-            text="Klik salah satu kartu foto di galeri untuk melihat detail lengkap.",
-            font=ctk.CTkFont(size=11),
-            text_color="#64748B"
+            text="Click any photo in the catalog to inspect details.",
+            font=get_font(10),
+            text_color=COLOR_TEXT_MUTED,
         ).pack(anchor="w", padx=16, pady=(0, 10))
 
-        preview_card = ctk.CTkFrame(self.detail_panel, fg_color="#F1F5F9", corner_radius=8, border_width=1, border_color="#E2E8F0")
+        # Large Preview Canvas
+        preview_card = ctk.CTkFrame(
+            self.detail_panel,
+            fg_color="#09090B",
+            corner_radius=4,
+            border_width=1,
+            border_color=COLOR_BORDER,
+        )
         preview_card.pack(fill="x", padx=16, pady=4)
 
         self.detail_img_lbl = ctk.CTkLabel(
             preview_card,
-            text="Pilih foto dari galeri",
-            font=ctk.CTkFont(size=12),
-            text_color="#64748B"
+            text="Select a photo from the gallery",
+            font=get_font(11),
+            text_color=COLOR_TEXT_HINT,
         )
-        self.detail_img_lbl.pack(padx=12, pady=16)
+        self.detail_img_lbl.pack(padx=8, pady=16)
 
-        self.detail_info_lbl = ctk.CTkLabel(
+        # Inspector Metadata Card
+        self.meta_card = ctk.CTkFrame(
             self.detail_panel,
-            text="",
-            font=ctk.CTkFont(size=12),
-            text_color="#334155",
-            justify="left",
-            wraplength=300
+            fg_color=COLOR_PANEL_ALT,
+            corner_radius=4,
+            border_width=1,
+            border_color=COLOR_BORDER,
         )
-        self.detail_info_lbl.pack(anchor="w", padx=16, pady=10)
+        self.meta_card.pack(fill="x", padx=16, pady=10)
+
+        self.lbl_insp_title = ctk.CTkLabel(self.meta_card, text="File: -", font=get_font(11, "bold"), text_color=COLOR_TEXT_PRIMARY)
+        self.lbl_insp_title.pack(anchor="w", padx=12, pady=(10, 2))
+
+        self.lbl_insp_interval = ctk.CTkLabel(self.meta_card, text="Interval: -", font=get_font(11), text_color=COLOR_TEXT_PRIMARY)
+        self.lbl_insp_interval.pack(anchor="w", padx=12, pady=2)
+
+        self.lbl_insp_status = ctk.CTkLabel(self.meta_card, text="Validation Status: -", font=get_font(11), text_color=COLOR_TEXT_PRIMARY)
+        self.lbl_insp_status.pack(anchor="w", padx=12, pady=2)
+
+        self.lbl_insp_transfer = ctk.CTkLabel(self.meta_card, text="Transfer Status: -", font=get_font(11), text_color=COLOR_TEXT_PRIMARY)
+        self.lbl_insp_transfer.pack(anchor="w", padx=12, pady=2)
+
+        self.lbl_insp_hashes = ctk.CTkLabel(
+            self.meta_card,
+            text="MD5: -",
+            font=ctk.CTkFont(family="Consolas", size=9),
+            text_color=COLOR_TEXT_HINT,
+            justify="left",
+        )
+        self.lbl_insp_hashes.pack(anchor="w", padx=12, pady=(4, 10))
 
     def refresh(self) -> None:
         """Reloads photos from database matching active search filters."""
@@ -160,30 +220,30 @@ class BrowserView(ctk.CTkFrame):
         if not self.ctx.photo_repo or not self.ctx.active_session:
             empty_lbl = ctk.CTkLabel(
                 self.grid_container,
-                text="Belum ada sesi aktif atau belum ada foto yang diambil.\nBuat sesi dan ambil foto untuk melihat galeri.",
-                font=ctk.CTkFont(size=13),
-                text_color="#94A3B8",
-                justify="center"
+                text="No active session or photo archive found.\nCreate a session and capture photos to view the catalog.",
+                font=get_font(11),
+                text_color=COLOR_TEXT_HINT,
+                justify="center",
             )
             empty_lbl.grid(row=0, column=0, columnspan=3, pady=60)
             return
 
         query = self.search_entry.get().strip()
         status_sel = self.status_filter.get()
-        status_param = None if status_sel == "Semua Status" else status_sel
+        status_param = None if status_sel == "All Statuses" else status_sel
 
         photos = self.ctx.photo_repo.search(
             hole_id=query if query else None,
             tray_number=query if query else None,
-            status=status_param
+            status=status_param,
         )
 
         if not photos:
             empty_lbl = ctk.CTkLabel(
                 self.grid_container,
-                text="Tidak ada foto yang cocok dengan kata kunci pencarian.",
-                font=ctk.CTkFont(size=13),
-                text_color="#94A3B8"
+                text="No photos match the current filter criteria.",
+                font=get_font(11),
+                text_color=COLOR_TEXT_HINT,
             )
             empty_lbl.grid(row=0, column=0, columnspan=3, pady=60)
             return
@@ -195,58 +255,58 @@ class BrowserView(ctk.CTkFrame):
 
             card = ctk.CTkFrame(
                 self.grid_container,
-                fg_color="#F8FAFC",
-                corner_radius=8,
+                fg_color=COLOR_PANEL_ALT,
+                corner_radius=4,
                 border_width=1,
-                border_color="#E2E8F0",
-                cursor="hand2"
+                border_color=COLOR_BORDER,
+                cursor="hand2",
             )
-            card.grid(row=row, column=col, padx=6, pady=6, sticky="nsew")
+            card.grid(row=row, column=col, padx=5, pady=5, sticky="nsew")
 
             # Load thumbnail
             thumb_path = Path(photo.thumbnail_path) if photo.thumbnail_path else None
             if thumb_path and thumb_path.exists():
                 try:
                     pil_thumb = Image.open(thumb_path)
-                    ctk_thumb = ctk.CTkImage(light_image=pil_thumb, dark_image=pil_thumb, size=(120, 80))
+                    ctk_thumb = ctk.CTkImage(light_image=pil_thumb, dark_image=pil_thumb, size=(110, 74))
                     self._thumb_cache.append(ctk_thumb)
                     thumb_lbl = ctk.CTkLabel(card, image=ctk_thumb, text="")
-                    thumb_lbl.pack(padx=8, pady=(8, 4))
+                    thumb_lbl.pack(padx=6, pady=(6, 3))
                 except Exception:
-                    ctk.CTkLabel(card, text="[No Thumb]", font=ctk.CTkFont(size=11), text_color="#94A3B8").pack(pady=20)
+                    ctk.CTkLabel(card, text="[No Thumb]", font=get_font(10), text_color=COLOR_TEXT_HINT).pack(pady=16)
             else:
-                ctk.CTkLabel(card, text="[No Thumb]", font=ctk.CTkFont(size=11), text_color="#94A3B8").pack(pady=20)
+                ctk.CTkLabel(card, text="[No Thumb]", font=get_font(10), text_color=COLOR_TEXT_HINT).pack(pady=16)
 
             title_lbl = ctk.CTkLabel(
                 card,
                 text=f"{photo.hole_id} (Tray {photo.tray_number})",
-                font=ctk.CTkFont(size=12, weight="bold"),
-                text_color="#1E293B"
+                font=get_font(11, "bold"),
+                text_color=COLOR_TEXT_PRIMARY,
             )
-            title_lbl.pack(padx=6, pady=2)
+            title_lbl.pack(padx=4, pady=1)
 
             sub_lbl = ctk.CTkLabel(
                 card,
                 text=f"{photo.interval_from:.2f} - {photo.interval_to:.2f} m",
-                font=ctk.CTkFont(size=11),
-                text_color="#64748B"
+                font=get_font(10),
+                text_color=COLOR_TEXT_MUTED,
             )
-            sub_lbl.pack(padx=6, pady=1)
+            sub_lbl.pack(padx=4, pady=1)
 
-            # Status pill
+            # Status Indicator
             is_valid = photo.status in ("VALID", "TRANSFERRED")
-            status_color = "#059669" if is_valid else "#D97706"
-            status_bg = "#ECFDF5" if is_valid else "#FFFBEB"
+            status_color = COLOR_SUCCESS if is_valid else COLOR_WARNING
+            status_bg = COLOR_SUCCESS_BG if is_valid else COLOR_WARNING_BG
 
             pill = ctk.CTkLabel(
                 card,
                 text=f" {photo.status} ",
-                font=ctk.CTkFont(size=10, weight="bold"),
+                font=get_font(9, "bold"),
                 text_color=status_color,
                 fg_color=status_bg,
-                corner_radius=4
+                corner_radius=2,
             )
-            pill.pack(padx=6, pady=(2, 8))
+            pill.pack(padx=4, pady=(2, 6))
 
             # Click binding to inspect
             for widget in [card, title_lbl, sub_lbl, pill]:
@@ -267,21 +327,14 @@ class BrowserView(ctk.CTkFrame):
                 self.detail_img_lbl.configure(image=self._preview_ctk_img, text="")
             except Exception as e:
                 logger.error("Error opening image %s: %s", jpg_path, e)
-                self.detail_img_lbl.configure(image="", text="Gagal memuat gambar.")
+                self.detail_img_lbl.configure(image="", text="Error rendering image.")
         else:
-            self.detail_img_lbl.configure(image="", text="File gambar tidak tersedia.")
+            self.detail_img_lbl.configure(image="", text="File missing on disk.")
 
-        details_text = (
-            f"• Nama File: {photo.filename_base}.jpg\n"
-            f"• Hole ID: {photo.hole_id}\n"
-            f"• Nomor Tray: {photo.tray_number}\n"
-            f"• Interval: {photo.interval_from:.2f} m - {photo.interval_to:.2f} m\n"
-            f"• Status Data: {photo.status}\n"
-            f"• Waktu Capture: {photo.captured_at or '-'}\n"
-            f"• MD5 RAW: {photo.md5_raw}\n"
-            f"• MD5 JPG: {photo.md5_jpg}\n"
-            f"• Model Kamera: {photo.camera_model}\n"
-            f"• Lokasi File RAW:\n  {photo.raw_path}\n"
-            f"• Lokasi File JPG:\n  {photo.jpg_path}"
+        self.lbl_insp_title.configure(text=f"File: {photo.filename_base}.jpg")
+        self.lbl_insp_interval.configure(text=f"Hole: {photo.hole_id}  ·  Tray: {photo.tray_number}  ·  {photo.interval_from:.2f} m - {photo.interval_to:.2f} m")
+        self.lbl_insp_status.configure(text=f"Validation Status: {photo.status}")
+        self.lbl_insp_transfer.configure(text=f"Transfer Status: {'TRANSFERRED' if photo.status == 'TRANSFERRED' else 'LOCAL ONLY'}")
+        self.lbl_insp_hashes.configure(
+            text=f"RAW MD5: {photo.md5_raw}\nJPG MD5: {photo.md5_jpg}\nCamera: {photo.camera_model}"
         )
-        self.detail_info_lbl.configure(text=details_text)

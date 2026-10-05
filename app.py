@@ -1,12 +1,15 @@
-"""Main Desktop Application Entry Point for Core Photo (PRD Section 1, 5, 27 & 28).
-Windows desktop application using CustomTkinter with clean navigation,
-thread-safe camera management, and offline-first workflows.
+"""Main Desktop Application Entry Point for Core Photo.
+Professional Industrial Desktop Application for geological drill core photography.
+Window layout: TopBar (branding & subtle status) + Left compact Sidebar + Main Content Canvas + Bottom Status Bar.
+Zero emojis, strict industrial palette (Orange accent, Dark Charcoal, Off-white canvas).
 """
 
 import sys
 import tkinter as tk
-from typing import Dict
+from pathlib import Path
+from typing import Dict, Optional
 import customtkinter as ctk
+from PIL import Image, ImageTk
 
 from config.config_manager import get_config
 from core.app_context import get_app_context
@@ -19,29 +22,45 @@ from ui.session import SessionView
 from ui.settings import SettingsView
 from ui.transfer import TransferView
 from ui.validation import ValidationView
+from ui.theme import (
+    COLOR_ACCENT,
+    COLOR_ACCENT_HOVER,
+    COLOR_ACCENT_LIGHT,
+    COLOR_BG,
+    COLOR_BORDER,
+    COLOR_BORDER_STRONG,
+    COLOR_CHARCOAL,
+    COLOR_ERROR,
+    COLOR_PANEL,
+    COLOR_PANEL_ALT,
+    COLOR_SUCCESS,
+    COLOR_TEXT_HINT,
+    COLOR_TEXT_MUTED,
+    COLOR_TEXT_PRIMARY,
+    COLOR_WARNING,
+    FONT_FAMILY,
+    get_font,
+)
 
 logger = get_logger(__name__)
 
 
 class CorePhotoApp(ctk.CTk):
-    """Main application window."""
+    """Main application window adhering to industrial desktop standards."""
 
     def __init__(self):
         super().__init__()
 
         self.config = get_config()
-        theme = self.config.get("app", "theme", "dark")
-        color_theme = self.config.get("app", "color_theme", "blue")
         ctk.set_appearance_mode("light")
         ctk.set_default_color_theme("blue")
 
-        self.title("Core Photo — Sistem Pengambilan Foto Drill Core")
-        self.geometry("1300x820")
-        self.minsize(1100, 700)
+        self.title("Core Photo — Drill Core Photography System")
+        self.geometry("1340x840")
+        self.minsize(1120, 720)
+        self.configure(fg_color=COLOR_BG)
 
-        # Set Application Window Icon (PRD Section 1 & UI Branding)
-        from pathlib import Path
-        from PIL import Image, ImageTk
+        # Window icon configuration
         self.icon_dir = Path(__file__).parent / "assets"
         ico_file = self.icon_dir / "icon.ico"
         png_file = self.icon_dir / "icon.png"
@@ -66,7 +85,7 @@ class CorePhotoApp(ctk.CTk):
         self._init_views()
         self.navigate_to("dashboard")
 
-        # Automatically connect camera in background on startup (PRD Section 8)
+        # Automatically connect camera in background on startup
         self.after(300, self._startup_camera_init)
 
         # Handle clean window close
@@ -76,131 +95,194 @@ class CorePhotoApp(ctk.CTk):
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(1, weight=1)
 
-        # ----------------- Top Header Bar (Light Mode) -----------------
-        self.header_bar = ctk.CTkFrame(self, height=48, corner_radius=0, fg_color="#FFFFFF", border_width=1, border_color="#E5E7EB")
-        self.header_bar.grid(row=0, column=0, columnspan=2, sticky="ew")
-        self.header_bar.grid_columnconfigure(1, weight=1)
+        # =========================================================================
+        # 1. TOP BAR (Clean, subtle status, not headline heavy)
+        # =========================================================================
+        self.top_bar = ctk.CTkFrame(
+            self,
+            height=44,
+            corner_radius=0,
+            fg_color=COLOR_PANEL,
+            border_width=1,
+            border_color=COLOR_BORDER,
+        )
+        self.top_bar.grid(row=0, column=0, columnspan=2, sticky="ew")
+        self.top_bar.grid_columnconfigure(1, weight=1)
 
-        # Logo text & sub-badge
-        logo_frame = ctk.CTkFrame(self.header_bar, fg_color="transparent")
-        logo_frame.grid(row=0, column=0, padx=(16, 16), pady=6, sticky="w")
+        # Brand / Logo Section (Left)
+        brand_frame = ctk.CTkFrame(self.top_bar, fg_color="transparent")
+        brand_frame.grid(row=0, column=0, padx=(16, 12), pady=6, sticky="w")
 
-        # Display App Icon Image in Header (Harmonized size: 24x24)
         png_file = self.icon_dir / "icon.png"
         if png_file.exists():
             try:
-                from PIL import Image
                 pil_logo = Image.open(png_file)
-                self.logo_ctk_image = ctk.CTkImage(light_image=pil_logo, dark_image=pil_logo, size=(24, 24))
-                self.logo_icon_lbl = ctk.CTkLabel(logo_frame, image=self.logo_ctk_image, text="")
+                self.logo_ctk_image = ctk.CTkImage(light_image=pil_logo, dark_image=pil_logo, size=(22, 22))
+                self.logo_icon_lbl = ctk.CTkLabel(brand_frame, image=self.logo_ctk_image, text="")
                 self.logo_icon_lbl.pack(side="left", padx=(0, 8))
             except Exception as e:
                 logger.debug("Could not load header logo image: %s", e)
 
-        self.logo_lbl = ctk.CTkLabel(
-            logo_frame,
+        self.brand_title_lbl = ctk.CTkLabel(
+            brand_frame,
             text="CORE PHOTO",
-            font=ctk.CTkFont(size=15, weight="bold"),
-            text_color="#1E293B"
+            font=get_font(13, "bold"),
+            text_color=COLOR_CHARCOAL,
         )
-        self.logo_lbl.pack(side="left")
+        self.brand_title_lbl.pack(side="left")
 
-        # Top System Status Indicators (Harmonized font size)
-        status_frame = ctk.CTkFrame(self.header_bar, fg_color="transparent")
-        status_frame.grid(row=0, column=1, sticky="e", padx=16)
+        # Subtle System Status Indicators (Right)
+        status_frame = ctk.CTkFrame(self.top_bar, fg_color="transparent")
+        status_frame.grid(row=0, column=1, sticky="e", padx=16, pady=6)
 
+        # Session status
         self.top_session_lbl = ctk.CTkLabel(
             status_frame,
-            text="Sesi: [Belum Ada]",
-            font=ctk.CTkFont(size=11, weight="bold"),
-            text_color="#D97706"
+            text="Session: [None]",
+            font=get_font(11, "bold"),
+            text_color=COLOR_TEXT_MUTED,
         )
-        self.top_session_lbl.pack(side="left", padx=8)
+        self.top_session_lbl.pack(side="left", padx=(0, 16))
 
-        self.top_cam_lbl = ctk.CTkLabel(
+        # Divider
+        ctk.CTkLabel(status_frame, text="|", font=get_font(11), text_color=COLOR_BORDER_STRONG).pack(side="left", padx=(0, 16))
+
+        # Camera status
+        self.top_cam_indicator = ctk.CTkLabel(
             status_frame,
-            text="Kamera: Disconnected",
-            font=ctk.CTkFont(size=11),
-            text_color="#6B7280"
+            text="● Disconnected",
+            font=get_font(11, "bold"),
+            text_color=COLOR_ERROR,
         )
-        self.top_cam_lbl.pack(side="left", padx=8)
+        self.top_cam_indicator.pack(side="left", padx=(0, 16))
 
+        # Divider
+        ctk.CTkLabel(status_frame, text="|", font=get_font(11), text_color=COLOR_BORDER_STRONG).pack(side="left", padx=(0, 16))
+
+        # Storage status
         self.top_storage_lbl = ctk.CTkLabel(
             status_frame,
-            text="Storage: OK",
-            font=ctk.CTkFont(size=11),
-            text_color="#059669"
+            text="Storage: Checking...",
+            font=get_font(11),
+            text_color=COLOR_TEXT_MUTED,
         )
-        self.top_storage_lbl.pack(side="left", padx=8)
+        self.top_storage_lbl.pack(side="left")
 
-        # ----------------- Left Navigation Sidebar (Light Mode) -----------------
-        self.sidebar = ctk.CTkFrame(self, width=220, corner_radius=0, fg_color="#F8FAFC", border_width=1, border_color="#E2E8F0")
+        # =========================================================================
+        # 2. LEFT SIDEBAR (Compact, strictly grouped, zero emojis)
+        # =========================================================================
+        self.sidebar = ctk.CTkFrame(
+            self,
+            width=200,
+            corner_radius=0,
+            fg_color=COLOR_PANEL,
+            border_width=1,
+            border_color=COLOR_BORDER,
+        )
         self.sidebar.grid(row=1, column=0, sticky="nsew")
-        self.sidebar.grid_rowconfigure(20, weight=1)
+        self.sidebar.grid_propagate(False)
+        self.sidebar.grid_rowconfigure(25, weight=1)
 
         self.nav_buttons: Dict[str, ctk.CTkButton] = {}
 
-        nav_groups = [
-            ("ALUR KERJA UTAMA", [
-                ("dashboard", "📊 Dashboard", "Halaman Utama & Status"),
-                ("session", "📁 Sesi Foto", "Pilih / Buat Sesi Baru"),
-                ("capture", "📷 Capture Foto", "Live View & Ambil Foto"),
-                ("review", "👁️ Review Foto", "Inspeksi & Simpan Tray"),
+        nav_structure = [
+            ("MAIN", [
+                ("dashboard", "Dashboard"),
+                ("capture", "Capture"),
             ]),
-            ("DATA & DISTRIBUSI", [
-                ("browser", "🔍 Photo Browser", "Galeri & Filter Foto"),
-                ("validation", "✅ Validasi Data", "Audit & Integritas"),
-                ("transfer", "📤 Transfer Server", "Kirim Data ke Server"),
-                ("settings", "⚙️ Pengaturan", "Diagnostik & Recovery"),
-            ])
+            ("REVIEW", [
+                ("review", "Review"),
+                ("browser", "Photo Browser"),
+                ("validation", "Validation"),
+            ]),
+            ("DATA", [
+                ("transfer", "Transfer"),
+                ("session", "Session"),
+            ]),
+            ("SYSTEM", [
+                ("settings", "Settings"),
+                ("diagnostics", "Diagnostics"),
+            ]),
         ]
 
         current_row = 0
-        for group_title, items in nav_groups:
+        for group_title, items in nav_structure:
             grp_lbl = ctk.CTkLabel(
                 self.sidebar,
                 text=group_title,
-                font=ctk.CTkFont(size=10, weight="bold"),
-                text_color="#94A3B8"
+                font=get_font(10, "bold"),
+                text_color=COLOR_TEXT_HINT,
             )
-            grp_lbl.grid(row=current_row, column=0, padx=14, pady=(12 if current_row > 0 else 8, 4), sticky="w")
+            grp_lbl.grid(row=current_row, column=0, padx=16, pady=(12 if current_row > 0 else 10, 3), sticky="w")
             current_row += 1
 
-            for route, label, tooltip in items:
+            for route_key, label in items:
                 btn = ctk.CTkButton(
                     self.sidebar,
                     text=label,
                     anchor="w",
-                    font=ctk.CTkFont(size=12, weight="normal"),
-                    height=35,
-                    corner_radius=6,
+                    font=get_font(12, "normal"),
+                    height=32,
+                    corner_radius=4,
                     fg_color="transparent",
-                    text_color="#334155",
-                    hover_color="#E2E8F0",
-                    command=lambda r=route: self.navigate_to(r)
+                    text_color=COLOR_TEXT_PRIMARY,
+                    hover_color=COLOR_PANEL_ALT,
+                    command=lambda r=route_key: self.navigate_to(r),
                 )
                 btn.grid(row=current_row, column=0, padx=8, pady=1, sticky="ew")
-                self.nav_buttons[route] = btn
+                self.nav_buttons[route_key] = btn
                 current_row += 1
 
-        # Version stamp
-        v_frame = ctk.CTkFrame(self.sidebar, fg_color="transparent")
-        v_frame.grid(row=21, column=0, padx=12, pady=16, sticky="s")
+        # Sidebar footer
+        side_footer = ctk.CTkFrame(self.sidebar, fg_color="transparent")
+        side_footer.grid(row=26, column=0, padx=12, pady=12, sticky="s")
 
-        v_lbl = ctk.CTkLabel(
-            v_frame,
-            text="Core Photo v1.0.0\nOffline-Ready",
-            font=ctk.CTkFont(size=11),
-            text_color="#94A3B8",
-            justify="center"
+        lbl_version = ctk.CTkLabel(
+            side_footer,
+            text="Core Photo v1.0.0\nIndustrial Edition",
+            font=get_font(10),
+            text_color=COLOR_TEXT_HINT,
+            justify="center",
         )
-        v_lbl.pack()
+        lbl_version.pack()
 
-        # ----------------- Main Content Area (Light Mode) -----------------
-        self.content_area = ctk.CTkFrame(self, corner_radius=0, fg_color="#F1F5F9")
+        # =========================================================================
+        # 3. MAIN CONTENT CONTAINER (Off-white industrial canvas)
+        # =========================================================================
+        self.content_area = ctk.CTkFrame(self, corner_radius=0, fg_color=COLOR_BG)
         self.content_area.grid(row=1, column=1, sticky="nsew")
         self.content_area.grid_rowconfigure(0, weight=1)
         self.content_area.grid_columnconfigure(0, weight=1)
+
+        # =========================================================================
+        # 4. BOTTOM STATUS BAR (Industrial status & operational metadata)
+        # =========================================================================
+        self.bottom_bar = ctk.CTkFrame(
+            self,
+            height=26,
+            corner_radius=0,
+            fg_color=COLOR_PANEL,
+            border_width=1,
+            border_color=COLOR_BORDER,
+        )
+        self.bottom_bar.grid(row=2, column=0, columnspan=2, sticky="ew")
+        self.bottom_bar.grid_columnconfigure(1, weight=1)
+
+        self.bottom_status_lbl = ctk.CTkLabel(
+            self.bottom_bar,
+            text="System Ready  |  WebcamAdapter Active",
+            font=get_font(10),
+            text_color=COLOR_TEXT_MUTED,
+        )
+        self.bottom_status_lbl.grid(row=0, column=0, padx=16, pady=2, sticky="w")
+
+        self.bottom_info_lbl = ctk.CTkLabel(
+            self.bottom_bar,
+            text="Offline-Ready  |  SQLite Database OK",
+            font=get_font(10),
+            text_color=COLOR_TEXT_HINT,
+        )
+        self.bottom_info_lbl.grid(row=0, column=1, padx=16, pady=2, sticky="e")
 
     def _init_views(self) -> None:
         """Instantiates all application screen frames."""
@@ -212,7 +294,7 @@ class CorePhotoApp(ctk.CTk):
         self.views["review"] = ReviewView(
             self.content_area,
             navigate_fn=self.navigate_to,
-            advance_tray_fn=capture_view.advance_to_next_tray
+            advance_tray_fn=capture_view.advance_to_next_tray,
         )
         self.views["browser"] = BrowserView(self.content_area, navigate_fn=self.navigate_to)
         self.views["validation"] = ValidationView(self.content_area, navigate_fn=self.navigate_to)
@@ -223,55 +305,86 @@ class CorePhotoApp(ctk.CTk):
         """Navigates smoothly between screens."""
         logger.info("Navigating to view: %s", route)
 
+        # Handle 'diagnostics' routing to settings view
+        effective_route = "settings" if route == "diagnostics" else route
+
         # Handle view lifecycle transitions
-        if self.current_view_name == "capture" and route != "capture":
+        if self.current_view_name == "capture" and effective_route != "capture":
             self.views["capture"].stop_view()
 
-        # Update button highlights for Light Mode
+        # Update button highlights for Industrial Orange active indicator
         for r, btn in self.nav_buttons.items():
-            if r == route:
-                btn.configure(fg_color="#EBF5FF", hover_color="#DBEAFE", text_color="#1D4ED8", font=ctk.CTkFont(size=13, weight="bold"))
+            if r == route or (route == "diagnostics" and r == "diagnostics"):
+                btn.configure(
+                    fg_color=COLOR_ACCENT_LIGHT,
+                    hover_color=COLOR_ACCENT_LIGHT,
+                    text_color=COLOR_ACCENT,
+                    font=get_font(12, "bold"),
+                )
             else:
-                btn.configure(fg_color="transparent", hover_color="#E2E8F0", text_color="#475569", font=ctk.CTkFont(size=13, weight="normal"))
+                btn.configure(
+                    fg_color="transparent",
+                    hover_color=COLOR_PANEL_ALT,
+                    text_color=COLOR_TEXT_PRIMARY,
+                    font=get_font(12, "normal"),
+                )
 
         # Hide current view
         if self.current_view_name in self.views:
             self.views[self.current_view_name].grid_forget()
 
         # Show target view
-        target_view = self.views.get(route)
+        target_view = self.views.get(effective_route)
         if target_view:
             target_view.grid(row=0, column=0, sticky="nsew")
             if hasattr(target_view, "refresh"):
                 target_view.refresh()
-            if route == "capture":
+            if effective_route == "capture":
                 target_view.start_view()
 
-        self.current_view_name = route
+        self.current_view_name = effective_route
         self._update_top_header()
 
     def _update_top_header(self) -> None:
-        """Refreshes status in top bar for light mode."""
+        """Refreshes status in top bar and bottom status bar."""
         sess = self.ctx.active_session
         if sess:
-            self.top_session_lbl.configure(text=f"Sesi Aktif: {sess.site} ({sess.date})", text_color="#047857")
+            self.top_session_lbl.configure(
+                text=f"Session: {sess.site}",
+                text_color=COLOR_CHARCOAL,
+            )
+            self.bottom_status_lbl.configure(
+                text=f"Session: {sess.site}  |  Operator: {sess.operator}  |  Date: {sess.date}"
+            )
         else:
-            self.top_session_lbl.configure(text="Sesi: [Belum Ada]", text_color="#D97706")
+            self.top_session_lbl.configure(
+                text="Session: [None]",
+                text_color=COLOR_TEXT_HINT,
+            )
+            self.bottom_status_lbl.configure(
+                text="No active session  |  Create or select a session to begin capture"
+            )
 
-        cam_summary = self.ctx.camera_manager.get_status_summary()
-        self.top_cam_lbl.configure(
-            text=cam_summary,
-            text_color="#059669" if self.ctx.camera_manager.is_ready() else "#D97706"
-        )
+        cam_ready = self.ctx.camera_manager.is_ready()
+        if cam_ready:
+            self.top_cam_indicator.configure(
+                text="● Connected",
+                text_color=COLOR_SUCCESS,
+            )
+        else:
+            self.top_cam_indicator.configure(
+                text="● Disconnected",
+                text_color=COLOR_ERROR,
+            )
 
         free_gb = self.ctx.storage_manager.get_available_space_mb() / 1024.0
         self.top_storage_lbl.configure(
-            text=f"Storage: {free_gb:.1f} GB Bebas",
-            text_color="#059669" if free_gb > 1.0 else "#DC2626"
+            text=f"Storage: {free_gb:.1f} GB",
+            text_color=COLOR_TEXT_MUTED if free_gb > 1.0 else COLOR_ERROR,
         )
 
     def _startup_camera_init(self) -> None:
-        """Initializes camera connection on app start (PRD Section 8)."""
+        """Initializes camera connection on app start."""
         logger.info("Initializing camera on startup...")
         self.ctx.camera_manager.connect_camera("webcam", "0")
         self._update_top_header()

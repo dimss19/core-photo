@@ -1,6 +1,6 @@
-"""Validation Results & Audit Screen (PRD Section 20).
-Displays comprehensive data integrity audit results and enables re-running validation.
-Designed with Light Mode aesthetics, clear audit badges, and informative explanations.
+"""Validation Results & Audit Screen (Professional Industrial Redesign).
+Audits data integrity: filename schemas, MD5 checksum consistency, interval sequences, and file existence.
+Zero emojis, strict professional standards.
 """
 
 from typing import Callable
@@ -8,6 +8,29 @@ import customtkinter as ctk
 
 from core.app_context import get_app_context
 from core.logger import get_logger
+from ui.theme import (
+    COLOR_ACCENT,
+    COLOR_ACCENT_HOVER,
+    COLOR_BG,
+    COLOR_BORDER,
+    COLOR_BORDER_STRONG,
+    COLOR_CHARCOAL,
+    COLOR_ERROR,
+    COLOR_ERROR_BG,
+    COLOR_ERROR_BORDER,
+    COLOR_PANEL,
+    COLOR_PANEL_ALT,
+    COLOR_SUCCESS,
+    COLOR_SUCCESS_BG,
+    COLOR_SUCCESS_BORDER,
+    COLOR_TEXT_HINT,
+    COLOR_TEXT_MUTED,
+    COLOR_TEXT_PRIMARY,
+    COLOR_WARNING,
+    COLOR_WARNING_BG,
+    COLOR_WARNING_BORDER,
+    get_font,
+)
 
 logger = get_logger(__name__)
 
@@ -16,7 +39,7 @@ class ValidationView(ctk.CTkFrame):
     """Validation report and integrity check screen."""
 
     def __init__(self, master, navigate_fn: Callable[[str], None], **kwargs):
-        super().__init__(master, fg_color="#F8FAFC", **kwargs)
+        super().__init__(master, fg_color=COLOR_BG, **kwargs)
         self.navigate_fn = navigate_fn
         self.ctx = get_app_context()
 
@@ -26,63 +49,62 @@ class ValidationView(ctk.CTkFrame):
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=1)
 
-        # ----------------- Header -----------------
-        header = ctk.CTkFrame(self, fg_color="#FFFFFF", corner_radius=10, border_width=1, border_color="#E2E8F0")
-        header.grid(row=0, column=0, sticky="ew", padx=20, pady=(14, 8))
+        # ----------------- Top Header -----------------
+        header = ctk.CTkFrame(self, fg_color=COLOR_PANEL, corner_radius=6, border_width=1, border_color=COLOR_BORDER)
+        header.grid(row=0, column=0, sticky="ew", padx=24, pady=(20, 10))
 
         title_box = ctk.CTkFrame(header, fg_color="transparent")
-        title_box.pack(fill="x", padx=16, pady=(12, 4))
+        title_box.pack(fill="x", padx=20, pady=(16, 6))
 
         ctk.CTkLabel(
             title_box,
-            text="✅ Pusat Validasi & Integritas Data",
-            font=ctk.CTkFont(size=16, weight="bold"),
-            text_color="#1E293B"
+            text="DATA VALIDATION & INTEGRITY AUDIT",
+            font=get_font(16, "bold"),
+            text_color=COLOR_CHARCOAL,
         ).pack(anchor="w")
 
         subtitle = ctk.CTkLabel(
             title_box,
-            text="Sistem melakukan audit kepatuhan otomatis: format penamaan file, keutuhan checksum MD5, kelengkapan metadata, dan validitas rentang interval.",
-            font=ctk.CTkFont(size=11),
-            text_color="#64748B",
-            wraplength=950,
-            justify="left"
+            text="Automated compliance audit: naming structure, MD5 checksum integrity, metadata consistency, and depth intervals.",
+            font=get_font(11),
+            text_color=COLOR_TEXT_MUTED,
         )
-        subtitle.pack(anchor="w", pady=(2, 4))
+        subtitle.pack(anchor="w", pady=(2, 0))
 
         # Toolbar & Summary Bar
-        summary_bar = ctk.CTkFrame(header, fg_color="#F1F5F9", corner_radius=8)
-        summary_bar.pack(fill="x", padx=16, pady=(4, 12))
+        summary_bar = ctk.CTkFrame(header, fg_color=COLOR_PANEL_ALT, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
+        summary_bar.pack(fill="x", padx=20, pady=(6, 16))
 
         self.summary_lbl = ctk.CTkLabel(
             summary_bar,
-            text="Memuat status validasi...",
-            font=ctk.CTkFont(size=12, weight="bold"),
-            text_color="#1E293B"
+            text="Loading validation report...",
+            font=get_font(11, "bold"),
+            text_color=COLOR_TEXT_PRIMARY,
         )
         self.summary_lbl.pack(side="left", padx=14, pady=8)
 
         self.btn_run_all = ctk.CTkButton(
             summary_bar,
-            text="🔄  Jalankan Validasi Ulang Sesi",
-            font=ctk.CTkFont(size=12, weight="bold"),
-            height=34,
-            corner_radius=6,
-            fg_color="#1D4ED8",
-            hover_color="#1E40AF",
-            command=self._on_rerun_validation
+            text="RUN RE-VALIDATION AUDIT",
+            font=get_font(11, "bold"),
+            height=32,
+            corner_radius=4,
+            fg_color=COLOR_ACCENT,
+            hover_color=COLOR_ACCENT_HOVER,
+            text_color="#FFFFFF",
+            command=self._on_rerun_validation,
         )
         self.btn_run_all.pack(side="right", padx=10, pady=6)
 
         # ----------------- Scrollable List of Findings -----------------
         self.results_scroll = ctk.CTkScrollableFrame(
             self,
-            fg_color="#FFFFFF",
-            corner_radius=12,
+            fg_color=COLOR_PANEL,
+            corner_radius=6,
             border_width=1,
-            border_color="#E2E8F0"
+            border_color=COLOR_BORDER,
         )
-        self.results_scroll.grid(row=1, column=0, sticky="nsew", padx=20, pady=(0, 16))
+        self.results_scroll.grid(row=1, column=0, sticky="nsew", padx=24, pady=(0, 20))
         self.results_scroll.grid_columnconfigure(0, weight=1)
 
     def refresh(self) -> None:
@@ -93,11 +115,11 @@ class ValidationView(ctk.CTkFrame):
         if not self.ctx.active_session or not self.ctx.photo_repo or not self.ctx.validation_repo:
             ctk.CTkLabel(
                 self.results_scroll,
-                text="Tidak ada sesi aktif. Buat sesi di menu Sesi Foto terlebih dahulu.",
-                font=ctk.CTkFont(size=13),
-                text_color="#94A3B8"
+                text="No active session found. Please initialize a session first.",
+                font=get_font(12),
+                text_color=COLOR_TEXT_HINT,
             ).pack(pady=60)
-            self.summary_lbl.configure(text="Sesi: Belum Ada Sesi Aktif")
+            self.summary_lbl.configure(text="Session: [None]")
             return
 
         photos = self.ctx.photo_repo.list_by_session(self.ctx.active_session.id, active_only=True)
@@ -105,62 +127,107 @@ class ValidationView(ctk.CTkFrame):
         valid_count = sum(1 for p in photos if p.status == "VALID")
         invalid_count = total - valid_count
 
+        verdict_color = COLOR_SUCCESS if invalid_count == 0 else COLOR_WARNING
         self.summary_lbl.configure(
-            text=f"Total: {total} Foto Tray  |  ✅ Tervalidasi Penuh: {valid_count}  |  ⚠️ Perlu Perhatian: {invalid_count}",
-            text_color="#059669" if invalid_count == 0 else "#D97706"
+            text=f"Total: {total} Trays  ·  ✓ Validated: {valid_count}  ·  ! Issues: {invalid_count}",
+            text_color=verdict_color,
         )
 
         if not photos:
             ctk.CTkLabel(
                 self.results_scroll,
-                text="Belum ada foto yang diambil dalam sesi aktif ini.\nAmbil foto di menu Capture untuk melihat hasil audit.",
-                font=ctk.CTkFont(size=13),
-                text_color="#94A3B8",
-                justify="center"
+                text="No core photos captured in this session yet.\nPerform tray captures to generate validation audits.",
+                font=get_font(12),
+                text_color=COLOR_TEXT_HINT,
+                justify="center",
             ).pack(pady=60)
             return
 
         for photo in photos:
-            card = ctk.CTkFrame(self.results_scroll, fg_color="#F8FAFC", corner_radius=8, border_width=1, border_color="#E2E8F0")
-            card.pack(fill="x", padx=12, pady=6)
+            is_valid = (photo.status == "VALID")
+            card_border = COLOR_BORDER if is_valid else COLOR_WARNING_BORDER
+
+            card = ctk.CTkFrame(
+                self.results_scroll,
+                fg_color=COLOR_PANEL_ALT,
+                corner_radius=4,
+                border_width=1,
+                border_color=card_border,
+            )
+            card.pack(fill="x", padx=8, pady=6)
 
             card_top = ctk.CTkFrame(card, fg_color="transparent")
             card_top.pack(fill="x", padx=14, pady=(10, 4))
 
-            title_text = f"Foto ID #{photo.id} — {photo.filename_base}.jpg"
-            ctk.CTkLabel(card_top, text=title_text, font=ctk.CTkFont(size=13, weight="bold"), text_color="#1E293B").pack(side="left")
+            title_text = f"Photo #{photo.id} — {photo.filename_base}.jpg  ({photo.hole_id}, Tray {photo.tray_number})"
+            ctk.CTkLabel(
+                card_top,
+                text=title_text,
+                font=get_font(12, "bold"),
+                text_color=COLOR_CHARCOAL,
+            ).pack(side="left")
 
-            is_valid = photo.status == "VALID"
-            status_color = "#059669" if is_valid else "#DC2626"
-            status_bg = "#ECFDF5" if is_valid else "#FEF2F2"
+            badge_text = " VALID " if is_valid else f" {photo.status} "
+            badge_fg = COLOR_SUCCESS_BG if is_valid else COLOR_WARNING_BG
+            badge_tc = COLOR_SUCCESS if is_valid else COLOR_WARNING
+            badge_border = COLOR_SUCCESS_BORDER if is_valid else COLOR_WARNING_BORDER
 
             badge = ctk.CTkLabel(
                 card_top,
-                text=f" {photo.status} ",
-                font=ctk.CTkFont(size=11, weight="bold"),
-                text_color=status_color,
-                fg_color=status_bg,
-                corner_radius=4
+                text=badge_text,
+                font=get_font(10, "bold"),
+                text_color=badge_tc,
+                fg_color=badge_fg,
+                corner_radius=2,
             )
             badge.pack(side="right")
 
             # Load validation checks for this photo
             checks = self.ctx.validation_repo.get_for_target("photo", str(photo.id))
             if checks:
+                has_error = False
                 for chk in checks:
                     chk_frame = ctk.CTkFrame(card, fg_color="transparent")
-                    chk_frame.pack(fill="x", padx=16, pady=2)
+                    chk_frame.pack(fill="x", padx=16, pady=1)
 
-                    icon = "✅" if chk.is_valid else "❌"
-                    color = "#047857" if chk.is_valid else "#DC2626"
+                    mark = "✓" if chk.is_valid else "✕"
+                    mark_color = COLOR_SUCCESS if chk.is_valid else COLOR_ERROR
+
                     ctk.CTkLabel(
                         chk_frame,
-                        text=f"{icon}  [{chk.rule_name}] {chk.message}",
-                        font=ctk.CTkFont(size=12),
-                        text_color=color
+                        text=f"{mark}  {chk.rule_name}: {chk.message}",
+                        font=get_font(11),
+                        text_color=mark_color,
                     ).pack(anchor="w")
+
+                    if not chk.is_valid:
+                        has_error = True
+
+                if has_error:
+                    btn_fix = ctk.CTkButton(
+                        card,
+                        text="FIX ISSUE (REVIEW PHOTO)",
+                        font=get_font(10, "bold"),
+                        height=26,
+                        width=160,
+                        corner_radius=4,
+                        fg_color=COLOR_WARNING,
+                        hover_color="#B45309",
+                        text_color="#FFFFFF",
+                        command=lambda p=photo: self._on_fix_issue(p),
+                    )
+                    btn_fix.pack(anchor="e", padx=16, pady=(4, 10))
             else:
-                ctk.CTkLabel(card, text="Pemeriksaan belum dijalankan. Klik 'Jalankan Validasi Ulang'.", font=ctk.CTkFont(size=12), text_color="#94A3B8").pack(anchor="w", padx=16, pady=4)
+                ctk.CTkLabel(
+                    card,
+                    text="Validation pending. Click 'Run Re-Validation Audit'.",
+                    font=get_font(11),
+                    text_color=COLOR_TEXT_HINT,
+                ).pack(anchor="w", padx=16, pady=(2, 8))
+
+    def _on_fix_issue(self, photo) -> None:
+        self.ctx.last_photo = photo
+        self.navigate_fn("review")
 
     def _on_rerun_validation(self) -> None:
         """Re-runs validation across all photos in active session."""

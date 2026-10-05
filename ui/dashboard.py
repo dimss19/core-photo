@@ -1,22 +1,38 @@
-"""Dashboard Screen (PRD Section 5.3 & 6).
-Provides high-level system overview, workflow guide, quick action cards, and camera status.
-Optimized for clean, intuitive Light Mode design with supporting instructions.
+"""Dashboard Screen (Industrial Redesign).
+Focal points: Active Session, Camera Connection, Tray Progress, and Primary Capture Action.
+Avoids CRUD admin sprawl and useless card clutter. Zero emojis.
 """
 
-from typing import Callable, Optional
+from typing import Callable
 import customtkinter as ctk
 
 from core.app_context import get_app_context
 from core.logger import get_logger
+from ui.theme import (
+    COLOR_ACCENT,
+    COLOR_ACCENT_HOVER,
+    COLOR_BG,
+    COLOR_BORDER,
+    COLOR_CHARCOAL,
+    COLOR_ERROR,
+    COLOR_PANEL,
+    COLOR_PANEL_ALT,
+    COLOR_SUCCESS,
+    COLOR_TEXT_HINT,
+    COLOR_TEXT_MUTED,
+    COLOR_TEXT_PRIMARY,
+    COLOR_WARNING,
+    get_font,
+)
 
 logger = get_logger(__name__)
 
 
 class DashboardView(ctk.CTkFrame):
-    """Main dashboard overview screen with guided workflow."""
+    """Clean industrial dashboard focused strictly on operational readiness."""
 
     def __init__(self, master, navigate_fn: Callable[[str], None], **kwargs):
-        super().__init__(master, fg_color="#F8FAFC", **kwargs)
+        super().__init__(master, fg_color=COLOR_BG, **kwargs)
         self.navigate_fn = navigate_fn
         self.ctx = get_app_context()
 
@@ -27,214 +43,184 @@ class DashboardView(ctk.CTkFrame):
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(2, weight=1)
 
-        # ----------------- 1. Hero & Guided Step Indicator -----------------
-        hero_frame = ctk.CTkFrame(self, fg_color="#FFFFFF", corner_radius=12, border_width=1, border_color="#E2E8F0")
-        hero_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=(16, 10))
-        hero_frame.grid_columnconfigure(0, weight=1)
+        # ----------------- Top Header Section -----------------
+        header_frame = ctk.CTkFrame(self, fg_color=COLOR_PANEL, corner_radius=6, border_width=1, border_color=COLOR_BORDER)
+        header_frame.grid(row=0, column=0, sticky="ew", padx=24, pady=(20, 16))
+        header_frame.grid_columnconfigure(0, weight=1)
 
-        # Title & Welcome
-        title_box = ctk.CTkFrame(hero_frame, fg_color="transparent")
-        title_box.pack(fill="x", padx=20, pady=(16, 6))
+        title_box = ctk.CTkFrame(header_frame, fg_color="transparent")
+        title_box.pack(fill="x", padx=20, pady=16)
 
-        title = ctk.CTkLabel(
+        lbl_title = ctk.CTkLabel(
             title_box,
-            text="Core Photo — Alur Kerja Lapangan",
-            font=ctk.CTkFont(size=18, weight="bold"),
-            text_color="#1E293B"
+            text="OPERATIONAL OVERVIEW",
+            font=get_font(16, "bold"),
+            text_color=COLOR_CHARCOAL,
         )
-        title.pack(anchor="w")
+        lbl_title.pack(anchor="w")
 
-        subtitle = ctk.CTkLabel(
+        lbl_subtitle = ctk.CTkLabel(
             title_box,
-            text="Sistem foto drill core otomatis dengan validasi data 10-titik dan pengarsipan aman.",
-            font=ctk.CTkFont(size=12),
-            text_color="#64748B"
+            text="Real-time hardware status, active logging session, and direct capture workflow.",
+            font=get_font(11),
+            text_color=COLOR_TEXT_MUTED,
         )
-        subtitle.pack(anchor="w", pady=(2, 0))
+        lbl_subtitle.pack(anchor="w", pady=(2, 0))
 
-        # Workflow Steps Bar
-        steps_container = ctk.CTkFrame(hero_frame, fg_color="#F1F5F9", corner_radius=8)
-        steps_container.pack(fill="x", padx=16, pady=(6, 14))
-        steps_container.grid_columnconfigure((0, 1, 2, 3), weight=1)
+        # ----------------- Three Focus Cards Row -----------------
+        cards_row = ctk.CTkFrame(self, fg_color="transparent")
+        cards_row.grid(row=1, column=0, sticky="ew", padx=24, pady=0)
+        cards_row.grid_columnconfigure((0, 1, 2), weight=1, uniform="dash_cards")
 
-        steps = [
-            ("Sesi Foto", "Tentukan Site & Operator", "#1D4ED8"),
-            ("Ambil Foto", "Framing & Capture RAW", "#0284C7"),
-            ("Review Foto", "Periksa & Validasi Tray", "#059669"),
-            ("Transfer Data", "Kirim ke Server Pusat", "#7C3AED"),
-        ]
-
-        for idx, (step_title, step_desc, step_color) in enumerate(steps):
-            col_frame = ctk.CTkFrame(steps_container, fg_color="transparent")
-            col_frame.grid(row=0, column=idx, padx=10, pady=8, sticky="ew")
-
-            st_lbl = ctk.CTkLabel(
-                col_frame,
-                text=step_title,
-                font=ctk.CTkFont(size=12, weight="bold"),
-                text_color=step_color
-            )
-            st_lbl.pack(anchor="w")
-
-            sd_lbl = ctk.CTkLabel(
-                col_frame,
-                text=step_desc,
-                font=ctk.CTkFont(size=11),
-                text_color="#64748B"
-            )
-            sd_lbl.pack(anchor="w")
-
-        # ----------------- 2. Status Overview Cards -----------------
-        self.status_container = ctk.CTkFrame(self, fg_color="transparent")
-        self.status_container.grid(row=1, column=0, sticky="ew", padx=20, pady=4)
-        self.status_container.grid_columnconfigure((0, 1, 2), weight=1)
-
-        # Card 1: Camera Status
-        self.cam_card = ctk.CTkFrame(self.status_container, fg_color="#FFFFFF", corner_radius=8, border_width=1, border_color="#E2E8F0")
-        self.cam_card.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
-
-        ctk.CTkLabel(self.cam_card, text="📷 Status Kamera", font=ctk.CTkFont(size=13, weight="bold"), text_color="#1E293B").pack(anchor="w", padx=14, pady=(10, 2))
-        self.cam_status_lbl = ctk.CTkLabel(self.cam_card, text="Mengecek koneksi...", font=ctk.CTkFont(size=12, weight="bold"), text_color="#0284C7")
-        self.cam_status_lbl.pack(anchor="w", padx=14, pady=(0, 1))
-        self.cam_sub_lbl = ctk.CTkLabel(self.cam_card, text="Webcam / USB Camera", font=ctk.CTkFont(size=11), text_color="#64748B")
-        self.cam_sub_lbl.pack(anchor="w", padx=14, pady=(0, 10))
-
-        # Card 2: Active Session
-        self.session_card = ctk.CTkFrame(self.status_container, fg_color="#FFFFFF", corner_radius=8, border_width=1, border_color="#E2E8F0")
-        self.session_card.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
-
-        ctk.CTkLabel(self.session_card, text="📁 Sesi Aktif", font=ctk.CTkFont(size=13, weight="bold"), text_color="#1E293B").pack(anchor="w", padx=14, pady=(10, 2))
-        self.session_status_lbl = ctk.CTkLabel(self.session_card, text="Belum ada sesi", font=ctk.CTkFont(size=12, weight="bold"), text_color="#D97706")
-        self.session_status_lbl.pack(anchor="w", padx=14, pady=(0, 1))
-        self.session_sub_lbl = ctk.CTkLabel(self.session_card, text="Buat sesi baru untuk mulai", font=ctk.CTkFont(size=11), text_color="#64748B")
-        self.session_sub_lbl.pack(anchor="w", padx=14, pady=(0, 10))
-
-        # Card 3: Storage Health
-        self.storage_card = ctk.CTkFrame(self.status_container, fg_color="#FFFFFF", corner_radius=8, border_width=1, border_color="#E2E8F0")
-        self.storage_card.grid(row=0, column=2, sticky="nsew", padx=4, pady=4)
-
-        ctk.CTkLabel(self.storage_card, text="💾 Penyimpanan Lokal", font=ctk.CTkFont(size=13, weight="bold"), text_color="#1E293B").pack(anchor="w", padx=14, pady=(10, 2))
-        self.storage_status_lbl = ctk.CTkLabel(self.storage_card, text="Memeriksa...", font=ctk.CTkFont(size=12, weight="bold"), text_color="#059669")
-        self.storage_status_lbl.pack(anchor="w", padx=14, pady=(0, 1))
-        self.storage_sub_lbl = ctk.CTkLabel(self.storage_card, text="Format folder terstandarisasi", font=ctk.CTkFont(size=11), text_color="#64748B")
-        self.storage_sub_lbl.pack(anchor="w", padx=14, pady=(0, 10))
-
-        # ----------------- 3. Action Panel & Session Stats -----------------
-        content_frame = ctk.CTkFrame(self, fg_color="transparent")
-        content_frame.grid(row=2, column=0, sticky="nsew", padx=20, pady=(4, 14))
-        content_frame.grid_columnconfigure(0, weight=3)
-        content_frame.grid_columnconfigure(1, weight=2)
-        content_frame.grid_rowconfigure(0, weight=1)
-
-        # Quick Actions (Left)
-        actions_panel = ctk.CTkFrame(content_frame, fg_color="#FFFFFF", corner_radius=10, border_width=1, border_color="#E2E8F0")
-        actions_panel.grid(row=0, column=0, sticky="nsew", padx=(0, 8), pady=4)
+        # 1. Active Session Card
+        self.session_card = ctk.CTkFrame(cards_row, fg_color=COLOR_PANEL, corner_radius=6, border_width=1, border_color=COLOR_BORDER)
+        self.session_card.grid(row=0, column=0, sticky="nsew", padx=(0, 8), pady=0)
 
         ctk.CTkLabel(
-            actions_panel,
-            text="Aksi Langsung",
-            font=ctk.CTkFont(size=15, weight="bold"),
-            text_color="#1E293B"
-        ).pack(anchor="w", padx=16, pady=(14, 2))
+            self.session_card,
+            text="ACTIVE SESSION",
+            font=get_font(10, "bold"),
+            text_color=COLOR_TEXT_HINT,
+        ).pack(anchor="w", padx=16, pady=(16, 4))
+
+        self.lbl_session_name = ctk.CTkLabel(
+            self.session_card,
+            text="[No Active Session]",
+            font=get_font(15, "bold"),
+            text_color=COLOR_TEXT_PRIMARY,
+        )
+        self.lbl_session_name.pack(anchor="w", padx=16)
+
+        self.lbl_session_details = ctk.CTkLabel(
+            self.session_card,
+            text="Select or create a session to start logging.",
+            font=get_font(11),
+            text_color=COLOR_TEXT_MUTED,
+        )
+        self.lbl_session_details.pack(anchor="w", padx=16, pady=(2, 16))
+
+        # 2. Camera Status Card
+        self.cam_card = ctk.CTkFrame(cards_row, fg_color=COLOR_PANEL, corner_radius=6, border_width=1, border_color=COLOR_BORDER)
+        self.cam_card.grid(row=0, column=1, sticky="nsew", padx=4, pady=0)
 
         ctk.CTkLabel(
-            actions_panel,
-            text="Pilih menu utama di bawah untuk melanjutkan aktivitas kerja Anda:",
-            font=ctk.CTkFont(size=11),
-            text_color="#64748B"
-        ).pack(anchor="w", padx=16, pady=(0, 10))
+            self.cam_card,
+            text="CAMERA HARDWARE",
+            font=get_font(10, "bold"),
+            text_color=COLOR_TEXT_HINT,
+        ).pack(anchor="w", padx=16, pady=(16, 4))
 
-        # Context-Aware Primary Action Button
-        self.primary_cta_btn = ctk.CTkButton(
-            actions_panel,
-            text="📁  Buat Sesi Baru Terlebih Dahulu",
-            font=ctk.CTkFont(size=13, weight="bold"),
-            height=40,
-            corner_radius=6,
-            fg_color="#1D4ED8",
-            hover_color="#1E40AF",
-            command=self._on_primary_cta_click
+        self.lbl_cam_status = ctk.CTkLabel(
+            self.cam_card,
+            text="● Disconnected",
+            font=get_font(15, "bold"),
+            text_color=COLOR_ERROR,
         )
-        self.primary_cta_btn.pack(fill="x", padx=16, pady=(2, 2))
+        self.lbl_cam_status.pack(anchor="w", padx=16)
 
-        self.primary_cta_hint = ctk.CTkLabel(
-            actions_panel,
-            text="💡 Tentukan lokasi pit/site dan nama operator untuk memulai.",
-            font=ctk.CTkFont(size=11),
-            text_color="#64748B"
+        self.lbl_cam_details = ctk.CTkLabel(
+            self.cam_card,
+            text="USB Video Device (OpenCV / WebcamAdapter)",
+            font=get_font(11),
+            text_color=COLOR_TEXT_MUTED,
         )
-        self.primary_cta_hint.pack(anchor="w", padx=16, pady=(0, 8))
+        self.lbl_cam_details.pack(anchor="w", padx=16, pady=(2, 16))
 
-        # Secondary Actions
-        btn_session = ctk.CTkButton(
-            actions_panel,
-            text="📁  Kelola Sesi (Ganti atau Buka Sesi Tersimpan)",
-            font=ctk.CTkFont(size=12, weight="normal"),
-            height=36,
-            corner_radius=6,
-            fg_color="#F1F5F9",
-            text_color="#1E293B",
-            hover_color="#E2E8F0",
-            command=lambda: self.navigate_fn("session")
-        )
-        btn_session.pack(fill="x", padx=16, pady=3)
-
-        btn_browser = ctk.CTkButton(
-            actions_panel,
-            text="🔍  Buka Photo Browser (Galeri & Filter Hole ID)",
-            font=ctk.CTkFont(size=12, weight="normal"),
-            height=36,
-            corner_radius=6,
-            fg_color="#F1F5F9",
-            text_color="#1E293B",
-            hover_color="#E2E8F0",
-            command=lambda: self.navigate_fn("browser")
-        )
-        btn_browser.pack(fill="x", padx=16, pady=3)
-
-        # Quick Stats Panel (Right)
-        stats_panel = ctk.CTkFrame(content_frame, fg_color="#FFFFFF", corner_radius=10, border_width=1, border_color="#E2E8F0")
-        stats_panel.grid(row=0, column=1, sticky="nsew", padx=(8, 0), pady=4)
+        # 3. Work Progress Card
+        self.progress_card = ctk.CTkFrame(cards_row, fg_color=COLOR_PANEL, corner_radius=6, border_width=1, border_color=COLOR_BORDER)
+        self.progress_card.grid(row=0, column=2, sticky="nsew", padx=(8, 0), pady=0)
 
         ctk.CTkLabel(
-            stats_panel,
-            text="Statistik Sesi Aktif",
-            font=ctk.CTkFont(size=15, weight="bold"),
-            text_color="#1E293B"
-        ).pack(anchor="w", padx=16, pady=(14, 2))
+            self.progress_card,
+            text="PROGRESS SUMMARY",
+            font=get_font(10, "bold"),
+            text_color=COLOR_TEXT_HINT,
+        ).pack(anchor="w", padx=16, pady=(16, 4))
+
+        self.lbl_progress_main = ctk.CTkLabel(
+            self.progress_card,
+            text="0 Trays Completed",
+            font=get_font(15, "bold"),
+            text_color=COLOR_TEXT_PRIMARY,
+        )
+        self.lbl_progress_main.pack(anchor="w", padx=16)
+
+        self.lbl_progress_details = ctk.CTkLabel(
+            self.progress_card,
+            text="0 Trays pending review / transfer",
+            font=get_font(11),
+            text_color=COLOR_TEXT_MUTED,
+        )
+        self.lbl_progress_details.pack(anchor="w", padx=16, pady=(2, 16))
+
+        # ----------------- Primary Action Section -----------------
+        action_frame = ctk.CTkFrame(self, fg_color=COLOR_PANEL, corner_radius=6, border_width=1, border_color=COLOR_BORDER)
+        action_frame.grid(row=2, column=0, sticky="nsew", padx=24, pady=16)
+        action_frame.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
-            stats_panel,
-            text="Ringkasan foto dan status verifikasi:",
-            font=ctk.CTkFont(size=11),
-            text_color="#64748B"
-        ).pack(anchor="w", padx=16, pady=(0, 10))
+            action_frame,
+            text="OPERATOR ACTION",
+            font=get_font(12, "bold"),
+            text_color=COLOR_CHARCOAL,
+        ).pack(anchor="w", padx=20, pady=(20, 4))
 
-        # Stat Items in Light Cards
-        stat_box = ctk.CTkFrame(stats_panel, fg_color="#F8FAFC", corner_radius=8, border_width=1, border_color="#E2E8F0")
-        stat_box.pack(fill="x", padx=16, pady=4)
+        self.lbl_action_hint = ctk.CTkLabel(
+            action_frame,
+            text="Continue capturing drill core photos with active camera calibration.",
+            font=get_font(11),
+            text_color=COLOR_TEXT_MUTED,
+        )
+        self.lbl_action_hint.pack(anchor="w", padx=20, pady=(0, 16))
 
-        self.stat_photos_lbl = ctk.CTkLabel(stat_box, text="Total Foto: 0 Tray", font=ctk.CTkFont(size=13, weight="bold"), text_color="#1E293B")
-        self.stat_photos_lbl.pack(anchor="w", padx=14, pady=(8, 2))
+        # Primary Orange CTA
+        self.btn_primary_cta = ctk.CTkButton(
+            action_frame,
+            text="CONTINUE CAPTURE",
+            font=get_font(13, "bold"),
+            height=46,
+            corner_radius=4,
+            fg_color=COLOR_ACCENT,
+            hover_color=COLOR_ACCENT_HOVER,
+            text_color="#FFFFFF",
+            command=self._on_primary_cta_click,
+        )
+        self.btn_primary_cta.pack(fill="x", padx=20, pady=(0, 10))
 
-        self.stat_valid_lbl = ctk.CTkLabel(stat_box, text="✅ Tervalidasi Penuh: 0", font=ctk.CTkFont(size=12), text_color="#059669")
-        self.stat_valid_lbl.pack(anchor="w", padx=14, pady=1)
+        # Secondary Actions Row
+        sec_row = ctk.CTkFrame(action_frame, fg_color="transparent")
+        sec_row.pack(fill="x", padx=20, pady=(0, 20))
+        sec_row.grid_columnconfigure((0, 1), weight=1)
 
-        self.stat_pending_lbl = ctk.CTkLabel(stat_box, text="⏳ Siap Dikirim: 0", font=ctk.CTkFont(size=12), text_color="#D97706")
-        self.stat_pending_lbl.pack(anchor="w", padx=14, pady=(1, 8))
+        self.btn_manage_session = ctk.CTkButton(
+            sec_row,
+            text="MANAGE SESSION",
+            font=get_font(12, "bold"),
+            height=38,
+            corner_radius=4,
+            fg_color=COLOR_PANEL_ALT,
+            hover_color=COLOR_BORDER,
+            text_color=COLOR_CHARCOAL,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            command=lambda: self.navigate_fn("session"),
+        )
+        self.btn_manage_session.grid(row=0, column=0, sticky="ew", padx=(0, 6))
 
-        # Quick Info Tip
-        tip_frame = ctk.CTkFrame(stats_panel, fg_color="#EFF6FF", corner_radius=8, border_width=1, border_color="#BFDBFE")
-        tip_frame.pack(fill="x", padx=16, pady=(10, 14))
-
-        ctk.CTkLabel(
-            tip_frame,
-            text="Petunjuk Singkat:\nSetiap kali selesai mengambil foto, sistem otomatis memotong ke rasio standar 300x200 dan menghitung hash integritas MD5.",
-            font=ctk.CTkFont(size=11),
-            text_color="#1E40AF",
-            justify="left",
-            wraplength=260
-        ).pack(padx=10, pady=8)
+        self.btn_photo_browser = ctk.CTkButton(
+            sec_row,
+            text="PHOTO BROWSER",
+            font=get_font(12, "bold"),
+            height=38,
+            corner_radius=4,
+            fg_color=COLOR_PANEL_ALT,
+            hover_color=COLOR_BORDER,
+            text_color=COLOR_CHARCOAL,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            command=lambda: self.navigate_fn("browser"),
+        )
+        self.btn_photo_browser.grid(row=0, column=1, sticky="ew", padx=(6, 0))
 
     def _on_primary_cta_click(self) -> None:
         if self.ctx.active_session:
@@ -243,76 +229,52 @@ class DashboardView(ctk.CTkFrame):
             self.navigate_fn("session")
 
     def refresh(self) -> None:
-        """Refreshes status indicators and statistics in Light Mode."""
+        """Updates dashboard state from AppContext."""
         # 1. Camera Status
         cam_ready = self.ctx.camera_manager.is_ready()
         cam_summary = self.ctx.camera_manager.get_status_summary()
-        self.cam_status_lbl.configure(
-            text=cam_summary,
-            text_color="#059669" if cam_ready else "#D97706"
-        )
-        self.cam_sub_lbl.configure(
-            text="Kamera siap untuk capture" if cam_ready else "Hubungkan webcam melalui USB"
-        )
+        if cam_ready:
+            self.lbl_cam_status.configure(text="● Connected", text_color=COLOR_SUCCESS)
+            self.lbl_cam_details.configure(text=cam_summary)
+        else:
+            self.lbl_cam_status.configure(text="● Disconnected", text_color=COLOR_ERROR)
+            self.lbl_cam_details.configure(text="No live camera feed detected")
 
-        # 2. Session Status & Primary CTA Configuration
+        # 2. Active Session & CTA
         sess = self.ctx.active_session
         if sess:
-            self.session_status_lbl.configure(
-                text=f"{sess.site} ({sess.date})",
-                text_color="#047857"
+            self.lbl_session_name.configure(text=sess.site, text_color=COLOR_CHARCOAL)
+            self.lbl_session_details.configure(
+                text=f"Operator: {sess.operator}  ·  Date: {sess.date}"
             )
-            self.session_sub_lbl.configure(
-                text=f"Operator: {sess.operator}"
+            self.btn_primary_cta.configure(
+                text="CONTINUE CAPTURE",
+                fg_color=COLOR_ACCENT,
+                hover_color=COLOR_ACCENT_HOVER,
             )
-            self.primary_cta_btn.configure(
-                text="📷  Lanjutkan Pengambilan Foto (Capture)",
-                fg_color="#059669",
-                hover_color="#047857"
-            )
-            self.primary_cta_hint.configure(
-                text=f"Sesi aktif terpasang: {sess.id}. Klik untuk mengambil tray foto berikutnya.",
-                text_color="#047857"
+            self.lbl_action_hint.configure(
+                text=f"Session '{sess.site}' is active. Advance directly to live view framing and capture."
             )
         else:
-            self.session_status_lbl.configure(
-                text="Belum ada sesi aktif",
-                text_color="#D97706"
+            self.lbl_session_name.configure(text="[No Active Session]", text_color=COLOR_TEXT_HINT)
+            self.lbl_session_details.configure(text="Create or open a session to start logging core photos.")
+            self.btn_primary_cta.configure(
+                text="CREATE / SELECT SESSION",
+                fg_color=COLOR_CHARCOAL,
+                hover_color=COLOR_CHARCOAL_HOVER,
             )
-            self.session_sub_lbl.configure(
-                text="Klik tombol aksi untuk membuat sesi"
-            )
-            self.primary_cta_btn.configure(
-                text="📁  Buat Sesi Baru Terlebih Dahulu",
-                fg_color="#1D4ED8",
-                hover_color="#1E40AF"
-            )
-            self.primary_cta_hint.configure(
-                text="Tentukan lokasi pit/site dan nama operator untuk memulai.",
-                text_color="#64748B"
+            self.lbl_action_hint.configure(
+                text="No active session found. A session must be initialized before photo acquisition."
             )
 
-        # 3. Storage
-        free_mb = self.ctx.storage_manager.get_available_space_mb()
-        free_gb = free_mb / 1024.0
-        self.storage_status_lbl.configure(
-            text=f"{free_gb:.1f} GB Bebas",
-            text_color="#059669" if free_gb > 1.0 else "#DC2626"
-        )
-        self.storage_sub_lbl.configure(
-            text="Ruang disk lokal mencukupi" if free_gb > 1.0 else "PERINGATAN: Ruang disk menipis!"
-        )
-
-        # 4. Stats
+        # 3. Progress Summary
         if sess and self.ctx.photo_repo:
             photos = self.ctx.photo_repo.list_by_session(sess.id, active_only=True)
             total = len(photos)
             valid = sum(1 for p in photos if p.status in ("VALID", "PROCESSED", "TRANSFERRED"))
-            ready = sum(1 for p in photos if p.status in ("VALID", "PROCESSED"))
-            self.stat_photos_lbl.configure(text=f"Total Foto: {total} Tray")
-            self.stat_valid_lbl.configure(text=f"✅ Tervalidasi Penuh: {valid}")
-            self.stat_pending_lbl.configure(text=f"⏳ Siap Dikirim: {ready}")
+            pending = total - valid
+            self.lbl_progress_main.configure(text=f"{total} Trays Logged")
+            self.lbl_progress_details.configure(text=f"{valid} validated  ·  {pending} pending review")
         else:
-            self.stat_photos_lbl.configure(text="Total Foto: 0 Tray")
-            self.stat_valid_lbl.configure(text="✅ Tervalidasi Penuh: 0")
-            self.stat_pending_lbl.configure(text="⏳ Siap Dikirim: 0")
+            self.lbl_progress_main.configure(text="0 Trays Logged")
+            self.lbl_progress_details.configure(text="0 Trays pending review / transfer")
