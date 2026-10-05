@@ -433,7 +433,7 @@ class ReviewView(ctk.CTkFrame):
         btn_refresh_cat.pack(side="left", padx=4)
 
         btn_export = ctk.CTkButton(
-            controls_box, text="Export CSV Report", width=130, height=30, font=get_font(10, "bold"),
+            controls_box, text="Export CSV", width=100, height=30, font=get_font(10, "bold"),
             corner_radius=4, fg_color=COLOR_ACCENT, hover_color=COLOR_ACCENT_HOVER, text_color="#FFFFFF",
             command=self._on_export_csv,
         )

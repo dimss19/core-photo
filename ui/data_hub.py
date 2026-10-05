@@ -149,7 +149,7 @@ class DataHubView(ctk.CTkFrame):
 
         btn_export_csv = ctk.CTkButton(
             act_right,
-            text="Export CSV Report",
+            text="Export CSV",
             font=get_font(10, "bold"),
             height=30,
             corner_radius=4,
