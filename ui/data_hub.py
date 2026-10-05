@@ -80,17 +80,6 @@ class DataHubView(ctk.CTkFrame):
             text_color=COLOR_TEXT_MUTED,
         ).pack(anchor="w", pady=(2, 0))
 
-        # Standalone Badge (Right)
-        badge_box = ctk.CTkFrame(header_inner, fg_color=COLOR_PANEL_ALT, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
-        badge_box.pack(side="right", anchor="e")
-
-        lbl_badge = ctk.CTkLabel(
-            badge_box,
-            text="● 100% OFFLINE STANDALONE",
-            font=get_font(9, "bold"),
-            text_color=COLOR_SUCCESS,
-        )
-        lbl_badge.pack(padx=12, pady=6)
 
         # =========================================================================
         # 2. MAIN CONTAINER

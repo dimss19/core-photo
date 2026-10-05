@@ -220,7 +220,7 @@ class CorePhotoApp(ctk.CTk):
 
         lbl_version = ctk.CTkLabel(
             side_footer,
-            text="Core Photo v1.0.0\n100% Offline Standalone",
+            text="Core Photo v1.0.0\nIndustrial Edition",
             font=get_font(10),
             text_color=COLOR_TEXT_HINT,
             justify="center",
@@ -259,7 +259,7 @@ class CorePhotoApp(ctk.CTk):
 
         self.bottom_info_lbl = ctk.CTkLabel(
             self.bottom_bar,
-            text="100% Offline Standalone  |  SQLite Database OK",
+            text="System Ready  |  SQLite Database OK",
             font=get_font(10),
             text_color=COLOR_TEXT_HINT,
         )
