@@ -89,6 +89,11 @@ class PhotoModel:
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
     updated_at: str = field(default_factory=lambda: datetime.now().isoformat())
 
+    @property
+    def timestamp(self) -> str:
+        """Convenience property for display."""
+        return self.captured_at or self.created_at or ""
+
 
 @dataclass
 class CameraDeviceModel:

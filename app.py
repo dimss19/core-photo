@@ -17,6 +17,7 @@ from core.logger import get_logger, setup_logging
 from ui.browser import BrowserView
 from ui.capture import CaptureView
 from ui.dashboard import DashboardView
+from ui.data_hub import DataHubView
 from ui.review import ReviewView
 from ui.session import SessionView
 from ui.settings import SettingsView
@@ -206,13 +207,11 @@ class CorePhotoApp(ctk.CTk):
                 ("capture", "Live Capture"),
             ]),
             ("REVIEW", [
-                ("review", "Tray Review"),
-                ("browser", "Photo Browser"),
-                ("validation", "Validation Center"),
+                ("review", "Tray Review & Audit"),
+                ("browser", "Photo Catalog"),
             ]),
             ("DATA", [
-                ("session", "Session Setup"),
-                ("transfer", "Server Transfer"),
+                ("data", "Data & Transfer Hub"),
             ]),
             ("SYSTEM", [
                 ("settings", "Settings & Diagnostics"),
@@ -350,30 +349,43 @@ class CorePhotoApp(ctk.CTk):
         """Instantiates all application screen frames."""
         capture_view = CaptureView(self.content_area, navigate_fn=self.navigate_to)
         self.views["capture"] = capture_view
+        self.views["dashboard"] = capture_view
 
-        self.views["dashboard"] = DashboardView(self.content_area, navigate_fn=self.navigate_to)
-        self.views["session"] = SessionView(self.content_area, navigate_fn=self.navigate_to)
-        self.views["review"] = ReviewView(
+        data_hub_view = DataHubView(self.content_area, navigate_fn=self.navigate_to)
+        self.views["data"] = data_hub_view
+        self.views["session"] = data_hub_view
+        self.views["transfer"] = data_hub_view
+
+        review_view = ReviewView(
             self.content_area,
             navigate_fn=self.navigate_to,
             advance_tray_fn=capture_view.advance_to_next_tray,
         )
+        self.views["review"] = review_view
+        self.views["validation"] = review_view
+
         self.views["browser"] = BrowserView(self.content_area, navigate_fn=self.navigate_to)
-        self.views["validation"] = ValidationView(self.content_area, navigate_fn=self.navigate_to)
-        self.views["transfer"] = TransferView(self.content_area, navigate_fn=self.navigate_to)
         self.views["settings"] = SettingsView(self.content_area, navigate_fn=self.navigate_to)
 
     def navigate_to(self, route: str, tab: Optional[str] = None) -> None:
         """Navigates smoothly between screens."""
         logger.info("Navigating to view: %s (tab: %s)", route, tab)
 
-        # Handle 'diagnostics' routing to settings view, and 'dashboard' routing to capture
+        # Handle aliases and consolidated views
         target_tab = tab
         if route == "diagnostics":
             effective_route = "settings"
             target_tab = target_tab or "DIAGNOSTICS"
         elif route == "dashboard":
             effective_route = "capture"
+        elif route == "validation":
+            effective_route = "review"
+        elif route == "session":
+            effective_route = "data"
+            target_tab = "session"
+        elif route == "transfer":
+            effective_route = "data"
+            target_tab = "transfer"
         else:
             effective_route = route
 

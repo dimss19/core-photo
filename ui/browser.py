@@ -97,7 +97,7 @@ class BrowserView(ctk.CTkFrame):
 
         self.status_filter = ctk.CTkOptionMenu(
             controls_box,
-            values=["All Statuses", "VALID", "PROCESSED", "INVALID", "TRANSFERRED"],
+            values=["All Statuses", "VALID", "Issues / Flagged", "TRANSFERRED"],
             command=lambda v: self.refresh(),
             height=32,
             width=130,
@@ -225,6 +225,48 @@ class BrowserView(ctk.CTkFrame):
         )
         self.lbl_insp_hashes.pack(anchor="w", padx=12, pady=(4, 10))
 
+        # Inspector Action Buttons
+        self.btn_inspect_deep = ctk.CTkButton(
+            self.detail_panel,
+            text="INSPECT IN TRAY REVIEW",
+            font=get_font(11, "bold"),
+            height=36,
+            corner_radius=4,
+            fg_color=COLOR_ACCENT,
+            hover_color=COLOR_ACCENT_HOVER,
+            text_color="#FFFFFF",
+            command=self._on_open_in_review,
+        )
+        self.btn_inspect_deep.pack(fill="x", padx=16, pady=(4, 4))
+
+        self.btn_insp_folder = ctk.CTkButton(
+            self.detail_panel,
+            text="Open Image Folder",
+            font=get_font(10),
+            height=30,
+            corner_radius=4,
+            fg_color=COLOR_PANEL_ALT,
+            text_color=COLOR_TEXT_PRIMARY,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            command=self._on_open_selected_folder,
+        )
+        self.btn_insp_folder.pack(fill="x", padx=16, pady=(0, 10))
+
+    def _on_open_in_review(self) -> None:
+        if self._selected_photo:
+            self.ctx.last_photo = self._selected_photo
+            self.navigate_fn("review")
+
+    def _on_open_selected_folder(self) -> None:
+        import os
+        if self._selected_photo and self._selected_photo.jpg_path:
+            folder = str(Path(self._selected_photo.jpg_path).parent)
+            try:
+                os.startfile(folder)
+            except Exception as e:
+                logger.error("Failed opening folder %s: %s", folder, e)
+
     def refresh(self) -> None:
         """Reloads photos from database matching active search filters."""
         for widget in self.grid_container.winfo_children():
@@ -244,13 +286,16 @@ class BrowserView(ctk.CTkFrame):
 
         query = self.search_entry.get().strip()
         status_sel = self.status_filter.get()
-        status_param = None if status_sel == "All Statuses" else status_sel
+        status_param = None if status_sel in ("All Statuses", "Issues / Flagged") else status_sel
 
         photos = self.ctx.photo_repo.search(
             hole_id=query if query else None,
             tray_number=query if query else None,
             status=status_param,
         )
+
+        if status_sel == "Issues / Flagged":
+            photos = [p for p in photos if p.status not in ("VALID", "TRANSFERRED")]
 
         if not photos:
             empty_lbl = ctk.CTkLabel(
