@@ -80,27 +80,63 @@ class SettingsView(ctk.CTkFrame):
         self.tabs = ctk.CTkTabview(
             self,
             fg_color=COLOR_PANEL,
-            segmented_button_fg_color=COLOR_PANEL_ALT,
+            segmented_button_fg_color=COLOR_BORDER,
             segmented_button_selected_color=COLOR_ACCENT,
             segmented_button_selected_hover_color=COLOR_ACCENT_HOVER,
-            segmented_button_unselected_color=COLOR_PANEL_ALT,
-            segmented_button_unselected_hover_color=COLOR_BORDER,
-            text_color="#FFFFFF",
+            segmented_button_unselected_color=COLOR_PANEL,
+            segmented_button_unselected_hover_color=COLOR_ACCENT_LIGHT,
             corner_radius=6,
             border_width=1,
             border_color=COLOR_BORDER,
+            command=self._on_tab_changed,
         )
         self.tabs.grid(row=1, column=0, sticky="nsew", padx=24, pady=(0, 20))
 
         tab_general = self.tabs.add("GENERAL")
         tab_camera = self.tabs.add("CAMERA")
         tab_server = self.tabs.add("SERVER")
-        tab_system = self.tabs.add("SYSTEM")
+        tab_diagnostics = self.tabs.add("DIAGNOSTICS")
 
         self._build_general_tab(tab_general)
         self._build_camera_tab(tab_camera)
         self._build_server_tab(tab_server)
-        self._build_system_tab(tab_system)
+        self._build_system_tab(tab_diagnostics)
+
+        self._update_tab_button_styles()
+
+    def _on_tab_changed(self) -> None:
+        """Invoked when user clicks a tab."""
+        self._update_tab_button_styles()
+
+    def _update_tab_button_styles(self) -> None:
+        """Ensures high-contrast readable text for active vs inactive tabs."""
+        current = self.tabs.get()
+        if not hasattr(self.tabs, "_segmented_button") or not hasattr(self.tabs._segmented_button, "_buttons_dict"):
+            return
+        for name, btn in self.tabs._segmented_button._buttons_dict.items():
+            if name == current:
+                btn.configure(
+                    text_color="#FFFFFF",
+                    font=get_font(11, "bold"),
+                    fg_color=COLOR_ACCENT,
+                )
+            else:
+                btn.configure(
+                    text_color=COLOR_CHARCOAL,
+                    font=get_font(11, "normal"),
+                    fg_color=COLOR_PANEL,
+                )
+
+    def select_tab(self, tab_name: str) -> None:
+        """Programmatically switch to a specific tab."""
+        try:
+            norm = tab_name.upper()
+            if norm in ("SYSTEM", "DIAGNOSTIC"):
+                norm = "DIAGNOSTICS"
+            self.tabs.set(norm)
+            self._update_tab_button_styles()
+        except Exception as e:
+            logger.debug("Failed setting tab to %s: %s", tab_name, e)
 
     # =========================================================================
     # 1. GENERAL TAB

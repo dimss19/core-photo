@@ -123,6 +123,20 @@ class BrowserView(ctk.CTkFrame):
         )
         btn_refresh.pack(side="left", padx=4)
 
+        btn_export = ctk.CTkButton(
+            controls_box,
+            text="Export CSV Report",
+            width=135,
+            height=32,
+            font=get_font(11, "bold"),
+            corner_radius=4,
+            fg_color=COLOR_ACCENT,
+            hover_color=COLOR_ACCENT_HOVER,
+            text_color="#FFFFFF",
+            command=self._on_export_csv,
+        )
+        btn_export.pack(side="left", padx=4)
+
         # =========================================================================
         # 2. LEFT: Scrollable Thumbnail Grid
         # =========================================================================
@@ -338,3 +352,29 @@ class BrowserView(ctk.CTkFrame):
         self.lbl_insp_hashes.configure(
             text=f"RAW MD5: {photo.md5_raw}\nJPG MD5: {photo.md5_jpg}\nCamera: {photo.camera_model}"
         )
+
+    def _on_export_csv(self) -> None:
+        import os
+        from tkinter import filedialog
+        sess = self.ctx.active_session
+        if not sess:
+            return
+
+        photos = self.ctx.photo_repo.get_by_session_id(sess.id) if self.ctx.photo_repo else []
+        hole_id = "TSD168"
+        if photos and photos[0].hole_id:
+            hole_id = photos[0].hole_id
+
+        dest = filedialog.asksaveasfilename(
+            title="Export Geological Report CSV",
+            initialfile=f"{hole_id}.csv",
+            defaultextension=".csv",
+            filetypes=[("CSV Spreadsheet", "*.csv"), ("All Files", "*.*")]
+        )
+        if dest:
+            from imaging.processor import ImageProcessor
+            out_path = ImageProcessor.export_csv_report(sess, photos, Path(dest))
+            try:
+                os.startfile(str(out_path))
+            except Exception:
+                pass

@@ -61,15 +61,14 @@ class CameraManager:
         except Exception as e:
             logger.debug("Hardware camera scan exception: %s", e)
 
-        # Always ensure at least the primary webcam/simulator is available
-        if not available:
-            available.append({
-                "id": "0",
-                "name": "Webcam (Primary / Simulator)",
-                "adapter": "webcam",
-                "supported": True,
-                "status": "Ready"
-            })
+        # Always include high-fidelity Core Tray sample feed
+        available.append({
+            "id": "sim",
+            "name": "Core Tray Sample Feed (Canon EOS 60D)",
+            "adapter": "webcam",
+            "supported": True,
+            "status": "Ready"
+        })
 
         return available
 

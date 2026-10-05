@@ -91,7 +91,7 @@ class CorePhotoApp(ctk.CTk):
 
         self._build_layout()
         self._init_views()
-        self.navigate_to("dashboard")
+        self.navigate_to("capture")
 
         # Automatically connect camera in background on startup
         self.after(300, self._startup_camera_init)
@@ -202,29 +202,27 @@ class CorePhotoApp(ctk.CTk):
         self.sidebar_nav_frame.grid_columnconfigure(0, weight=1)
 
         nav_structure = [
-            ("MAIN", [
-                ("dashboard", "Dashboard"),
-                ("capture", "Capture"),
+            ("CAPTURE", [
+                ("capture", "Live Capture"),
             ]),
             ("REVIEW", [
-                ("review", "Review"),
+                ("review", "Tray Review"),
                 ("browser", "Photo Browser"),
-                ("validation", "Validation"),
+                ("validation", "Validation Center"),
             ]),
             ("DATA", [
-                ("transfer", "Transfer"),
-                ("session", "Session"),
+                ("session", "Session Setup"),
+                ("transfer", "Server Transfer"),
             ]),
             ("SYSTEM", [
-                ("settings", "Settings"),
-                ("diagnostics", "Diagnostics"),
+                ("settings", "Settings & Diagnostics"),
             ]),
         ]
 
         grid_row = 0
         for i, (group_title, items) in enumerate(nav_structure):
-            # Default state: MAIN is expanded on launch, others collapsed
-            is_expanded = (group_title == "MAIN")
+            # Default state: CAPTURE is expanded on launch, others collapsed
+            is_expanded = (group_title == "CAPTURE")
             self.group_expanded[group_title] = is_expanded
             arrow = "▾" if is_expanded else "▸"
 
@@ -365,15 +363,22 @@ class CorePhotoApp(ctk.CTk):
         self.views["transfer"] = TransferView(self.content_area, navigate_fn=self.navigate_to)
         self.views["settings"] = SettingsView(self.content_area, navigate_fn=self.navigate_to)
 
-    def navigate_to(self, route: str) -> None:
+    def navigate_to(self, route: str, tab: Optional[str] = None) -> None:
         """Navigates smoothly between screens."""
-        logger.info("Navigating to view: %s", route)
+        logger.info("Navigating to view: %s (tab: %s)", route, tab)
 
-        # Handle 'diagnostics' routing to settings view
-        effective_route = "settings" if route == "diagnostics" else route
+        # Handle 'diagnostics' routing to settings view, and 'dashboard' routing to capture
+        target_tab = tab
+        if route == "diagnostics":
+            effective_route = "settings"
+            target_tab = target_tab or "DIAGNOSTICS"
+        elif route == "dashboard":
+            effective_route = "capture"
+        else:
+            effective_route = route
 
         # Automatically expand parent accordion dropdown if collapsed
-        parent_group = self.route_to_group.get(route)
+        parent_group = self.route_to_group.get(effective_route)
         if parent_group and not self.group_expanded.get(parent_group, False):
             self.toggle_group(parent_group, expand_only=True)
 
@@ -383,7 +388,7 @@ class CorePhotoApp(ctk.CTk):
 
         # Update button highlights for Industrial Orange active indicator
         for r, btn in self.nav_buttons.items():
-            if r == route or (route == "diagnostics" and r == "diagnostics"):
+            if r == effective_route:
                 btn.configure(
                     fg_color=COLOR_ACCENT_LIGHT,
                     hover_color=COLOR_ACCENT_LIGHT,
@@ -406,6 +411,8 @@ class CorePhotoApp(ctk.CTk):
         target_view = self.views.get(effective_route)
         if target_view:
             target_view.grid(row=0, column=0, sticky="nsew")
+            if target_tab and hasattr(target_view, "select_tab"):
+                target_view.select_tab(target_tab)
             if hasattr(target_view, "refresh"):
                 target_view.refresh()
             if effective_route == "capture":
@@ -455,7 +462,11 @@ class CorePhotoApp(ctk.CTk):
     def _startup_camera_init(self) -> None:
         """Initializes camera connection on app start."""
         logger.info("Initializing camera on startup...")
-        self.ctx.camera_manager.connect_camera("webcam", "0")
+        backend = self.ctx.config.get("camera", "backend", "webcam")
+        device_id = self.ctx.config.get("camera", "device_id", "sim")
+        success = self.ctx.camera_manager.connect_camera(backend, device_id)
+        if not success and device_id != "sim":
+            self.ctx.camera_manager.connect_camera("webcam", "sim")
         self._update_top_header()
         if self.current_view_name in self.views and hasattr(self.views[self.current_view_name], "refresh"):
             self.views[self.current_view_name].refresh()

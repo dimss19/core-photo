@@ -73,11 +73,17 @@ class StorageManager:
         if not str(session_path).startswith(str(self.sessions_dir)):
             raise ValueError(f"Path traversal detected: {folder_name}")
 
+        # Prefer lowercase existing folders or defaults matching legacy structure:
+        #   session_dir/
+        #     ├── jpg/
+        #     ├── raw/
+        #     ├── thumbs/
+        #     └── <HoleID>.csv
         return SessionPaths(
             session_dir=session_path,
-            raw_dir=session_path / "RAW",
-            jpg_dir=session_path / "JPG",
-            thumbnail_dir=session_path / "THUMBNAIL",
+            raw_dir=session_path / "raw",
+            jpg_dir=session_path / "jpg",
+            thumbnail_dir=session_path / "thumbs",
             db_path=session_path / "session.db"
         )
 
@@ -89,9 +95,9 @@ class StorageManager:
     ) -> SessionPaths:
         """Creates session directories:
         SITE_YYYYMMDD/
-          ├── RAW/
-          ├── JPG/
-          ├── THUMBNAIL/
+          ├── jpg/
+          ├── raw/
+          ├── thumbs/
           └── session.db
         If directory exists, appends unique suffix to prevent overwriting existing data.
         """

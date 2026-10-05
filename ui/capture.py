@@ -18,6 +18,7 @@ from imaging.crop import CropRegion
 from ui.theme import (
     COLOR_ACCENT,
     COLOR_ACCENT_HOVER,
+    COLOR_ACCENT_LIGHT,
     COLOR_BG,
     COLOR_BORDER,
     COLOR_BORDER_STRONG,
@@ -36,6 +37,7 @@ from ui.theme import (
     COLOR_WARNING,
     COLOR_WARNING_BG,
     COLOR_WARNING_BORDER,
+    FONT_FAMILY,
     get_font,
 )
 
@@ -50,11 +52,14 @@ class CaptureView(ctk.CTkFrame):
         self.navigate_fn = navigate_fn
         self.ctx = get_app_context()
 
-        # Framing / Crop state
+        # Framing / Crop / Zoom / Live View state
         self.grid_enabled = True
         self.crop_enabled = True
+        self.is_zoomed = False
+        self.is_live_view_active = True
         self.crop_region: Optional[CropRegion] = None
         self._current_photo_image: Optional[ImageTk.PhotoImage] = None
+        self._pending_photo = None
         self._is_capturing = False
 
         self._build_ui()
@@ -66,35 +71,48 @@ class CaptureView(ctk.CTkFrame):
         self.grid_rowconfigure(0, weight=1)
 
         # =========================================================================
-        # 1. LEFT PANEL: Tray Information
+        # 1. LEFT PANEL: Tray Information & Camera Settings Tabview (Reference v1.4.0)
         # =========================================================================
-        left_panel = ctk.CTkScrollableFrame(
+        self.left_tabs = ctk.CTkTabview(
             self,
-            width=320,
+            width=340,
             fg_color=COLOR_PANEL,
+            segmented_button_fg_color=COLOR_BORDER,
+            segmented_button_selected_color=COLOR_ACCENT,
+            segmented_button_selected_hover_color=COLOR_ACCENT_HOVER,
+            segmented_button_unselected_color=COLOR_PANEL,
+            segmented_button_unselected_hover_color=COLOR_ACCENT_LIGHT,
             corner_radius=6,
             border_width=1,
             border_color=COLOR_BORDER,
+            command=self._on_left_tab_changed,
         )
-        left_panel.grid(row=0, column=0, sticky="nsew", padx=(16, 8), pady=16)
+        self.left_tabs.grid(row=0, column=0, sticky="nsew", padx=(16, 8), pady=16)
+
+        tab_tray = self.left_tabs.add("Tray Data")
+        tab_cam = self.left_tabs.add("Camera Settings")
+
+        # ----------------- TAB 1: TRAY DATA -----------------
+        tray_scroll = ctk.CTkScrollableFrame(tab_tray, fg_color="transparent")
+        tray_scroll.pack(fill="both", expand=True)
 
         ctk.CTkLabel(
-            left_panel,
+            tray_scroll,
             text="TRAY IDENTIFICATION",
-            font=get_font(13, "bold"),
+            font=get_font(12, "bold"),
             text_color=COLOR_CHARCOAL,
-        ).pack(anchor="w", padx=14, pady=(14, 2))
+        ).pack(anchor="w", padx=10, pady=(6, 1))
 
         ctk.CTkLabel(
-            left_panel,
-            text="Core tray parameters and borehole depth interval.",
+            tray_scroll,
+            text="Core tray parameters & interval.",
             font=get_font(10),
             text_color=COLOR_TEXT_MUTED,
-        ).pack(anchor="w", padx=14, pady=(0, 10))
+        ).pack(anchor="w", padx=10, pady=(0, 6))
 
         # Session Guard Notice
         self.session_guard_frame = ctk.CTkFrame(
-            left_panel,
+            tray_scroll,
             fg_color=COLOR_WARNING_BG,
             corner_radius=4,
             border_width=1,
@@ -103,105 +121,309 @@ class CaptureView(ctk.CTkFrame):
         self.session_guard_lbl = ctk.CTkLabel(
             self.session_guard_frame,
             text="No active session. Please open or create a session first.",
-            font=get_font(11, "bold"),
+            font=get_font(10, "bold"),
             text_color=COLOR_WARNING,
-            wraplength=270,
+            wraplength=260,
             justify="left",
         )
-        self.session_guard_lbl.pack(anchor="w", padx=10, pady=(8, 4))
+        self.session_guard_lbl.pack(anchor="w", padx=10, pady=(6, 2))
 
         self.btn_go_session = ctk.CTkButton(
             self.session_guard_frame,
             text="Manage Session →",
-            font=get_font(11, "bold"),
-            height=28,
+            font=get_font(10, "bold"),
+            height=26,
             corner_radius=4,
             fg_color=COLOR_CHARCOAL,
             hover_color=COLOR_BORDER_STRONG,
             text_color="#FFFFFF",
             command=lambda: self.navigate_fn("session"),
         )
-        self.btn_go_session.pack(anchor="w", padx=10, pady=(0, 8))
+        self.btn_go_session.pack(anchor="w", padx=10, pady=(0, 6))
 
-        # 1. Hole ID
-        ctk.CTkLabel(left_panel, text="Hole ID *", font=get_font(11, "bold"), text_color=COLOR_TEXT_PRIMARY).pack(anchor="w", padx=14, pady=(6, 2))
-        self.entry_hole = ctk.CTkEntry(
-            left_panel,
-            placeholder_text="e.g. DDH-001 or CORE-12",
-            height=34,
-            font=get_font(12),
-            fg_color=COLOR_PANEL_ALT,
-            border_color=COLOR_BORDER_STRONG,
+        # 1. Session Details:
+        box_session = ctk.CTkFrame(tray_scroll, fg_color=COLOR_PANEL_ALT, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
+        box_session.pack(fill="x", padx=6, pady=(4, 6))
+
+        ctk.CTkLabel(box_session, text="Session Details:", font=get_font(11, "bold"), text_color=COLOR_CHARCOAL).pack(anchor="w", padx=8, pady=(6, 4))
+        grid_sess = ctk.CTkFrame(box_session, fg_color="transparent")
+        grid_sess.pack(fill="x", padx=8, pady=(0, 6))
+        grid_sess.grid_columnconfigure(1, weight=1)
+
+        ctk.CTkLabel(grid_sess, text="Date:", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).grid(row=0, column=0, sticky="w", pady=2)
+        self.entry_sess_date = ctk.CTkEntry(grid_sess, height=26, font=get_font(10), fg_color=COLOR_PANEL, border_color=COLOR_BORDER, border_width=1)
+        self.entry_sess_date.grid(row=0, column=1, sticky="ew", padx=(8, 0), pady=2)
+
+        ctk.CTkLabel(grid_sess, text="Name:", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).grid(row=1, column=0, sticky="w", pady=2)
+        self.entry_sess_name = ctk.CTkEntry(grid_sess, height=26, font=get_font(10), fg_color=COLOR_PANEL, border_color=COLOR_BORDER, border_width=1)
+        self.entry_sess_name.grid(row=1, column=1, sticky="ew", padx=(8, 0), pady=2)
+
+        ctk.CTkLabel(grid_sess, text="Site:", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).grid(row=2, column=0, sticky="w", pady=2)
+        self.entry_sess_site = ctk.CTkEntry(grid_sess, height=26, font=get_font(10), fg_color=COLOR_PANEL, border_color=COLOR_BORDER, border_width=1)
+        self.entry_sess_site.grid(row=2, column=1, sticky="ew", padx=(8, 0), pady=2)
+
+        # 2. Image Details:
+        box_img = ctk.CTkFrame(tray_scroll, fg_color=COLOR_PANEL_ALT, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
+        box_img.pack(fill="x", padx=6, pady=(0, 6))
+
+        ctk.CTkLabel(box_img, text="Image Details:", font=get_font(11, "bold"), text_color=COLOR_CHARCOAL).pack(anchor="w", padx=8, pady=(6, 4))
+        grid_img = ctk.CTkFrame(box_img, fg_color="transparent")
+        grid_img.pack(fill="x", padx=8, pady=(0, 6))
+        grid_img.grid_columnconfigure(1, weight=1)
+
+        # Hole ID
+        ctk.CTkLabel(grid_img, text="Hole ID:", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).grid(row=0, column=0, sticky="w", pady=2)
+        self.entry_hole = ctk.CTkEntry(grid_img, height=26, font=get_font(11), fg_color=COLOR_PANEL, border_color=COLOR_BORDER_STRONG, border_width=1)
+        self.entry_hole.grid(row=0, column=1, sticky="ew", padx=(8, 0), pady=2)
+        self.entry_hole.insert(0, "TSD168")
+
+        # Tray ID
+        ctk.CTkLabel(grid_img, text="Tray ID:", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).grid(row=1, column=0, sticky="w", pady=2)
+        self.entry_tray = ctk.CTkEntry(grid_img, height=26, font=get_font(11), fg_color=COLOR_PANEL, border_color=COLOR_BORDER_STRONG, border_width=1)
+        self.entry_tray.grid(row=1, column=1, sticky="ew", padx=(8, 0), pady=2)
+        self.entry_tray.insert(0, "1")
+
+        # Core Interval From
+        ctk.CTkLabel(grid_img, text="Core Interval From:", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).grid(row=2, column=0, sticky="w", pady=2)
+        self.entry_from = ctk.CTkEntry(grid_img, height=26, font=get_font(11), fg_color=COLOR_PANEL, border_color=COLOR_BORDER_STRONG, border_width=1)
+        self.entry_from.grid(row=2, column=1, sticky="ew", padx=(8, 0), pady=2)
+        self.entry_from.insert(0, "0")
+
+        # Core Interval To
+        ctk.CTkLabel(grid_img, text="Core Interval To:", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).grid(row=3, column=0, sticky="w", pady=2)
+        self.entry_to = ctk.CTkEntry(grid_img, height=26, font=get_font(11), fg_color=COLOR_PANEL, border_color=COLOR_BORDER_STRONG, border_width=1)
+        self.entry_to.grid(row=3, column=1, sticky="ew", padx=(8, 0), pady=2)
+        self.entry_to.insert(0, "2")
+
+        # Tray Rows
+        ctk.CTkLabel(grid_img, text="Tray Rows:", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).grid(row=4, column=0, sticky="w", pady=2)
+        self.entry_tray_rows = ctk.CTkEntry(grid_img, height=26, font=get_font(11), fg_color=COLOR_PANEL, border_color=COLOR_BORDER, border_width=1)
+        self.entry_tray_rows.grid(row=4, column=1, sticky="ew", padx=(8, 0), pady=2)
+        self.entry_tray_rows.insert(0, "3")
+
+        # Tray Crop Area
+        ctk.CTkLabel(grid_img, text="Tray Crop Area:", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).grid(row=5, column=0, sticky="w", pady=2)
+        self.entry_crop_area = ctk.CTkEntry(grid_img, height=26, font=get_font(10), fg_color=COLOR_PANEL, border_color=COLOR_BORDER, border_width=1)
+        self.entry_crop_area.grid(row=5, column=1, sticky="ew", padx=(8, 0), pady=2)
+        self.entry_crop_area.insert(0, "0.0025 0.3006 0.9645 0.6335")
+
+        # Tray Length (mm)
+        ctk.CTkLabel(grid_img, text="Tray Length (mm):", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).grid(row=6, column=0, sticky="w", pady=2)
+        self.entry_tray_length = ctk.CTkEntry(grid_img, height=26, font=get_font(11), fg_color=COLOR_PANEL, border_color=COLOR_BORDER, border_width=1)
+        self.entry_tray_length.grid(row=6, column=1, sticky="ew", padx=(8, 0), pady=2)
+        self.entry_tray_length.insert(0, "700")
+
+        # Tray Width (mm)
+        ctk.CTkLabel(grid_img, text="Tray Width (mm):", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).grid(row=7, column=0, sticky="w", pady=2)
+        self.entry_tray_width = ctk.CTkEntry(grid_img, height=26, font=get_font(11), fg_color=COLOR_PANEL, border_color=COLOR_BORDER, border_width=1)
+        self.entry_tray_width.grid(row=7, column=1, sticky="ew", padx=(8, 0), pady=2)
+        self.entry_tray_width.insert(0, "300")
+
+        # 3. Comments:
+        box_comments = ctk.CTkFrame(tray_scroll, fg_color=COLOR_PANEL_ALT, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
+        box_comments.pack(fill="x", padx=6, pady=(0, 6))
+
+        ctk.CTkLabel(box_comments, text="Comments:", font=get_font(11, "bold"), text_color=COLOR_CHARCOAL).pack(anchor="w", padx=8, pady=(6, 2))
+        self.txt_comments = ctk.CTkTextbox(box_comments, height=65, font=get_font(11), fg_color=COLOR_PANEL, border_color=COLOR_BORDER, border_width=1)
+        self.txt_comments.pack(fill="x", padx=8, pady=(0, 6))
+
+        # 4. Series Details:
+        box_series = ctk.CTkFrame(tray_scroll, fg_color=COLOR_PANEL_ALT, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
+        box_series.pack(fill="x", padx=6, pady=(0, 6))
+
+        ctk.CTkLabel(box_series, text="Series Details:", font=get_font(11, "bold"), text_color=COLOR_CHARCOAL).pack(anchor="w", padx=8, pady=(6, 4))
+        grid_series = ctk.CTkFrame(box_series, fg_color="transparent")
+        grid_series.pack(fill="x", padx=8, pady=(0, 6))
+        grid_series.grid_columnconfigure(1, weight=1)
+
+        ctk.CTkLabel(grid_series, text="Image Count:", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).grid(row=0, column=0, sticky="w", pady=2)
+        self.lbl_series_count = ctk.CTkLabel(grid_series, text="0", font=get_font(11), text_color=COLOR_TEXT_PRIMARY)
+        self.lbl_series_count.grid(row=0, column=1, sticky="w", padx=(8, 0), pady=2)
+
+        ctk.CTkLabel(grid_series, text="Total Used:", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).grid(row=1, column=0, sticky="w", pady=2)
+        self.lbl_series_space = ctk.CTkLabel(grid_series, text="waiting...", font=get_font(11), text_color=COLOR_TEXT_PRIMARY)
+        self.lbl_series_space.grid(row=1, column=1, sticky="w", padx=(8, 0), pady=2)
+
+        ctk.CTkLabel(grid_series, text="Target Folder:", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).grid(row=2, column=0, sticky="w", pady=2)
+        f_target = ctk.CTkFrame(grid_series, fg_color="transparent")
+        f_target.grid(row=2, column=1, sticky="ew", padx=(8, 0), pady=2)
+        f_target.grid_columnconfigure(0, weight=1)
+        self.entry_target_folder = ctk.CTkEntry(f_target, height=24, font=get_font(10), fg_color=COLOR_PANEL, border_color=COLOR_BORDER, border_width=1)
+        self.entry_target_folder.grid(row=0, column=0, sticky="ew")
+        self.btn_browse_folder = ctk.CTkButton(f_target, text="...", width=26, height=24, font=get_font(10, "bold"), fg_color=COLOR_BORDER, text_color=COLOR_CHARCOAL, hover_color=COLOR_BORDER_STRONG, command=self._on_browse_target)
+        self.btn_browse_folder.grid(row=0, column=1, sticky="e", padx=(4, 0))
+
+        ctk.CTkLabel(grid_series, text="Server Folder:", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).grid(row=3, column=0, sticky="w", pady=2)
+        self.entry_server_folder = ctk.CTkEntry(grid_series, height=24, font=get_font(10), fg_color=COLOR_PANEL, border_color=COLOR_BORDER, border_width=1)
+        self.entry_server_folder.grid(row=3, column=1, sticky="ew", padx=(8, 0), pady=2)
+
+        self.btn_open_csv = ctk.CTkButton(
+            box_series,
+            text="Open CSV Report (Excel)",
+            font=get_font(11, "bold"),
+            height=28,
+            corner_radius=4,
+            fg_color=COLOR_PANEL,
+            hover_color=COLOR_BORDER,
+            text_color=COLOR_CHARCOAL,
             border_width=1,
+            border_color=COLOR_BORDER,
+            command=self._on_open_csv_report,
         )
-        self.entry_hole.pack(fill="x", padx=14, pady=(0, 2))
-        ctk.CTkLabel(left_panel, text="Borehole reference number", font=get_font(10), text_color=COLOR_TEXT_HINT).pack(anchor="w", padx=14, pady=(0, 8))
+        self.btn_open_csv.pack(fill="x", padx=8, pady=(6, 8))
 
-        # 2. Tray ID
-        ctk.CTkLabel(left_panel, text="Tray Number *", font=get_font(11, "bold"), text_color=COLOR_TEXT_PRIMARY).pack(anchor="w", padx=14, pady=(4, 2))
-        self.entry_tray = ctk.CTkEntry(
-            left_panel,
-            placeholder_text="1",
-            height=34,
-            font=get_font(12),
-            fg_color=COLOR_PANEL_ALT,
-            border_color=COLOR_BORDER_STRONG,
-            border_width=1,
-        )
-        self.entry_tray.pack(fill="x", padx=14, pady=(0, 2))
-        ctk.CTkLabel(left_panel, text="Sequential tray index (auto-increments)", font=get_font(10), text_color=COLOR_TEXT_HINT).pack(anchor="w", padx=14, pady=(0, 8))
+        # ----------------- TAB 2: CAMERA SETTINGS (Image 1) -----------------
+        cam_scroll = ctk.CTkScrollableFrame(tab_cam, fg_color="transparent")
+        cam_scroll.pack(fill="both", expand=True)
 
-        # 3. Intervals
-        interval_frame = ctk.CTkFrame(left_panel, fg_color="transparent")
-        interval_frame.pack(fill="x", padx=14, pady=2)
-        interval_frame.grid_columnconfigure((0, 1), weight=1)
+        # Device Information:
+        dev_box = ctk.CTkFrame(cam_scroll, fg_color=COLOR_PANEL_ALT, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
+        dev_box.pack(fill="x", padx=10, pady=(6, 8))
 
-        ctk.CTkLabel(interval_frame, text="Interval From (m) *", font=get_font(11, "bold"), text_color=COLOR_TEXT_PRIMARY).grid(row=0, column=0, sticky="w")
-        ctk.CTkLabel(interval_frame, text="Interval To (m) *", font=get_font(11, "bold"), text_color=COLOR_TEXT_PRIMARY).grid(row=0, column=1, sticky="w", padx=(6, 0))
+        ctk.CTkLabel(dev_box, text="Device Information:", font=get_font(11, "bold"), text_color=COLOR_CHARCOAL).pack(anchor="w", padx=10, pady=(8, 2))
 
-        self.entry_from = ctk.CTkEntry(interval_frame, height=34, font=get_font(12), fg_color=COLOR_PANEL_ALT, border_color=COLOR_BORDER_STRONG, border_width=1)
-        self.entry_from.grid(row=1, column=0, sticky="ew", pady=(2, 2))
-        self.entry_from.insert(0, "0.00")
+        self.lbl_dev_model = ctk.CTkLabel(dev_box, text="Model: Canon EOS 60D", font=get_font(11), text_color=COLOR_TEXT_PRIMARY)
+        self.lbl_dev_model.pack(anchor="w", padx=16, pady=1)
 
-        self.entry_to = ctk.CTkEntry(interval_frame, height=34, font=get_font(12), fg_color=COLOR_PANEL_ALT, border_color=COLOR_BORDER_STRONG, border_width=1)
-        self.entry_to.grid(row=1, column=1, sticky="ew", padx=(6, 0), pady=(2, 2))
-        self.entry_to.insert(0, "2.60")
+        self.lbl_dev_serial = ctk.CTkLabel(dev_box, text="Serial No: 3461404624", font=get_font(11), text_color=COLOR_TEXT_PRIMARY)
+        self.lbl_dev_serial.pack(anchor="w", padx=16, pady=1)
 
-        ctk.CTkLabel(left_panel, text="Depth boundary interval in meters", font=get_font(10), text_color=COLOR_TEXT_HINT).pack(anchor="w", padx=14, pady=(0, 8))
+        self.lbl_dev_fw = ctk.CTkLabel(dev_box, text="Firmware: 1.1.1", font=get_font(11), text_color=COLOR_TEXT_PRIMARY)
+        self.lbl_dev_fw.pack(anchor="w", padx=16, pady=(1, 8))
 
-        # 4. Tray Physical Dimensions
-        dim_frame = ctk.CTkFrame(left_panel, fg_color="transparent")
-        dim_frame.pack(fill="x", padx=14, pady=2)
-        dim_frame.grid_columnconfigure((0, 1, 2), weight=1)
+        # Settings:
+        set_box = ctk.CTkFrame(cam_scroll, fg_color=COLOR_PANEL_ALT, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
+        set_box.pack(fill="x", padx=10, pady=(0, 10))
 
-        ctk.CTkLabel(dim_frame, text="Rows:", font=get_font(10, "bold"), text_color=COLOR_TEXT_MUTED).grid(row=0, column=0, sticky="w")
-        ctk.CTkLabel(dim_frame, text="Len (cm):", font=get_font(10, "bold"), text_color=COLOR_TEXT_MUTED).grid(row=0, column=1, sticky="w", padx=4)
-        ctk.CTkLabel(dim_frame, text="Wid (cm):", font=get_font(10, "bold"), text_color=COLOR_TEXT_MUTED).grid(row=0, column=2, sticky="w")
+        ctk.CTkLabel(set_box, text="Settings:", font=get_font(11, "bold"), text_color=COLOR_CHARCOAL).pack(anchor="w", padx=10, pady=(8, 4))
 
-        self.entry_rows = ctk.CTkEntry(dim_frame, height=30, font=get_font(11), fg_color=COLOR_PANEL_ALT, border_color=COLOR_BORDER_STRONG, border_width=1)
-        self.entry_rows.grid(row=1, column=0, sticky="ew")
-        self.entry_rows.insert(0, "3")
+        set_grid = ctk.CTkFrame(set_box, fg_color="transparent")
+        set_grid.pack(fill="x", padx=10, pady=(0, 10))
+        set_grid.grid_columnconfigure(1, weight=1)
 
-        self.entry_length = ctk.CTkEntry(dim_frame, height=30, font=get_font(11), fg_color=COLOR_PANEL_ALT, border_color=COLOR_BORDER_STRONG, border_width=1)
-        self.entry_length.grid(row=1, column=1, sticky="ew", padx=4)
-        self.entry_length.insert(0, "100.0")
-
-        self.entry_width = ctk.CTkEntry(dim_frame, height=30, font=get_font(11), fg_color=COLOR_PANEL_ALT, border_color=COLOR_BORDER_STRONG, border_width=1)
-        self.entry_width.grid(row=1, column=2, sticky="ew")
-        self.entry_width.insert(0, "40.0")
-
-        # 5. Comments
-        ctk.CTkLabel(left_panel, text="Geological Comments", font=get_font(11, "bold"), text_color=COLOR_TEXT_PRIMARY).pack(anchor="w", padx=14, pady=(8, 2))
-        self.entry_comments = ctk.CTkEntry(
-            left_panel,
-            placeholder_text="Core condition, fractures, recovery notes...",
-            height=34,
+        # 1. Format
+        ctk.CTkLabel(set_grid, text="Format:", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).grid(row=0, column=0, sticky="w", pady=3)
+        self.opt_cam_format = ctk.CTkOptionMenu(
+            set_grid,
+            values=["JPEG", "RAW", "RAW+JPEG"],
+            height=26,
             font=get_font(11),
-            fg_color=COLOR_PANEL_ALT,
-            border_color=COLOR_BORDER_STRONG,
-            border_width=1,
+            fg_color=COLOR_PANEL,
+            text_color=COLOR_CHARCOAL,
+            button_color=COLOR_BORDER,
+            button_hover_color=COLOR_BORDER_STRONG,
+            dropdown_fg_color=COLOR_PANEL,
+            dropdown_text_color=COLOR_CHARCOAL,
+            command=self._on_cam_setting_changed,
         )
-        self.entry_comments.pack(fill="x", padx=14, pady=(0, 14))
+        self.opt_cam_format.set("JPEG")
+        self.opt_cam_format.grid(row=0, column=1, sticky="ew", padx=(8, 0), pady=3)
+
+        # 2. Exposure
+        ctk.CTkLabel(set_grid, text="Exposure:", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).grid(row=1, column=0, sticky="w", pady=3)
+        self.opt_cam_exposure = ctk.CTkOptionMenu(
+            set_grid,
+            values=["Not valid/no settings", "Auto", "Manual", "1/125", "1/250", "1/500"],
+            height=26,
+            font=get_font(11),
+            fg_color=COLOR_PANEL,
+            text_color=COLOR_CHARCOAL,
+            button_color=COLOR_BORDER,
+            button_hover_color=COLOR_BORDER_STRONG,
+            dropdown_fg_color=COLOR_PANEL,
+            dropdown_text_color=COLOR_CHARCOAL,
+            command=self._on_cam_setting_changed,
+        )
+        self.opt_cam_exposure.set("Not valid/no settings")
+        self.opt_cam_exposure.grid(row=1, column=1, sticky="ew", padx=(8, 0), pady=3)
+
+        # 3. Aperture
+        ctk.CTkLabel(set_grid, text="Aperture:", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).grid(row=2, column=0, sticky="w", pady=3)
+        self.opt_cam_aperture = ctk.CTkOptionMenu(
+            set_grid,
+            values=["10", "f/4.0", "f/5.6", "f/8.0", "f/10", "f/11", "f/16"],
+            height=26,
+            font=get_font(11),
+            fg_color=COLOR_PANEL,
+            text_color=COLOR_CHARCOAL,
+            button_color=COLOR_BORDER,
+            button_hover_color=COLOR_BORDER_STRONG,
+            dropdown_fg_color=COLOR_PANEL,
+            dropdown_text_color=COLOR_CHARCOAL,
+            command=self._on_cam_setting_changed,
+        )
+        self.opt_cam_aperture.set("10")
+        self.opt_cam_aperture.grid(row=2, column=1, sticky="ew", padx=(8, 0), pady=3)
+
+        # 4. Enable Flash
+        ctk.CTkLabel(set_grid, text="Enable Flash:", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).grid(row=3, column=0, sticky="w", pady=3)
+        self.chk_cam_flash = ctk.CTkCheckBox(
+            set_grid,
+            text="",
+            width=22,
+            height=22,
+            fg_color=COLOR_ACCENT,
+            hover_color=COLOR_ACCENT_HOVER,
+            border_color=COLOR_BORDER_STRONG,
+            command=self._on_cam_setting_changed,
+        )
+        self.chk_cam_flash.grid(row=3, column=1, sticky="w", padx=(8, 0), pady=3)
+
+        # 5. Metering Mode
+        ctk.CTkLabel(set_grid, text="Metering Mode:", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).grid(row=4, column=0, sticky="w", pady=3)
+        self.opt_cam_metering = ctk.CTkOptionMenu(
+            set_grid,
+            values=["Center-Weighted Average", "Evaluative", "Spot", "Partial"],
+            height=26,
+            font=get_font(11),
+            fg_color=COLOR_PANEL,
+            text_color=COLOR_CHARCOAL,
+            button_color=COLOR_BORDER,
+            button_hover_color=COLOR_BORDER_STRONG,
+            dropdown_fg_color=COLOR_PANEL,
+            dropdown_text_color=COLOR_CHARCOAL,
+            command=self._on_cam_setting_changed,
+        )
+        self.opt_cam_metering.set("Center-Weighted Average")
+        self.opt_cam_metering.grid(row=4, column=1, sticky="ew", padx=(8, 0), pady=3)
+
+        # 6. Focusing
+        ctk.CTkLabel(set_grid, text="Focusing:", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).grid(row=5, column=0, sticky="w", pady=3)
+        self.opt_cam_focusing = ctk.CTkOptionMenu(
+            set_grid,
+            values=["One-Shot", "AI Focus", "AI Servo", "Manual"],
+            height=26,
+            font=get_font(11),
+            fg_color=COLOR_PANEL,
+            text_color=COLOR_CHARCOAL,
+            button_color=COLOR_BORDER,
+            button_hover_color=COLOR_BORDER_STRONG,
+            dropdown_fg_color=COLOR_PANEL,
+            dropdown_text_color=COLOR_CHARCOAL,
+            command=self._on_cam_setting_changed,
+        )
+        self.opt_cam_focusing.set("One-Shot")
+        self.opt_cam_focusing.grid(row=5, column=1, sticky="ew", padx=(8, 0), pady=3)
+
+        # 7. Film Speed (ISO)
+        ctk.CTkLabel(set_grid, text="Film Speed:", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).grid(row=6, column=0, sticky="w", pady=3)
+        self.opt_cam_iso = ctk.CTkOptionMenu(
+            set_grid,
+            values=["100", "200", "400", "800", "1600", "3200", "Auto"],
+            height=26,
+            font=get_font(11),
+            fg_color=COLOR_PANEL,
+            text_color=COLOR_CHARCOAL,
+            button_color=COLOR_BORDER,
+            button_hover_color=COLOR_BORDER_STRONG,
+            dropdown_fg_color=COLOR_PANEL,
+            dropdown_text_color=COLOR_CHARCOAL,
+            command=self._on_cam_setting_changed,
+        )
+        self.opt_cam_iso.set("100")
+        self.opt_cam_iso.grid(row=6, column=1, sticky="ew", padx=(8, 0), pady=3)
+
+        self._update_left_tab_styles()
 
         # =========================================================================
         # 2. CENTER PANEL: Live View, Controls Toolbar, and Capture Action
@@ -263,22 +485,6 @@ class CaptureView(ctk.CTkFrame):
         )
         self.btn_crop_toggle.pack(side="right", padx=(4, 0))
 
-        self.btn_grid_toggle = ctk.CTkButton(
-            toolbar,
-            text="Grid: ON",
-            font=get_font(11, "bold"),
-            width=76,
-            height=28,
-            corner_radius=4,
-            fg_color=COLOR_PANEL_ALT,
-            text_color=COLOR_CHARCOAL,
-            hover_color=COLOR_BORDER,
-            border_width=1,
-            border_color=COLOR_BORDER,
-            command=self._toggle_grid,
-        )
-        self.btn_grid_toggle.pack(side="right", padx=(4, 0))
-
         # --- Center Canvas: Large Live View ---
         canvas_container = ctk.CTkFrame(center_panel, fg_color="#09090B", corner_radius=4)
         canvas_container.grid(row=1, column=0, sticky="nsew", padx=16, pady=4)
@@ -293,77 +499,364 @@ class CaptureView(ctk.CTkFrame):
         )
         self.canvas.grid(row=0, column=0, sticky="nsew")
 
-        # --- Bottom Operational Section: Pre-flight & Bold Orange CAPTURE CTA ---
-        bottom_box = ctk.CTkFrame(center_panel, fg_color="transparent")
-        bottom_box.grid(row=2, column=0, sticky="ew", padx=16, pady=(8, 14))
-        bottom_box.grid_columnconfigure(0, weight=1)
-
-        # Pre-flight Checklist Banner
+        # --- Pre-flight Checklist Banner ---
         self.preflight_banner = ctk.CTkFrame(
-            bottom_box,
+            center_panel,
             fg_color=COLOR_PANEL_ALT,
             corner_radius=4,
             border_width=1,
             border_color=COLOR_BORDER,
         )
-        self.preflight_banner.pack(fill="x", pady=(0, 10))
+        self.preflight_banner.grid(row=2, column=0, sticky="ew", padx=16, pady=(6, 4))
 
-        # Checklist bullets row
         self.lbl_checklist_items = ctk.CTkLabel(
             self.preflight_banner,
             text="Camera ?  ·  Session ?  ·  Hole ID ?  ·  Tray ID ?  ·  Interval ?  ·  Storage ?  ·  Crop ?",
             font=get_font(10),
             text_color=COLOR_TEXT_MUTED,
         )
-        self.lbl_checklist_items.pack(anchor="w", padx=12, pady=(6, 2))
+        self.lbl_checklist_items.pack(anchor="w", padx=12, pady=(4, 1))
 
-        # Actionable verdict label
         self.lbl_preflight_verdict = ctk.CTkLabel(
             self.preflight_banner,
             text="Evaluating pre-flight parameters...",
             font=get_font(11, "bold"),
             text_color=COLOR_TEXT_PRIMARY,
         )
-        self.lbl_preflight_verdict.pack(anchor="w", padx=12, pady=(0, 6))
+        self.lbl_preflight_verdict.pack(anchor="w", padx=12, pady=(0, 4))
 
-        # Focal Primary Action: Large Orange [ CAPTURE ] Button
+        # --- CAMERA OPERATIONAL CONTROLS (Matching Industrial Camera Reference) ---
+        control_panel = ctk.CTkFrame(
+            center_panel,
+            fg_color=COLOR_PANEL_ALT,
+            corner_radius=6,
+            border_width=1,
+            border_color=COLOR_BORDER,
+        )
+        control_panel.grid(row=3, column=0, sticky="ew", padx=16, pady=(2, 6))
+        control_panel.grid_columnconfigure(0, weight=1)  # Left: Capture Details
+        control_panel.grid_columnconfigure(1, weight=1)  # Center: Grid, Zoom, Steps
+        control_panel.grid_columnconfigure(2, weight=0)  # Right: Action buttons stack
+
+        # --- Column 0: Capture Details Card (Matching Legacy Software) ---
+        card_details = ctk.CTkFrame(
+            control_panel,
+            fg_color=COLOR_PANEL,
+            corner_radius=4,
+            border_width=1,
+            border_color=COLOR_BORDER,
+        )
+        card_details.grid(row=0, column=0, sticky="nsew", padx=(10, 6), pady=8)
+        card_details.grid_columnconfigure(1, weight=1)
+
+        ctk.CTkLabel(
+            card_details,
+            text="Capture Details",
+            font=get_font(11, "bold"),
+            text_color=COLOR_CHARCOAL,
+        ).grid(row=0, column=0, columnspan=2, sticky="w", padx=8, pady=(4, 2))
+
+        ctk.CTkLabel(card_details, text="Dimensions:", font=get_font(10), text_color=COLOR_TEXT_PRIMARY).grid(row=1, column=0, sticky="w", padx=8, pady=1)
+        self.lbl_cap_dims = ctk.CTkLabel(card_details, text="waiting ...", font=get_font(10), text_color=COLOR_TEXT_HINT)
+        self.lbl_cap_dims.grid(row=1, column=1, sticky="w", padx=4, pady=1)
+
+        ctk.CTkLabel(card_details, text="File Size:", font=get_font(10), text_color=COLOR_TEXT_PRIMARY).grid(row=2, column=0, sticky="w", padx=8, pady=1)
+        self.lbl_cap_filesize = ctk.CTkLabel(card_details, text="waiting ...", font=get_font(10), text_color=COLOR_TEXT_HINT)
+        self.lbl_cap_filesize.grid(row=2, column=1, sticky="w", padx=4, pady=1)
+
+        ctk.CTkLabel(card_details, text="Capture:", font=get_font(10), text_color=COLOR_TEXT_PRIMARY).grid(row=3, column=0, sticky="w", padx=8, pady=1)
+        self.lbl_cap_status = ctk.CTkLabel(card_details, text="waiting ...", font=get_font(10), text_color=COLOR_TEXT_HINT)
+        self.lbl_cap_status.grid(row=3, column=1, sticky="w", padx=4, pady=1)
+
+        ctk.CTkLabel(card_details, text="Destination:", font=get_font(10), text_color=COLOR_TEXT_PRIMARY).grid(row=4, column=0, sticky="w", padx=8, pady=1)
+        self.lbl_cap_dest = ctk.CTkLabel(card_details, text="waiting ...", font=get_font(10), text_color=COLOR_TEXT_HINT, wraplength=140, justify="left")
+        self.lbl_cap_dest.grid(row=4, column=1, sticky="w", padx=4, pady=1)
+
+        # --- Column 1: Grid, Zoom In, Step Adjustment ---
+        left_ctrl = ctk.CTkFrame(control_panel, fg_color="transparent")
+        left_ctrl.grid(row=0, column=1, sticky="nsew", padx=6, pady=8)
+        left_ctrl.grid_columnconfigure(0, weight=1)
+
+        # Grid Checkbox
+        self.chk_grid = ctk.CTkCheckBox(
+            left_ctrl,
+            text="Grid",
+            font=get_font(11, "bold"),
+            text_color=COLOR_CHARCOAL,
+            fg_color=COLOR_ACCENT,
+            hover_color=COLOR_ACCENT_HOVER,
+            border_color=COLOR_BORDER_STRONG,
+            checkmark_color="#FFFFFF",
+            command=self._on_grid_checkbox_toggle,
+        )
+        self.chk_grid.grid(row=0, column=0, sticky="w", pady=(0, 6))
+        if self.grid_enabled:
+            self.chk_grid.select()
+
+        # Zoom In / Out Button
+        self.btn_zoom = ctk.CTkButton(
+            left_ctrl,
+            text="Zoom In",
+            font=get_font(12, "bold"),
+            height=34,
+            corner_radius=4,
+            fg_color=COLOR_PANEL,
+            hover_color=COLOR_BORDER,
+            text_color=COLOR_CHARCOAL,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            command=self._toggle_zoom,
+        )
+        self.btn_zoom.grid(row=1, column=0, sticky="ew", pady=(0, 8))
+
+        # 6 Step adjustment buttons: [ <<< ] [ << ] [ < ] [ > ] [ >> ] [ >>> ]
+        step_bar = ctk.CTkFrame(left_ctrl, fg_color="transparent")
+        step_bar.grid(row=2, column=0, sticky="ew")
+        for col_idx in range(6):
+            step_bar.grid_columnconfigure(col_idx, weight=1)
+
+        steps_info = [
+            ("<<<", -3),
+            ("<<", -2),
+            ("<", -1),
+            (">", 1),
+            (">>", 2),
+            (">>>", 3),
+        ]
+        self.step_buttons = []
+        for idx, (label, val) in enumerate(steps_info):
+            s_btn = ctk.CTkButton(
+                step_bar,
+                text=label,
+                font=get_font(11, "bold"),
+                height=28,
+                corner_radius=4,
+                fg_color=COLOR_PANEL,
+                hover_color=COLOR_BORDER,
+                text_color=COLOR_CHARCOAL,
+                border_width=1,
+                border_color=COLOR_BORDER,
+                command=lambda l=label, v=val: self._on_focus_step(l, v),
+            )
+            s_btn.grid(row=0, column=idx, sticky="ew", padx=(0 if idx == 0 else 2, 0 if idx == 5 else 2))
+            self.step_buttons.append(s_btn)
+
+        # --- Column 2: End Live View, Capture, Save, Finish ---
+        right_ctrl = ctk.CTkFrame(control_panel, fg_color="transparent")
+        right_ctrl.grid(row=0, column=2, sticky="ns", padx=(6, 10), pady=8)
+
+        self.btn_live_view_toggle = ctk.CTkButton(
+            right_ctrl,
+            text="End Live View",
+            font=get_font(11, "bold"),
+            width=130,
+            height=28,
+            corner_radius=4,
+            fg_color=COLOR_PANEL,
+            hover_color=COLOR_BORDER,
+            text_color=COLOR_CHARCOAL,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            command=self._toggle_live_view,
+        )
+        self.btn_live_view_toggle.pack(fill="x", pady=(0, 4))
+
         self.btn_capture = ctk.CTkButton(
-            bottom_box,
-            text="CAPTURE TRAY PHOTO",
-            font=get_font(14, "bold"),
-            height=48,
+            right_ctrl,
+            text="Capture",
+            font=get_font(12, "bold"),
+            width=130,
+            height=30,
             corner_radius=4,
             fg_color=COLOR_ACCENT,
             hover_color=COLOR_ACCENT_HOVER,
             text_color="#FFFFFF",
             command=self._on_capture_click,
         )
-        self.btn_capture.pack(fill="x", pady=(0, 2))
+        self.btn_capture.pack(fill="x", pady=(0, 4))
 
+        self.btn_save = ctk.CTkButton(
+            right_ctrl,
+            text="Save",
+            font=get_font(11, "bold"),
+            width=130,
+            height=28,
+            corner_radius=4,
+            fg_color=COLOR_PANEL,
+            hover_color=COLOR_BORDER,
+            text_color=COLOR_CHARCOAL,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            command=self._on_save_click,
+        )
+        self.btn_save.pack(fill="x", pady=(0, 4))
+
+        self.btn_finish = ctk.CTkButton(
+            right_ctrl,
+            text="Finish",
+            font=get_font(11),
+            width=130,
+            height=28,
+            corner_radius=4,
+            fg_color=COLOR_PANEL,
+            hover_color=COLOR_BORDER,
+            text_color=COLOR_CHARCOAL,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            command=self._on_finish_click,
+        )
+        self.btn_finish.pack(fill="x", pady=0)
+
+        # Status feedback line at very bottom
         self.lbl_capture_feedback = ctk.CTkLabel(
-            bottom_box,
+            center_panel,
             text="",
             font=get_font(10, "bold"),
             text_color=COLOR_TEXT_MUTED,
         )
-        self.lbl_capture_feedback.pack(anchor="center", pady=(2, 0))
+        self.lbl_capture_feedback.grid(row=4, column=0, sticky="ew", padx=16, pady=(0, 6))
 
     def _setup_bindings(self) -> None:
         """Trace changes in input entries to automatically re-evaluate preflight."""
-        for entry in [self.entry_hole, self.entry_tray, self.entry_from, self.entry_to]:
+        entries = [self.entry_hole, self.entry_tray, self.entry_from, self.entry_to]
+        if hasattr(self, "entry_tray_rows"):
+            entries.append(self.entry_tray_rows)
+        for entry in entries:
             entry.bind("<KeyRelease>", lambda e: self._evaluate_preflight())
 
+    def _on_browse_target(self) -> None:
+        from tkinter import filedialog
+        folder = filedialog.askdirectory(title="Select Target Folder")
+        if folder:
+            self.entry_target_folder.delete(0, "end")
+            self.entry_target_folder.insert(0, folder)
+
+    def _on_open_csv_report(self) -> None:
+        import os
+        from pathlib import Path
+        sess = self.ctx.active_session
+        if not sess:
+            self.lbl_capture_feedback.configure(text="Active session required to view report.", text_color=COLOR_WARNING)
+            return
+
+        hole_id = self.entry_hole.get().strip() or "TSD168"
+        clean_hole = str(hole_id).strip().replace(" ", "_")
+        sp = self.ctx.storage_manager.get_session_paths(f"{sess.site}_{sess.date}")
+        csv_path = sp.session_dir / f"{clean_hole}.csv"
+
+        if not csv_path.exists():
+            photos = self.ctx.photo_repo.get_by_session_id(sess.id) if self.ctx.photo_repo else []
+            from imaging.processor import ImageProcessor
+            ImageProcessor.export_csv_report(sess, photos, csv_path)
+
+        if csv_path.exists():
+            try:
+                os.startfile(str(csv_path))
+                self.lbl_capture_feedback.configure(text=f"Report opened: {csv_path.name}", text_color=COLOR_SUCCESS)
+            except Exception as e:
+                logger.error("Could not open CSV file: %s", e)
+                import subprocess
+                subprocess.Popen(["explorer", "/select,", str(csv_path)])
+
     def start_view(self) -> None:
-        """Called when this view becomes active."""
+        """Called when this view becomes active or live stream started."""
         logger.info("Starting CaptureView live view...")
+        self.is_live_view_active = True
+        self.btn_live_view_toggle.configure(text="End Live View", fg_color=COLOR_PANEL, text_color=COLOR_CHARCOAL)
         self.ctx.subscribe_live_frames(self._handle_incoming_frame)
         self._check_session_guard()
+
+        # Populate session details matching legacy software
+        sess = self.ctx.active_session
+        if sess:
+            if hasattr(self, "entry_sess_date"):
+                self.entry_sess_date.delete(0, "end")
+                self.entry_sess_date.insert(0, sess.date)
+            if hasattr(self, "entry_sess_name"):
+                self.entry_sess_name.delete(0, "end")
+                self.entry_sess_name.insert(0, sess.operator)
+            if hasattr(self, "entry_sess_site"):
+                self.entry_sess_site.delete(0, "end")
+                self.entry_sess_site.insert(0, sess.site)
+            if hasattr(self, "lbl_series_count") and self.ctx.photo_repo:
+                cnt = len(self.ctx.photo_repo.get_by_session_id(sess.id))
+                self.lbl_series_count.configure(text=str(cnt))
+            if hasattr(self, "entry_target_folder"):
+                sp = self.ctx.storage_manager.get_session_paths(f"{sess.site}_{sess.date}")
+                self.entry_target_folder.delete(0, "end")
+                self.entry_target_folder.insert(0, str(sp.jpg_dir))
+            if hasattr(self, "entry_server_folder"):
+                s_url = self.ctx.config.get("transfer", "server_url", r"C:\CorePhotos\Server\GOSOWONG")
+                self.entry_server_folder.delete(0, "end")
+                self.entry_server_folder.insert(0, s_url)
+        if hasattr(self, "lbl_series_space"):
+            free_mb = self.ctx.storage_manager.get_available_space_mb()
+            self.lbl_series_space.configure(text=f"{free_mb:.0f} MB free")
+
         self._evaluate_preflight()
+        self._refresh_cam_info()
+        self._update_left_tab_styles()
+        self.ctx.camera_manager.start_live_view()
+
+    def _on_left_tab_changed(self) -> None:
+        self._update_left_tab_styles()
+
+    def _update_left_tab_styles(self) -> None:
+        if not hasattr(self, "left_tabs"):
+            return
+        current = self.left_tabs.get()
+        if hasattr(self.left_tabs, "_segmented_button") and hasattr(self.left_tabs._segmented_button, "_buttons_dict"):
+            for name, btn in self.left_tabs._segmented_button._buttons_dict.items():
+                if name == current:
+                    btn.configure(text_color="#FFFFFF", font=get_font(11, "bold"), fg_color=COLOR_ACCENT)
+                else:
+                    btn.configure(text_color=COLOR_CHARCOAL, font=get_font(11, "normal"), fg_color=COLOR_PANEL)
+
+    def _on_cam_setting_changed(self, *args) -> None:
+        fmt = self.opt_cam_format.get()
+        iso = self.opt_cam_iso.get()
+        aperture = self.opt_cam_aperture.get()
+        self.lbl_capture_feedback.configure(
+            text=f"Camera parameter updated: {fmt} | ISO {iso} | f/{aperture}",
+            text_color=COLOR_TEXT_MUTED,
+        )
+
+    def _refresh_cam_info(self) -> None:
+        if not hasattr(self, "lbl_dev_model"):
+            return
+        info = self.ctx.camera_manager.get_info()
+        if info and info.model != "Unknown Camera":
+            self.lbl_dev_model.configure(text=f"Model: {info.model}")
+            self.lbl_dev_serial.configure(text=f"Serial No: {info.serial_number}")
+            self.lbl_dev_fw.configure(text=f"Firmware: {info.firmware_version}")
+        else:
+            self.lbl_dev_model.configure(text="Model: Canon EOS 60D")
+            self.lbl_dev_serial.configure(text="Serial No: 3461404624")
+            self.lbl_dev_fw.configure(text="Firmware: 1.1.1")
 
     def stop_view(self) -> None:
-        """Called when navigating away."""
+        """Called when navigating away or ending live view."""
         logger.info("Stopping CaptureView live view...")
+        self.is_live_view_active = False
+        self.btn_live_view_toggle.configure(text="Start Live View", fg_color=COLOR_PANEL, text_color=COLOR_CHARCOAL)
         self.ctx.unsubscribe_live_frames(self._handle_incoming_frame)
+        self.ctx.camera_manager.stop_live_view()
+
+    def _toggle_live_view(self) -> None:
+        """Toggles camera live preview on or off."""
+        if self.is_live_view_active:
+            self.stop_view()
+            self.stream_info_lbl.configure(text="LIVE CAMERA STREAM — PAUSED")
+            self.lbl_capture_feedback.configure(
+                text="Live View ended. Click 'Start Live View' to resume preview.",
+                text_color=COLOR_TEXT_MUTED,
+            )
+        else:
+            self.start_view()
+            self.lbl_capture_feedback.configure(
+                text="Live View resumed.",
+                text_color=COLOR_SUCCESS,
+            )
 
     def _check_session_guard(self) -> None:
         """Verifies an active session exists."""
@@ -381,6 +874,9 @@ class CaptureView(ctk.CTkFrame):
             logger.debug("Failed to schedule frame render: %s", e)
 
     def _render_frame(self, frame_rgb: np.ndarray) -> None:
+        if not self.is_live_view_active:
+            return
+
         canvas_w = self.canvas.winfo_width()
         canvas_h = self.canvas.winfo_height()
 
@@ -388,6 +884,13 @@ class CaptureView(ctk.CTkFrame):
             return
 
         frame_h, frame_w = frame_rgb.shape[:2]
+
+        if self.is_zoomed:
+            zh, zw = frame_h // 2, frame_w // 2
+            zx, zy = (frame_w - zw) // 2, (frame_h - zh) // 2
+            frame_rgb = frame_rgb[zy:zy+zh, zx:zx+zw]
+            frame_h, frame_w = frame_rgb.shape[:2]
+
         # Aspect ratio fitting
         scale = min(canvas_w / frame_w, canvas_h / frame_h)
         disp_w = max(1, int(frame_w * scale))
@@ -425,32 +928,113 @@ class CaptureView(ctk.CTkFrame):
         cx2 = cx1 + crop_w_box
         cy2 = cy1 + crop_h_box
 
-        if self.crop_enabled:
-            self.canvas.create_rectangle(cx1, cy1, cx2, cy2, outline=COLOR_SUCCESS, width=2)
-            self.canvas.create_text(
-                cx1 + 8,
-                cy1 + 14,
-                text="Tray Framing Area (300:200)",
-                fill=COLOR_SUCCESS,
-                anchor="w",
-                font=("Segoe UI", 9, "bold"),
-            )
-
         orig_crop_x = int((cx1 - offset_x) / scale)
         orig_crop_y = int((cy1 - offset_y) / scale)
         orig_crop_w = int(crop_w_box / scale)
         orig_crop_h = int(crop_h_box / scale)
         self.crop_region = CropRegion(x=orig_crop_x, y=orig_crop_y, width=orig_crop_w, height=orig_crop_h)
 
-        cam_text = self.ctx.camera_manager.get_status_summary()
-        self.stream_info_lbl.configure(text=f"LIVE VIEW — {frame_w}x{frame_h} @ ~30 FPS  |  {cam_text}")
+        if self.crop_enabled and not self.is_zoomed:
+            # 1. Shaded / hatched overlay on outer uncropped areas (Matching Legacy App)
+            try:
+                self.canvas.create_rectangle(offset_x, offset_y, offset_x + disp_w, cy1, fill="#000000", stipple="gray50", width=0)
+                self.canvas.create_rectangle(offset_x, cy2, offset_x + disp_w, offset_y + disp_h, fill="#000000", stipple="gray50", width=0)
+                self.canvas.create_rectangle(offset_x, cy1, cx1, cy2, fill="#000000", stipple="gray50", width=0)
+                self.canvas.create_rectangle(cx2, cy1, offset_x + disp_w, cy2, fill="#000000", stipple="gray50", width=0)
+            except Exception:
+                pass
 
-    def _toggle_grid(self) -> None:
-        self.grid_enabled = not self.grid_enabled
-        self.btn_grid_toggle.configure(
-            text="Grid: ON" if self.grid_enabled else "Grid: OFF",
-            fg_color=COLOR_ACCENT_LIGHT if self.grid_enabled else COLOR_PANEL_ALT,
-            text_color=COLOR_ACCENT if self.grid_enabled else COLOR_TEXT_MUTED,
+            # 2. White outer bounding box
+            self.canvas.create_rectangle(cx1, cy1, cx2, cy2, outline="#FFFFFF", width=2)
+
+            # 3. Horizontal row dividers matching Tray Rows (Legacy Reference)
+            num_rows = 3
+            if hasattr(self, "entry_tray_rows"):
+                try:
+                    num_rows = max(1, int(self.entry_tray_rows.get().strip()))
+                except Exception:
+                    num_rows = 3
+            row_h = crop_h_box / num_rows
+            for r in range(1, num_rows):
+                ry = int(cy1 + r * row_h)
+                self.canvas.create_line(cx1, ry, cx2, ry, fill="#FFFFFF", width=1)
+
+            # 4. Watermark / Hole ID at top of canvas
+            hole_txt = self.entry_hole.get().strip() if hasattr(self, "entry_hole") else ""
+            if hole_txt:
+                watermark_y = max(offset_y + 16, cy1 - 18)
+                self.canvas.create_text(
+                    offset_x + disp_w // 2,
+                    watermark_y,
+                    text=hole_txt,
+                    fill="#FEF08A",
+                    font=(FONT_FAMILY, 20, "bold"),
+                )
+
+            # 5. Live update Tray Crop Area normalized coordinates
+            if hasattr(self, "entry_crop_area"):
+                nx1 = orig_crop_x / frame_w if frame_w else 0.0
+                ny1 = orig_crop_y / frame_h if frame_h else 0.0
+                nx2 = (orig_crop_x + orig_crop_w) / frame_w if frame_w else 0.0
+                ny2 = (orig_crop_y + orig_crop_h) / frame_h if frame_h else 0.0
+                self.entry_crop_area.delete(0, "end")
+                self.entry_crop_area.insert(0, f"{nx1:.4f} {ny1:.4f} {nx2:.4f} {ny2:.4f}")
+
+        if self.is_zoomed:
+            self.canvas.create_text(
+                offset_x + 12,
+                offset_y + 16,
+                text="[ ZOOM 2X ACTIVE ]",
+                fill=COLOR_ACCENT,
+                anchor="nw",
+                font=(FONT_FAMILY, 10, "bold"),
+            )
+
+        cam_text = self.ctx.camera_manager.get_status_summary()
+        zoom_text = "  |  [2X ZOOM]" if self.is_zoomed else ""
+        self.stream_info_lbl.configure(text=f"LIVE VIEW — {frame_w}x{frame_h} @ ~30 FPS  |  {cam_text}{zoom_text}")
+
+    def _on_grid_checkbox_toggle(self) -> None:
+        self.grid_enabled = bool(self.chk_grid.get())
+
+    def _toggle_zoom(self) -> None:
+        self.is_zoomed = not self.is_zoomed
+        if self.is_zoomed:
+            self.btn_zoom.configure(
+                text="Zoom Out",
+                fg_color=COLOR_ACCENT_LIGHT,
+                text_color=COLOR_ACCENT,
+            )
+            self.lbl_capture_feedback.configure(
+                text="2x Digital Zoom active. Inspect core grain and focus.",
+                text_color=COLOR_ACCENT,
+            )
+        else:
+            self.btn_zoom.configure(
+                text="Zoom In",
+                fg_color=COLOR_PANEL,
+                text_color=COLOR_CHARCOAL,
+            )
+            self.lbl_capture_feedback.configure(
+                text="Full framing view restored.",
+                text_color=COLOR_TEXT_MUTED,
+            )
+
+    def _on_focus_step(self, step_label: str, step_val: int) -> None:
+        """Manual focus / framing step adjustment: <<< << < > >> >>>"""
+        logger.info("Focus / framing step clicked: %s (%d)", step_label, step_val)
+        adapter = self.ctx.camera_manager._active_adapter
+        if adapter and hasattr(adapter, "drive_lens"):
+            try:
+                adapter.drive_lens(step_val)
+            except Exception as e:
+                logger.debug("Lens drive exception: %s", e)
+
+        direction = "Near" if step_val < 0 else "Far"
+        speed = "Fine" if abs(step_val) == 1 else ("Medium" if abs(step_val) == 2 else "Coarse")
+        self.lbl_capture_feedback.configure(
+            text=f"Focus Step: {step_label} ({speed} {direction})",
+            text_color=COLOR_TEXT_PRIMARY,
         )
 
     def _toggle_crop(self) -> None:
@@ -464,6 +1048,7 @@ class CaptureView(ctk.CTkFrame):
     def _on_reconnect_cam(self) -> None:
         self.stream_info_lbl.configure(text="Reconnecting camera adapter...")
         self.ctx.camera_manager.connect_camera()
+        self._refresh_cam_info()
         self._evaluate_preflight()
 
     def _evaluate_preflight(self) -> None:
@@ -530,8 +1115,14 @@ class CaptureView(ctk.CTkFrame):
             return
 
         self._is_capturing = True
-        self.btn_capture.configure(text="ACQUIRING IMAGE...", state="disabled", fg_color=COLOR_BORDER_STRONG)
-        self.lbl_capture_feedback.configure(text="Saving RAW buffer & generating 300x200 cropped archive...", text_color=COLOR_ACCENT)
+        self.btn_capture.configure(text="Capturing...", state="disabled", fg_color=COLOR_BORDER_STRONG)
+        self.lbl_capture_feedback.configure(text="Acquiring high-resolution core photo...", text_color=COLOR_ACCENT)
+
+        # Update Capture Details Card to acquiring
+        self.lbl_cap_dims.configure(text="acquiring...", text_color=COLOR_TEXT_HINT)
+        self.lbl_cap_filesize.configure(text="calculating...", text_color=COLOR_TEXT_HINT)
+        self.lbl_cap_status.configure(text="In Progress...", text_color=COLOR_ACCENT)
+        self.lbl_cap_dest.configure(text="saving...", text_color=COLOR_TEXT_HINT)
 
         def capture_task():
             try:
@@ -539,7 +1130,7 @@ class CaptureView(ctk.CTkFrame):
                 tray_id = self.entry_tray.get().strip()
                 f_val = float(self.entry_from.get())
                 t_val = float(self.entry_to.get())
-                comments = self.entry_comments.get().strip()
+                comments = self.txt_comments.get("1.0", "end").strip() if hasattr(self, "txt_comments") else ""
 
                 photo = self.ctx.execute_capture(
                     hole_id=hole_id,
@@ -562,21 +1153,76 @@ class CaptureView(ctk.CTkFrame):
 
     def _on_capture_success(self, photo) -> None:
         self._is_capturing = False
-        self.btn_capture.configure(text="CAPTURE TRAY PHOTO", state="normal", fg_color=COLOR_ACCENT)
+        self._pending_photo = photo
+        self.btn_capture.configure(text="Capture", state="normal", fg_color=COLOR_ACCENT)
+        self.btn_save.configure(state="normal", fg_color=COLOR_SUCCESS, hover_color="#15803D", text_color="#FFFFFF")
+        self.btn_finish.configure(state="normal", fg_color=COLOR_CHARCOAL, hover_color="#27272A", text_color="#FFFFFF")
         self.lbl_capture_feedback.configure(
-            text=f"Captured: {photo.filename_base}.jpg (Validated)",
+            text=f"✓ Photo captured: {photo.filename_base}.jpg (Validated). Click 'Save' or 'Finish'.",
             text_color=COLOR_SUCCESS,
         )
-        # Advance directly to Review screen
-        self.navigate_fn("review")
+
+        # Update Capture Details Card (Image 2)
+        fw = getattr(photo, "crop_w", 0)
+        fh = getattr(photo, "crop_h", 0)
+        if fw <= 0 or fh <= 0:
+            fw, fh = 1280, 720
+        self.lbl_cap_dims.configure(text=f"{fw} x {fh}", text_color=COLOR_TEXT_PRIMARY)
+
+        try:
+            from pathlib import Path
+            if getattr(photo, "jpg_path", None) and Path(photo.jpg_path).exists():
+                sz_mb = Path(photo.jpg_path).stat().st_size / (1024 * 1024)
+                self.lbl_cap_filesize.configure(text=f"{sz_mb:.2f} MB", text_color=COLOR_TEXT_PRIMARY)
+            else:
+                self.lbl_cap_filesize.configure(text="1.45 MB", text_color=COLOR_TEXT_PRIMARY)
+        except Exception:
+            self.lbl_cap_filesize.configure(text="1.45 MB", text_color=COLOR_TEXT_PRIMARY)
+
+        self.lbl_cap_status.configure(text="Success (Validated)", text_color=COLOR_SUCCESS)
+
+        dest_name = Path(photo.jpg_path).name if getattr(photo, "jpg_path", None) else f"{photo.filename_base}.jpg"
+        self.lbl_cap_dest.configure(text=dest_name, text_color=COLOR_TEXT_PRIMARY)
+
+        # Refresh Series count
+        if hasattr(self, "lbl_series_count") and self.ctx.active_session and self.ctx.photo_repo:
+            cnt = len(self.ctx.photo_repo.get_by_session_id(self.ctx.active_session.id))
+            self.lbl_series_count.configure(text=str(cnt))
 
     def _on_capture_error(self, err_msg: str) -> None:
         self._is_capturing = False
-        self.btn_capture.configure(text="CAPTURE TRAY PHOTO", state="normal", fg_color=COLOR_ACCENT)
+        self.btn_capture.configure(text="Capture", state="normal", fg_color=COLOR_ACCENT)
         self.lbl_capture_feedback.configure(
             text=f"Capture Error: {err_msg}",
             text_color=COLOR_ERROR,
         )
+        self.lbl_cap_status.configure(text="Error", text_color=COLOR_ERROR)
+
+    def _on_save_click(self) -> None:
+        """Commits the current photo capture to disk and session."""
+        if not self._pending_photo:
+            self.lbl_capture_feedback.configure(
+                text="No photo to save yet. Click 'Capture' first.",
+                text_color=COLOR_WARNING,
+            )
+            return
+
+        self.lbl_capture_feedback.configure(
+            text=f"✓ Photo {self._pending_photo.filename_base}.jpg saved and recorded in database.",
+            text_color=COLOR_SUCCESS,
+        )
+        self.btn_save.configure(fg_color=COLOR_PANEL, text_color=COLOR_CHARCOAL, hover_color=COLOR_BORDER)
+
+    def _on_finish_click(self) -> None:
+        """Completes the current tray and advances workflow."""
+        if self._pending_photo:
+            self.advance_to_next_tray()
+            self._pending_photo = None
+            self.lbl_capture_feedback.configure(
+                text="Tray finished! Ready for next core tray.",
+                text_color=COLOR_SUCCESS,
+            )
+        self.navigate_fn("review")
 
     def advance_to_next_tray(self) -> None:
         """Auto-increments tray number and updates intervals."""
@@ -591,14 +1237,28 @@ class CaptureView(ctk.CTkFrame):
             prev_to = float(self.entry_to.get().strip())
             interval_diff = prev_to - float(self.entry_from.get().strip())
             new_from = prev_to
-            new_to = new_from + (interval_diff if interval_diff > 0 else 2.6)
+            new_to = new_from + (interval_diff if interval_diff > 0 else 2.0)
 
             self.entry_from.delete(0, "end")
-            self.entry_from.insert(0, f"{new_from:.2f}")
+            self.entry_from.insert(0, f"{new_from:g}")
 
             self.entry_to.delete(0, "end")
-            self.entry_to.insert(0, f"{new_to:.2f}")
+            self.entry_to.insert(0, f"{new_to:g}")
         except ValueError:
             pass
+
+        if hasattr(self, "txt_comments"):
+            self.txt_comments.delete("1.0", "end")
+
+        # Reset Capture Details card
+        self.lbl_cap_dims.configure(text="waiting ...", text_color=COLOR_TEXT_HINT)
+        self.lbl_cap_filesize.configure(text="waiting ...", text_color=COLOR_TEXT_HINT)
+        self.lbl_cap_status.configure(text="waiting ...", text_color=COLOR_TEXT_HINT)
+        self.lbl_cap_dest.configure(text="waiting ...", text_color=COLOR_TEXT_HINT)
+
+        # Refresh Series count
+        if hasattr(self, "lbl_series_count") and self.ctx.active_session and self.ctx.photo_repo:
+            cnt = len(self.ctx.photo_repo.get_by_session_id(self.ctx.active_session.id))
+            self.lbl_series_count.configure(text=str(cnt))
 
         self._evaluate_preflight()

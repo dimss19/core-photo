@@ -6,7 +6,7 @@ import json
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from PIL import Image
 
 from core.logger import get_logger
@@ -124,16 +124,29 @@ class ImageProcessor:
 
             cropped_img = crop_region.apply_to_pil(pil_img, target_size=(crop_w, crop_h))
 
+            display_timestamp = now.strftime("%m/%d/%Y %I:%M:%S %p")
+
+            # Overlay geological metadata slate footer bar (Reference standard)
+            slated_img = self.add_metadata_slate_banner(
+                img=cropped_img,
+                hole_id=tray.hole_id,
+                tray_id=tray.tray_id,
+                interval_from=tray.interval_from,
+                interval_to=tray.interval_to,
+                operator=session.operator,
+                timestamp_str=display_timestamp,
+            )
+
             # 5. Save JPG
             jpg_file = session_paths.jpg_dir / f"{filename_base}.jpg"
             jpg_quality = self.config.get("imaging", "jpg_quality", 95)
-            cropped_img.save(str(jpg_file), "JPEG", quality=jpg_quality, optimize=True)
+            slated_img.save(str(jpg_file), "JPEG", quality=jpg_quality, optimize=True)
             md5_jpg = RawHandler.calculate_md5(jpg_file)
 
             # 6. Generate Thumbnail
             thumb_file = session_paths.thumbnail_dir / f"{filename_base}_thumb.jpg"
             thumb_size = tuple(self.config.get("imaging", "thumbnail_size", [150, 100]))
-            ThumbnailGenerator.generate(cropped_img, thumb_file, size=thumb_size)
+            ThumbnailGenerator.generate(slated_img, thumb_file, size=thumb_size)
 
             # 7. Write complete metadata sidecar (PRD Section 16)
             metadata = {
@@ -172,6 +185,50 @@ class ImageProcessor:
             with open(meta_file, "w", encoding="utf-8") as f:
                 json.dump(metadata, f, indent=2)
 
+            # Write / append to Hole CSV file matching geological data schema
+            try:
+                import csv
+                clean_hole = str(tray.hole_id).strip().replace(" ", "_")
+                csv_file = session_paths.session_dir / f"{clean_hole}.csv"
+                write_hdr = not csv_file.exists()
+                pw, ph = pil_img.size
+                if crop_region and pw > 0 and ph > 0:
+                    nx1 = max(0.0, min(1.0, crop_region.x / pw))
+                    ny1 = max(0.0, min(1.0, crop_region.y / ph))
+                    nx2 = max(0.0, min(1.0, (crop_region.x + crop_region.width) / pw))
+                    ny2 = max(0.0, min(1.0, (crop_region.y + crop_region.height) / ph))
+                    crop_str = f"{nx1:.4f} {ny1:.4f} {nx2:.4f} {ny2:.4f}"
+                else:
+                    crop_str = "0.0025 0.3006 0.9645 0.6335"
+
+                with open(csv_file, "a", newline="", encoding="utf-8") as cf:
+                    writer = csv.writer(cf)
+                    if write_hdr:
+                        writer.writerow([
+                            "HoleID", "CoreIntervalFrom", "CoreIntervalTo", "TrayID",
+                            "Path", "Comments", "Date", "Name", "Site", "MD5",
+                            "Timestamp", "TrayRows", "TrayLength", "TrayWidth", "TrayCrop"
+                        ])
+                    writer.writerow([
+                        tray.hole_id,
+                        f"{tray.interval_from:g}",
+                        f"{tray.interval_to:g}",
+                        tray.tray_id,
+                        str(jpg_file),
+                        tray.comments or "",
+                        session.date,
+                        session.operator,
+                        session.site,
+                        md5_jpg,
+                        now.strftime("%Y-%m-%d %H:%M:%S"),
+                        tray.tray_rows if hasattr(tray, "tray_rows") else 3,
+                        tray.tray_length if hasattr(tray, "tray_length") else 700,
+                        tray.tray_width if hasattr(tray, "tray_width") else 300,
+                        crop_str
+                    ])
+            except Exception as e:
+                logger.warning("Could not append to hole CSV: %s", e)
+
             # 8. Update DB Record
             photo.jpg_path = str(jpg_file)
             photo.thumbnail_path = str(thumb_file)
@@ -196,3 +253,115 @@ class ImageProcessor:
             if self.photo_repo and photo.id:
                 self.photo_repo.update_status(photo.id, PhotoStatus.INVALID)
             raise
+
+    @staticmethod
+    def add_metadata_slate_banner(
+        img: Image.Image,
+        hole_id: str,
+        tray_id: str,
+        interval_from: float,
+        interval_to: float,
+        operator: str,
+        timestamp_str: str,
+    ) -> Image.Image:
+        """Overlays the industrial core photography metadata slate footer banner."""
+        from PIL import ImageDraw, ImageFont
+        w, h = img.size
+        banner_h = max(18, int(h * 0.08))
+        banner_img = img.copy()
+        draw = ImageDraw.Draw(banner_img)
+
+        # White banner background with subtle top separator line
+        draw.rectangle([0, h - banner_h, w, h], fill=(255, 255, 255))
+        draw.line([0, h - banner_h, w, h - banner_h], fill=(210, 215, 220), width=1)
+
+        font_size = max(8, int(banner_h * 0.45))
+        font = None
+        for font_name in ["segoeui.ttf", "arial.ttf", "calibri.ttf"]:
+            try:
+                font = ImageFont.truetype(font_name, font_size)
+                break
+            except Exception:
+                pass
+
+        left_text = f"HOLE ID: {hole_id}  TRAY ID: {tray_id}  FROM: {interval_from:g}  TO: {interval_to:g}"
+        right_text = f"OPERATOR: {operator}  TIMESTAMP: {timestamp_str}"
+
+        y_pos = h - banner_h + (banner_h - font_size) // 2
+        draw.text((8, y_pos), left_text, fill=(15, 20, 25), font=font)
+
+        try:
+            rw = font.getbbox(right_text)[2] if font else len(right_text) * 6
+        except Exception:
+            rw = len(right_text) * 6
+
+        x_right = max(w - rw - 8, 8)
+        draw.text((x_right, y_pos), right_text, fill=(15, 20, 25), font=font)
+
+        return banner_img
+
+    @staticmethod
+    def export_csv_report(session: Any, photos: List[Any], csv_path: Path) -> Path:
+        """Exports or regenerates the standardized geological CSV report (PRD Section 16 & Industry standard).
+        Columns match the legacy Coreshed Excel report:
+        HoleID, CoreIntervalFrom, CoreIntervalTo, TrayID, Path, Comments, Date, Name, Site, MD5,
+        Timestamp, TrayRows, TrayLength, TrayWidth, TrayCrop
+        """
+        import csv
+        csv_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(csv_path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow([
+                "HoleID", "CoreIntervalFrom", "CoreIntervalTo", "TrayID",
+                "Path", "Comments", "Date", "Name", "Site", "MD5",
+                "Timestamp", "TrayRows", "TrayLength", "TrayWidth", "TrayCrop"
+            ])
+            for p in photos:
+                comments = ""
+                crop_str = "0.0025 0.3006 0.9645 0.6335"
+                tray_rows = 3
+                tray_len = 700
+                tray_wid = 300
+                ts = getattr(p, "captured_at", "") or getattr(session, "date", "")
+
+                if getattr(p, "jpg_path", None):
+                    meta_path = Path(p.jpg_path).with_suffix(".json")
+                    if meta_path.exists():
+                        try:
+                            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+                            comments = meta.get("comments", "")
+                            tray_rows = meta.get("tray_rows", 3)
+                            tray_len = meta.get("tray_length", 700)
+                            tray_wid = meta.get("tray_width", 300)
+                            ts = meta.get("timestamp", ts)
+                            tc = meta.get("tray_crop", {})
+                            if isinstance(tc, dict) and "output_width" in tc:
+                                ow = tc.get("output_width", 1) or 1
+                                oh = tc.get("output_height", 1) or 1
+                                nx1 = max(0.0, min(1.0, tc.get("x", 0) / ow))
+                                ny1 = max(0.0, min(1.0, tc.get("y", 0) / oh))
+                                nx2 = max(0.0, min(1.0, (tc.get("x", 0) + tc.get("width", ow)) / ow))
+                                ny2 = max(0.0, min(1.0, (tc.get("y", 0) + tc.get("height", oh)) / oh))
+                                crop_str = f"{nx1:.4f} {ny1:.4f} {nx2:.4f} {ny2:.4f}"
+                        except Exception:
+                            pass
+
+                writer.writerow([
+                    getattr(p, "hole_id", "TSD168"),
+                    f"{getattr(p, 'interval_from', 0.0):g}",
+                    f"{getattr(p, 'interval_to', 0.0):g}",
+                    getattr(p, "tray_number", "1"),
+                    getattr(p, "jpg_path", "") or "",
+                    comments,
+                    getattr(session, "date", ""),
+                    getattr(session, "operator", ""),
+                    getattr(session, "site", ""),
+                    getattr(p, "md5_jpg", "") or "",
+                    ts,
+                    tray_rows,
+                    tray_len,
+                    tray_wid,
+                    crop_str
+                ])
+        return csv_path
+

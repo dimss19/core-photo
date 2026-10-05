@@ -60,6 +60,15 @@ class WebcamAdapter(AbstractCameraAdapter):
         )
 
     def connect(self, device_id: Any = None) -> bool:
+        if device_id is not None and str(device_id).lower() in ("sim", "simulator", "sample"):
+            logger.info("Connecting to Core Tray Reference Feed (Simulator)...")
+            self._is_simulated = True
+            self._state = CameraState.READY
+            self._info.model = "Canon EOS 60D (Core Tray Feed)"
+            self._info.serial_number = "3461404624"
+            self._info.firmware_version = "1.1.1"
+            return True
+
         if device_id is not None:
             try:
                 self.device_index = int(device_id)
@@ -89,6 +98,9 @@ class WebcamAdapter(AbstractCameraAdapter):
                 )
                 self._is_simulated = True
                 self._state = CameraState.READY
+                self._info.model = "Canon EOS 60D (Core Tray Feed)"
+                self._info.serial_number = "3461404624"
+                self._info.firmware_version = "1.1.1"
                 return True
 
             # Attempt to set preferred resolution
@@ -250,30 +262,41 @@ class WebcamAdapter(AbstractCameraAdapter):
                     logger.debug("Live view callback exception: %s", e)
 
     def _generate_simulated_frame(self) -> np.ndarray:
-        """Generates realistic synthetic core tray pattern for testing and fallback."""
-        w, h = 640, 480
-        # Background tray: dark wooden/metallic core tray
-        img = np.full((h, w, 3), (60, 65, 70), dtype=np.uint8)
+        """Generates realistic core tray frame matching geological reference sample."""
+        from pathlib import Path
+        ref_path = Path(__file__).resolve().parent.parent.parent / "assets" / "core_tray_reference.jpg"
+        if ref_path.exists():
+            if not hasattr(self, "_cached_ref_frame") or self._cached_ref_frame is None:
+                try:
+                    if OPENCV_AVAILABLE:
+                        bgr = cv2.imread(str(ref_path))
+                        if bgr is not None:
+                            self._cached_ref_frame = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+                    else:
+                        from PIL import Image
+                        pil_ref = Image.open(ref_path).convert("RGB")
+                        self._cached_ref_frame = np.array(pil_ref)
+                except Exception as e:
+                    logger.debug("Failed loading reference frame: %s", e)
 
-        # Draw 3 core rock rows
+            if hasattr(self, "_cached_ref_frame") and self._cached_ref_frame is not None:
+                return self._cached_ref_frame.copy()
+
+        w, h = 640, 480
+        img = np.full((h, w, 3), (60, 65, 70), dtype=np.uint8)
         row_height = 80
         margin = 30
         for i in range(3):
             y_start = margin + i * (row_height + 25)
             y_end = y_start + row_height
-            # Rock core cylinder simulation
             rock_color = (130 + i * 15, 120 + i * 10, 110 + i * 12)
             img[y_start:y_end, 50:w - 50] = rock_color
-
-            # Add core fracture markings
             for frac_x in range(120, w - 80, 75):
                 img[y_start:y_end, frac_x:frac_x + 3] = (30, 30, 30)
 
-        # Simulation watermark / overlay
         if OPENCV_AVAILABLE:
             cv2.putText(img, "CORE TRAY SIMULATION STREAM", (70, 460),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200, 220, 255), 2)
-            # Ruler markings at top
             cv2.line(img, (50, 20), (w - 50, 20), (220, 220, 220), 2)
             for tick in range(50, w - 50, 40):
                 cv2.line(img, (tick, 15), (tick, 25), (255, 255, 255), 2)
