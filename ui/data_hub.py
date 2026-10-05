@@ -641,7 +641,7 @@ class DataHubView(ctk.CTkFrame):
                 photos = self.ctx.photo_repo.list_by_session(sess.id, active_only=True)
                 for p in photos:
                     if p.status != "TRANSFERRED":
-                        self.uploader.upload_photo(p.id)
+                        self.uploader.upload_photo(p)
             finally:
                 self._is_transferring = False
                 self.after(0, self._on_sync_finished)
@@ -653,4 +653,27 @@ class DataHubView(ctk.CTkFrame):
         self._refresh_transfer_queue()
 
     def _on_retry_failed(self) -> None:
-        self._on_start_batch_transfer()
+        if self._is_transferring:
+            return
+        sess = self.ctx.active_session
+        if not sess or not self.ctx.photo_repo:
+            return
+
+        self._is_transferring = True
+        self.btn_retry_failed.configure(state="disabled", text="RETRYING...")
+
+        def run_retry():
+            try:
+                photos = self.ctx.photo_repo.list_by_session(sess.id, active_only=True)
+                for p in photos:
+                    if p.status == "FAILED":
+                        self.uploader.upload_photo(p)
+            finally:
+                self._is_transferring = False
+                self.after(0, lambda: (
+                    self.btn_retry_failed.configure(state="normal", text="Retry Failed Uploads"),
+                    self._refresh_transfer_queue()
+                ))
+
+        threading.Thread(target=run_retry, daemon=True).start()
+

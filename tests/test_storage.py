@@ -33,6 +33,9 @@ def test_create_session_storage(temp_storage):
     assert paths.raw_dir.exists()
     assert paths.jpg_dir.exists()
     assert paths.thumbnail_dir.exists()
+    assert paths.raw_dir.name == "raw"
+    assert paths.jpg_dir.name == "jpg"
+    assert paths.thumbnail_dir.name == "thumbs"
     assert "PIT1_20261005" in paths.session_dir.name
 
 

@@ -15,6 +15,10 @@ def test_transfer_offline_handling(tmp_path):
 
 def test_transfer_missing_file_handling():
     uploader = TransferUploader()
+    # Test test_connection alias
+    ok, msg = uploader.test_connection("http://127.0.0.1:59999/api/v1")
+    assert ok is False
+
     photo = PhotoModel(
         id=999,
         session_id="S_OFFLINE",
@@ -29,3 +33,8 @@ def test_transfer_missing_file_handling():
     ok, msg = uploader.upload_photo(photo)
     assert ok is False
     assert "tidak ditemukan" in msg
+
+    # Test invalid int photo ID without repo
+    ok_int, msg_int = uploader.upload_photo(12345)
+    assert ok_int is False
+

@@ -44,12 +44,22 @@ class TransferUploader:
         except Exception as e:
             return False, f"Gagal menghubungi server: {e}"
 
+    test_connection = check_server_connectivity
+
     def upload_photo(
         self,
-        photo: PhotoModel,
+        photo: Any,
         server_url: Optional[str] = None
     ) -> Tuple[bool, str]:
         """Uploads photo, metadata, and checksum with idempotency guarantees (PRD Section 23)."""
+        if isinstance(photo, int):
+            if not self.photo_repo:
+                return False, "PhotoRepository tidak tersedia."
+            photo_obj = self.photo_repo.get_by_id(photo)
+            if not photo_obj:
+                return False, f"Photo ID {photo} tidak ditemukan."
+            photo = photo_obj
+
         url = server_url or self.config.get("transfer", "server_url", "http://127.0.0.1:8000/api/v1")
         upload_endpoint = f"{url.rstrip('/')}/core-photos/upload"
         max_retries = int(self.config.get("transfer", "max_retries", 3))

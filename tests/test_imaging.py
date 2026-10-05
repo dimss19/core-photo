@@ -52,3 +52,19 @@ def test_imaging_pipeline(tmp_path):
     assert (paths.jpg_dir / f"{photo.filename_base}.json").exists()
     assert len(photo.md5_raw) == 32
     assert len(photo.md5_jpg) == 32
+    assert photo.timestamp != ""
+
+    # Test CSV report export
+    csv_file = paths.session_dir / "Core01.csv"
+    ImageProcessor.export_csv_report(sess, [photo], csv_file)
+    assert csv_file.exists()
+    lines = csv_file.read_text(encoding="utf-8").strip().splitlines()
+    assert len(lines) == 2
+    header = lines[0].split(",")
+    assert len(header) == 15
+    assert header[0] == "HoleID"
+    assert header[-1] == "TrayCrop"
+    row = lines[1].split(",")
+    assert row[0] == "Core01"
+    assert row[1] == "0"
+    assert row[2] == "2.6"

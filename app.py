@@ -16,13 +16,9 @@ from core.app_context import get_app_context
 from core.logger import get_logger, setup_logging
 from ui.browser import BrowserView
 from ui.capture import CaptureView
-from ui.dashboard import DashboardView
 from ui.data_hub import DataHubView
 from ui.review import ReviewView
-from ui.session import SessionView
 from ui.settings import SettingsView
-from ui.transfer import TransferView
-from ui.validation import ValidationView
 from ui.theme import (
     COLOR_ACCENT,
     COLOR_ACCENT_HOVER,
