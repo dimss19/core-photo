@@ -30,13 +30,6 @@
     "require_comments": false,
     "strict_naming": true
   },
-  "transfer": {
-    "server_url": "http://127.0.0.1:8000/api/v1",
-    "api_key": "",
-    "timeout_seconds": 30,
-    "max_retries": 3,
-    "chunk_size_kb": 1024
-  },
   "logging": {
     "level": "INFO",
     "file_logging": true,

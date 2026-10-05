@@ -14,7 +14,6 @@ from database.models import PhotoStatus
 from database.repositories import PhotoRepository
 from imaging.processor import ImageProcessor
 from storage.manager import StorageManager
-from transfer.uploader import TransferUploader
 
 logger = get_logger(__name__)
 
@@ -42,7 +41,7 @@ class DiagnosticsManager:
             "camera": self._check_camera(),
             "storage": self._check_storage(),
             "database": self._check_database(),
-            "server": self._check_server(),
+            "offline_mode": self._check_offline_mode(),
             "recovery": self._check_crash_recovery(),
         }
         logger.info("Diagnostics completed: %s", results)
@@ -85,14 +84,11 @@ class DiagnosticsManager:
                 return {"status": "ERROR", "error": str(e)}
         return {"status": "NO_ACTIVE_SESSION_DB"}
 
-    def _check_server(self) -> Dict[str, Any]:
-        uploader = TransferUploader()
-        server_url = self.config.get("transfer", "server_url", "http://127.0.0.1:8000/api/v1")
-        ok, msg = uploader.check_server_connectivity(server_url)
+    def _check_offline_mode(self) -> Dict[str, Any]:
         return {
-            "server_url": server_url,
-            "connected": ok,
-            "message": msg
+            "mode": "100% Offline Standalone",
+            "online_sync": False,
+            "status": "OK"
         }
 
     def _check_crash_recovery(self) -> Dict[str, Any]:

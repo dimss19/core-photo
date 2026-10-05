@@ -94,12 +94,10 @@ class SettingsView(ctk.CTkFrame):
 
         tab_general = self.tabs.add("GENERAL")
         tab_camera = self.tabs.add("CAMERA")
-        tab_server = self.tabs.add("SERVER")
         tab_diagnostics = self.tabs.add("DIAGNOSTICS")
 
         self._build_general_tab(tab_general)
         self._build_camera_tab(tab_camera)
-        self._build_server_tab(tab_server)
         self._build_system_tab(tab_diagnostics)
 
         self._update_tab_button_styles()
@@ -133,6 +131,8 @@ class SettingsView(ctk.CTkFrame):
             norm = tab_name.upper()
             if norm in ("SYSTEM", "DIAGNOSTIC"):
                 norm = "DIAGNOSTICS"
+            elif norm == "SERVER":
+                norm = "GENERAL"
             self.tabs.set(norm)
             self._update_tab_button_styles()
         except Exception as e:
@@ -224,47 +224,7 @@ class SettingsView(ctk.CTkFrame):
         self.lbl_cam_feedback.pack(anchor="w", padx=18, pady=(0, 10))
 
     # =========================================================================
-    # 3. SERVER TAB
-    # =========================================================================
-    def _build_server_tab(self, parent: ctk.CTkFrame) -> None:
-        parent.grid_columnconfigure(0, weight=1)
-
-        srv_box = ctk.CTkFrame(parent, fg_color=COLOR_PANEL_ALT, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
-        srv_box.pack(fill="x", padx=12, pady=12)
-
-        ctk.CTkLabel(srv_box, text="CENTRAL SERVER REPOSITORY", font=get_font(13, "bold"), text_color=COLOR_CHARCOAL).pack(anchor="w", padx=18, pady=(16, 2))
-        ctk.CTkLabel(srv_box, text="Configuration for secure batch uploads.", font=get_font(10), text_color=COLOR_TEXT_MUTED).pack(anchor="w", padx=18, pady=(0, 10))
-
-        server_url = self.ctx.config_manager.get("transfer", "server_url", "http://127.0.0.1:8000/api/v1")
-        ctk.CTkLabel(srv_box, text="Endpoint URL:", font=get_font(11, "bold"), text_color=COLOR_TEXT_PRIMARY).pack(anchor="w", padx=18, pady=(2, 1))
-        self.entry_srv_url = ctk.CTkEntry(srv_box, height=34, font=get_font(11), fg_color=COLOR_PANEL, border_color=COLOR_BORDER_STRONG, border_width=1)
-        self.entry_srv_url.insert(0, server_url)
-        self.entry_srv_url.pack(fill="x", padx=18, pady=(0, 8))
-
-        api_key = self.ctx.config_manager.get("transfer", "api_key", "")
-        ctk.CTkLabel(srv_box, text="API Key / Auth Token (Optional):", font=get_font(11, "bold"), text_color=COLOR_TEXT_PRIMARY).pack(anchor="w", padx=18, pady=(2, 1))
-        self.entry_srv_key = ctk.CTkEntry(srv_box, height=34, font=get_font(11), show="*", fg_color=COLOR_PANEL, border_color=COLOR_BORDER_STRONG, border_width=1)
-        self.entry_srv_key.insert(0, api_key)
-        self.entry_srv_key.pack(fill="x", padx=18, pady=(0, 14))
-
-        btn_save = ctk.CTkButton(
-            srv_box,
-            text="Save Server Settings",
-            font=get_font(11, "bold"),
-            height=34,
-            corner_radius=4,
-            fg_color=COLOR_CHARCOAL,
-            hover_color="#27272A",
-            text_color="#FFFFFF",
-            command=self._on_save_server_cfg,
-        )
-        btn_save.pack(anchor="w", padx=18, pady=(0, 16))
-
-        self.lbl_srv_feedback = ctk.CTkLabel(srv_box, text="", font=get_font(11, "bold"), text_color=COLOR_TEXT_MUTED)
-        self.lbl_srv_feedback.pack(anchor="w", padx=18, pady=(0, 10))
-
-    # =========================================================================
-    # 4. SYSTEM / DIAGNOSTICS TAB
+    # 3. SYSTEM / DIAGNOSTICS TAB
     # =========================================================================
     def _build_system_tab(self, parent: ctk.CTkFrame) -> None:
         parent.grid_columnconfigure((0, 1), weight=1)
@@ -406,12 +366,6 @@ class SettingsView(ctk.CTkFrame):
     def _on_reconnect_camera(self) -> None:
         self._on_detect_camera()
 
-    def _on_save_server_cfg(self) -> None:
-        url = self.entry_srv_url.get().strip()
-        key = self.entry_srv_key.get().strip()
-        self.ctx.config_manager.set("transfer", "server_url", url, auto_save=False)
-        self.ctx.config_manager.set("transfer", "api_key", key, auto_save=True)
-        self.lbl_srv_feedback.configure(text="✓ Server settings updated.", text_color=COLOR_SUCCESS)
 
     def _refresh_logs(self) -> None:
         text = self.diag.read_recent_logs(max_lines=150)

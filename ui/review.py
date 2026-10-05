@@ -420,7 +420,7 @@ class ReviewView(ctk.CTkFrame):
         self.search_entry.bind("<KeyRelease>", lambda e: self._refresh_catalog_grid())
 
         self.status_filter = ctk.CTkOptionMenu(
-            controls_box, values=["All Statuses", "VALID", "Issues / Flagged", "TRANSFERRED"],
+            controls_box, values=["All Statuses", "VALID", "Issues / Flagged"],
             command=lambda v: self._refresh_catalog_grid(), height=30, width=130, font=get_font(10),
             fg_color=COLOR_PANEL_ALT, text_color=COLOR_CHARCOAL, button_color=COLOR_BORDER, button_hover_color=COLOR_BORDER_STRONG,
         )
@@ -469,8 +469,8 @@ class ReviewView(ctk.CTkFrame):
         self.lbl_cat_status = ctk.CTkLabel(self.cat_meta_card, text="Validation Status: -", font=get_font(10), text_color=COLOR_TEXT_PRIMARY)
         self.lbl_cat_status.pack(anchor="w", padx=12, pady=2)
 
-        self.lbl_cat_transfer = ctk.CTkLabel(self.cat_meta_card, text="Transfer Status: -", font=get_font(10), text_color=COLOR_TEXT_PRIMARY)
-        self.lbl_cat_transfer.pack(anchor="w", padx=12, pady=2)
+        self.lbl_cat_storage = ctk.CTkLabel(self.cat_meta_card, text="Storage: LOCAL ARCHIVE", font=get_font(10), text_color=COLOR_TEXT_PRIMARY)
+        self.lbl_cat_storage.pack(anchor="w", padx=12, pady=2)
 
         self.lbl_cat_hashes = ctk.CTkLabel(
             self.cat_meta_card, text="MD5: -", font=ctk.CTkFont(family="Consolas", size=9),
@@ -698,7 +698,7 @@ class ReviewView(ctk.CTkFrame):
         )
 
         if status_sel == "Issues / Flagged":
-            photos = [p for p in photos if p.status not in ("VALID", "TRANSFERRED")]
+            photos = [p for p in photos if p.status != "VALID"]
 
         if not photos:
             ctk.CTkLabel(
@@ -737,7 +737,7 @@ class ReviewView(ctk.CTkFrame):
             sub_lbl = ctk.CTkLabel(card, text=f"{photo.interval_from:.2f} - {photo.interval_to:.2f} m", font=get_font(9), text_color=COLOR_TEXT_MUTED)
             sub_lbl.pack(padx=2, pady=1)
 
-            is_valid = photo.status in ("VALID", "TRANSFERRED")
+            is_valid = photo.status == "VALID"
             status_color = COLOR_SUCCESS if is_valid else COLOR_WARNING
             status_bg = COLOR_SUCCESS_BG if is_valid else COLOR_WARNING_BG
 
@@ -769,7 +769,7 @@ class ReviewView(ctk.CTkFrame):
         self.lbl_cat_title.configure(text=f"File: {photo.filename_base}.jpg")
         self.lbl_cat_interval.configure(text=f"Hole: {photo.hole_id}  ·  Tray: {photo.tray_number}  ·  {photo.interval_from:.2f} m - {photo.interval_to:.2f} m")
         self.lbl_cat_status.configure(text=f"Validation Status: {photo.status}")
-        self.lbl_cat_transfer.configure(text=f"Transfer Status: {'TRANSFERRED' if photo.status == 'TRANSFERRED' else 'LOCAL ONLY'}")
+        self.lbl_cat_storage.configure(text="Storage: Local Session Archive (Offline)")
         self.lbl_cat_hashes.configure(text=f"RAW MD5: {photo.md5_raw}\nJPG MD5: {photo.md5_jpg}\nCamera: {photo.camera_model}")
 
     def _on_open_selected_in_inspect(self) -> None:

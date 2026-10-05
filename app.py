@@ -205,7 +205,7 @@ class CorePhotoApp(ctk.CTk):
                 ("review", "Review & Photo Catalog"),
             ]),
             ("DATA", [
-                ("data", "Data & Transfer Hub"),
+                ("data", "Session & Data Archives"),
             ]),
             ("SYSTEM", [
                 ("settings", "Settings & Diagnostics"),
@@ -310,7 +310,7 @@ class CorePhotoApp(ctk.CTk):
 
         self.bottom_info_lbl = ctk.CTkLabel(
             self.bottom_bar,
-            text="Offline-Ready  |  SQLite Database OK",
+            text="100% Offline Standalone  |  SQLite Database OK",
             font=get_font(10),
             text_color=COLOR_TEXT_HINT,
         )
@@ -378,12 +378,9 @@ class CorePhotoApp(ctk.CTk):
         elif route == "browser":
             effective_route = "review"
             target_tab = "catalog"
-        elif route == "session":
+        elif route in ("session", "transfer", "archive", "archives"):
             effective_route = "data"
             target_tab = "session"
-        elif route == "transfer":
-            effective_route = "data"
-            target_tab = "transfer"
         else:
             effective_route = route
 

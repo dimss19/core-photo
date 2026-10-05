@@ -95,7 +95,7 @@ def test_app_view_lifecycle_and_aliases():
         application.navigate_to("transfer")
         application.update()
         assert application.current_view_name == "data"
-        assert application.views["data"]._active_tab == "transfer"
+        assert application.views["data"]._active_tab == "session"
 
         application.navigate_to("validation")
         application.update()
