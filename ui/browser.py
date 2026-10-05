@@ -35,16 +35,16 @@ class BrowserView(ctk.CTkFrame):
         self.grid_rowconfigure(1, weight=1)
 
         # ----------------- Top Filter Bar -----------------
-        filter_bar = ctk.CTkFrame(self, fg_color="#FFFFFF", corner_radius=12, border_width=1, border_color="#E2E8F0")
-        filter_bar.grid(row=0, column=0, columnspan=2, sticky="ew", padx=20, pady=(16, 10))
+        filter_bar = ctk.CTkFrame(self, fg_color="#FFFFFF", corner_radius=10, border_width=1, border_color="#E2E8F0")
+        filter_bar.grid(row=0, column=0, columnspan=2, sticky="ew", padx=20, pady=(14, 8))
 
         title_box = ctk.CTkFrame(filter_bar, fg_color="transparent")
-        title_box.pack(side="left", padx=(16, 20), pady=12)
+        title_box.pack(side="left", padx=(16, 16), pady=10)
 
         ctk.CTkLabel(
             title_box,
             text="🔍 Photo Browser",
-            font=ctk.CTkFont(size=18, weight="bold"),
+            font=ctk.CTkFont(size=16, weight="bold"),
             text_color="#1E293B"
         ).pack(anchor="w")
 
@@ -57,71 +57,71 @@ class BrowserView(ctk.CTkFrame):
 
         # Search & Filter inputs
         controls_box = ctk.CTkFrame(filter_bar, fg_color="transparent")
-        controls_box.pack(side="right", padx=16, pady=12)
+        controls_box.pack(side="right", padx=16, pady=10)
 
         self.search_entry = ctk.CTkEntry(
             controls_box,
             placeholder_text="Cari Hole ID atau Tray...",
             width=220,
-            height=36,
+            height=34,
             fg_color="#F8FAFC",
             border_color="#CBD5E1"
         )
-        self.search_entry.pack(side="left", padx=6)
+        self.search_entry.pack(side="left", padx=5)
         self.search_entry.bind("<KeyRelease>", lambda e: self.refresh())
 
         self.status_filter = ctk.CTkOptionMenu(
             controls_box,
             values=["Semua Status", "VALID", "PROCESSED", "INVALID", "TRANSFERRED"],
             command=lambda v: self.refresh(),
-            height=36,
-            width=140,
+            height=34,
+            width=135,
             fg_color="#F1F5F9",
             text_color="#1E293B",
             button_color="#E2E8F0",
             button_hover_color="#CBD5E1"
         )
-        self.status_filter.pack(side="left", padx=6)
+        self.status_filter.pack(side="left", padx=5)
 
         btn_refresh = ctk.CTkButton(
             controls_box,
             text="Segarkan",
-            width=84,
-            height=36,
+            width=80,
+            height=34,
             corner_radius=6,
             fg_color="#1D4ED8",
             hover_color="#1E40AF",
             command=self.refresh
         )
-        btn_refresh.pack(side="left", padx=6)
+        btn_refresh.pack(side="left", padx=5)
 
         # ----------------- Left: Scrollable Thumbnail Grid -----------------
         self.grid_container = ctk.CTkScrollableFrame(
             self,
             fg_color="#FFFFFF",
-            corner_radius=12,
+            corner_radius=10,
             border_width=1,
             border_color="#E2E8F0"
         )
-        self.grid_container.grid(row=1, column=0, sticky="nsew", padx=(20, 10), pady=(0, 16))
+        self.grid_container.grid(row=1, column=0, sticky="nsew", padx=(20, 8), pady=(0, 14))
         self.grid_container.grid_columnconfigure((0, 1, 2), weight=1)
 
         # ----------------- Right: Inspector Details -----------------
         self.detail_panel = ctk.CTkScrollableFrame(
             self,
             fg_color="#FFFFFF",
-            corner_radius=12,
+            corner_radius=10,
             border_width=1,
             border_color="#E2E8F0"
         )
-        self.detail_panel.grid(row=1, column=1, sticky="nsew", padx=(10, 20), pady=(0, 16))
+        self.detail_panel.grid(row=1, column=1, sticky="nsew", padx=(8, 20), pady=(0, 14))
 
         ctk.CTkLabel(
             self.detail_panel,
             text="Detail Foto Terpilih",
-            font=ctk.CTkFont(size=16, weight="bold"),
+            font=ctk.CTkFont(size=15, weight="bold"),
             text_color="#1E293B"
-        ).pack(anchor="w", padx=16, pady=(14, 4))
+        ).pack(anchor="w", padx=16, pady=(12, 2))
 
         ctk.CTkLabel(
             self.detail_panel,

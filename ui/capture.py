@@ -47,13 +47,14 @@ class CaptureView(ctk.CTkFrame):
         left_panel.grid_columnconfigure(0, weight=1)
 
         # Live View Toolbar
+        # Live View Toolbar
         toolbar = ctk.CTkFrame(left_panel, fg_color="transparent")
-        toolbar.grid(row=0, column=0, sticky="ew", padx=16, pady=(12, 6))
+        toolbar.grid(row=0, column=0, sticky="ew", padx=16, pady=(10, 4))
 
         self.cam_title_lbl = ctk.CTkLabel(
             toolbar,
             text="📷 Live View & Framing Kamera",
-            font=ctk.CTkFont(size=16, weight="bold"),
+            font=ctk.CTkFont(size=15, weight="bold"),
             text_color="#1E293B"
         )
         self.cam_title_lbl.pack(side="left")
@@ -61,30 +62,30 @@ class CaptureView(ctk.CTkFrame):
         self.btn_reconnect = ctk.CTkButton(
             toolbar,
             text="🔄 Hubungkan Ulang",
-            font=ctk.CTkFont(size=12),
-            width=130,
-            height=32,
+            font=ctk.CTkFont(size=11),
+            width=120,
+            height=30,
             corner_radius=6,
             fg_color="#F1F5F9",
             text_color="#1E293B",
             hover_color="#E2E8F0",
             command=self._on_reconnect_cam
         )
-        self.btn_reconnect.pack(side="right", padx=4)
+        self.btn_reconnect.pack(side="right", padx=3)
 
         self.btn_grid_toggle = ctk.CTkButton(
             toolbar,
             text="Grid: ON",
-            font=ctk.CTkFont(size=12, weight="bold"),
-            width=80,
-            height=32,
+            font=ctk.CTkFont(size=11, weight="bold"),
+            width=76,
+            height=30,
             corner_radius=6,
             fg_color="#E0F2FE",
             text_color="#0369A1",
             hover_color="#BAE6FD",
             command=self._toggle_grid
         )
-        self.btn_grid_toggle.pack(side="right", padx=4)
+        self.btn_grid_toggle.pack(side="right", padx=3)
 
         # Canvas for Camera Stream & Overlays
         canvas_container = ctk.CTkFrame(left_panel, fg_color="#0F172A", corner_radius=8)
@@ -104,10 +105,10 @@ class CaptureView(ctk.CTkFrame):
         self.live_status_lbl = ctk.CTkLabel(
             left_panel,
             text="Inisialisasi kamera...",
-            font=ctk.CTkFont(size=12),
+            font=ctk.CTkFont(size=11),
             text_color="#64748B"
         )
-        self.live_status_lbl.grid(row=2, column=0, sticky="w", padx=16, pady=(6, 12))
+        self.live_status_lbl.grid(row=2, column=0, sticky="w", padx=16, pady=(4, 10))
 
         # ----------------- RIGHT: Data Tray & Pre-flight -----------------
         right_panel = ctk.CTkScrollableFrame(self, fg_color="#FFFFFF", corner_radius=12, border_width=1, border_color="#E2E8F0")
@@ -117,16 +118,16 @@ class CaptureView(ctk.CTkFrame):
         ctk.CTkLabel(
             right_panel,
             text="Data Tray Core",
-            font=ctk.CTkFont(size=18, weight="bold"),
+            font=ctk.CTkFont(size=15, weight="bold"),
             text_color="#1E293B"
         ).pack(anchor="w", padx=12, pady=(10, 2))
 
         ctk.CTkLabel(
             right_panel,
             text="Lengkapi identitas tray sebelum mengambil foto.",
-            font=ctk.CTkFont(size=12),
+            font=ctk.CTkFont(size=11),
             text_color="#64748B"
-        ).pack(anchor="w", padx=12, pady=(0, 10))
+        ).pack(anchor="w", padx=12, pady=(0, 8))
 
         # Session Guard Notice Banner
         self.session_guard_frame = ctk.CTkFrame(right_panel, fg_color="#FEF3C7", corner_radius=8, border_width=1, border_color="#FCD34D")
@@ -237,35 +238,35 @@ class CaptureView(ctk.CTkFrame):
             text="🔍 Pemeriksaan Pra-Ambil (Pre-flight)",
             font=ctk.CTkFont(size=13, weight="bold"),
             text_color="#92400E"
-        ).pack(anchor="w", padx=12, pady=(10, 4))
+        ).pack(anchor="w", padx=12, pady=(8, 2))
 
         self.preflight_msg_lbl = ctk.CTkLabel(
             self.preflight_card,
             text="Memeriksa kelayakan capture...",
-            font=ctk.CTkFont(size=12),
+            font=ctk.CTkFont(size=11),
             text_color="#B45309",
             wraplength=280,
             justify="left"
         )
-        self.preflight_msg_lbl.pack(anchor="w", padx=12, pady=(0, 10))
+        self.preflight_msg_lbl.pack(anchor="w", padx=12, pady=(0, 8))
 
         # Action: CAPTURE BUTTON
         self.btn_capture = ctk.CTkButton(
             right_panel,
             text="📸  CAPTURE FOTO",
-            font=ctk.CTkFont(size=15, weight="bold"),
-            height=48,
-            corner_radius=8,
+            font=ctk.CTkFont(size=13, weight="bold"),
+            height=42,
+            corner_radius=6,
             fg_color="#059669",
             hover_color="#047857",
             command=self._on_capture_click
         )
-        self.btn_capture.pack(fill="x", padx=10, pady=(12, 6))
+        self.btn_capture.pack(fill="x", padx=10, pady=(10, 4))
 
         self.capture_feedback_lbl = ctk.CTkLabel(
             right_panel,
             text="",
-            font=ctk.CTkFont(size=12, weight="bold"),
+            font=ctk.CTkFont(size=11, weight="bold"),
             wraplength=280
         )
         self.capture_feedback_lbl.pack(anchor="w", padx=10, pady=2)

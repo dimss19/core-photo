@@ -27,53 +27,52 @@ class ValidationView(ctk.CTkFrame):
         self.grid_rowconfigure(1, weight=1)
 
         # ----------------- Header -----------------
-        header = ctk.CTkFrame(self, fg_color="#FFFFFF", corner_radius=12, border_width=1, border_color="#E2E8F0")
-        header.grid(row=0, column=0, sticky="ew", padx=20, pady=(16, 10))
+        header = ctk.CTkFrame(self, fg_color="#FFFFFF", corner_radius=10, border_width=1, border_color="#E2E8F0")
+        header.grid(row=0, column=0, sticky="ew", padx=20, pady=(14, 8))
 
         title_box = ctk.CTkFrame(header, fg_color="transparent")
-        title_box.pack(fill="x", padx=20, pady=(14, 6))
+        title_box.pack(fill="x", padx=16, pady=(12, 4))
 
         ctk.CTkLabel(
             title_box,
             text="✅ Pusat Validasi & Integritas Data",
-            font=ctk.CTkFont(size=20, weight="bold"),
+            font=ctk.CTkFont(size=16, weight="bold"),
             text_color="#1E293B"
         ).pack(anchor="w")
 
-        ctk.CTkLabel(
+        subtitle = ctk.CTkLabel(
             title_box,
             text="Sistem melakukan audit kepatuhan otomatis: format penamaan file, keutuhan checksum MD5, kelengkapan metadata, dan validitas rentang interval.",
-            font=ctk.CTkFont(size=12),
+            font=ctk.CTkFont(size=11),
             text_color="#64748B",
             wraplength=950,
             justify="left"
         )
-        subtitle = title_box.winfo_children()[-1]
-        subtitle.pack(anchor="w", pady=(2, 6))
+        subtitle.pack(anchor="w", pady=(2, 4))
 
         # Toolbar & Summary Bar
         summary_bar = ctk.CTkFrame(header, fg_color="#F1F5F9", corner_radius=8)
-        summary_bar.pack(fill="x", padx=20, pady=(4, 14))
+        summary_bar.pack(fill="x", padx=16, pady=(4, 12))
 
         self.summary_lbl = ctk.CTkLabel(
             summary_bar,
             text="Memuat status validasi...",
-            font=ctk.CTkFont(size=13, weight="bold"),
+            font=ctk.CTkFont(size=12, weight="bold"),
             text_color="#1E293B"
         )
-        self.summary_lbl.pack(side="left", padx=16, pady=10)
+        self.summary_lbl.pack(side="left", padx=14, pady=8)
 
         self.btn_run_all = ctk.CTkButton(
             summary_bar,
             text="🔄  Jalankan Validasi Ulang Sesi",
-            font=ctk.CTkFont(size=13, weight="bold"),
+            font=ctk.CTkFont(size=12, weight="bold"),
             height=34,
             corner_radius=6,
             fg_color="#1D4ED8",
             hover_color="#1E40AF",
             command=self._on_rerun_validation
         )
-        self.btn_run_all.pack(side="right", padx=12, pady=8)
+        self.btn_run_all.pack(side="right", padx=10, pady=6)
 
         # ----------------- Scrollable List of Findings -----------------
         self.results_scroll = ctk.CTkScrollableFrame(

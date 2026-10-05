@@ -77,64 +77,64 @@ class CorePhotoApp(ctk.CTk):
         self.grid_rowconfigure(1, weight=1)
 
         # ----------------- Top Header Bar (Light Mode) -----------------
-        self.header_bar = ctk.CTkFrame(self, height=54, corner_radius=0, fg_color="#FFFFFF", border_width=1, border_color="#E5E7EB")
+        self.header_bar = ctk.CTkFrame(self, height=48, corner_radius=0, fg_color="#FFFFFF", border_width=1, border_color="#E5E7EB")
         self.header_bar.grid(row=0, column=0, columnspan=2, sticky="ew")
         self.header_bar.grid_columnconfigure(1, weight=1)
 
         # Logo text & sub-badge
         logo_frame = ctk.CTkFrame(self.header_bar, fg_color="transparent")
-        logo_frame.grid(row=0, column=0, padx=(16, 16), pady=8, sticky="w")
+        logo_frame.grid(row=0, column=0, padx=(16, 16), pady=6, sticky="w")
 
-        # Display App Icon Image in Header
+        # Display App Icon Image in Header (Harmonized size: 24x24)
         png_file = self.icon_dir / "icon.png"
         if png_file.exists():
             try:
                 from PIL import Image
                 pil_logo = Image.open(png_file)
-                self.logo_ctk_image = ctk.CTkImage(light_image=pil_logo, dark_image=pil_logo, size=(32, 32))
+                self.logo_ctk_image = ctk.CTkImage(light_image=pil_logo, dark_image=pil_logo, size=(24, 24))
                 self.logo_icon_lbl = ctk.CTkLabel(logo_frame, image=self.logo_ctk_image, text="")
-                self.logo_icon_lbl.pack(side="left", padx=(0, 10))
+                self.logo_icon_lbl.pack(side="left", padx=(0, 8))
             except Exception as e:
                 logger.debug("Could not load header logo image: %s", e)
 
         self.logo_lbl = ctk.CTkLabel(
             logo_frame,
             text="CORE PHOTO",
-            font=ctk.CTkFont(size=17, weight="bold"),
+            font=ctk.CTkFont(size=15, weight="bold"),
             text_color="#1E293B"
         )
         self.logo_lbl.pack(side="left")
 
-        # Top System Status Indicators (Light mode contrast)
+        # Top System Status Indicators (Harmonized font size)
         status_frame = ctk.CTkFrame(self.header_bar, fg_color="transparent")
-        status_frame.grid(row=0, column=1, sticky="e", padx=20)
+        status_frame.grid(row=0, column=1, sticky="e", padx=16)
 
         self.top_session_lbl = ctk.CTkLabel(
             status_frame,
             text="Sesi: [Belum Ada]",
-            font=ctk.CTkFont(size=12, weight="bold"),
+            font=ctk.CTkFont(size=11, weight="bold"),
             text_color="#D97706"
         )
-        self.top_session_lbl.pack(side="left", padx=10)
+        self.top_session_lbl.pack(side="left", padx=8)
 
         self.top_cam_lbl = ctk.CTkLabel(
             status_frame,
             text="Kamera: Disconnected",
-            font=ctk.CTkFont(size=12),
+            font=ctk.CTkFont(size=11),
             text_color="#6B7280"
         )
-        self.top_cam_lbl.pack(side="left", padx=10)
+        self.top_cam_lbl.pack(side="left", padx=8)
 
         self.top_storage_lbl = ctk.CTkLabel(
             status_frame,
             text="Storage: OK",
-            font=ctk.CTkFont(size=12),
+            font=ctk.CTkFont(size=11),
             text_color="#059669"
         )
-        self.top_storage_lbl.pack(side="left", padx=10)
+        self.top_storage_lbl.pack(side="left", padx=8)
 
         # ----------------- Left Navigation Sidebar (Light Mode) -----------------
-        self.sidebar = ctk.CTkFrame(self, width=230, corner_radius=0, fg_color="#F8FAFC", border_width=1, border_color="#E2E8F0")
+        self.sidebar = ctk.CTkFrame(self, width=220, corner_radius=0, fg_color="#F8FAFC", border_width=1, border_color="#E2E8F0")
         self.sidebar.grid(row=1, column=0, sticky="nsew")
         self.sidebar.grid_rowconfigure(20, weight=1)
 
@@ -142,16 +142,16 @@ class CorePhotoApp(ctk.CTk):
 
         nav_groups = [
             ("ALUR KERJA UTAMA", [
-                ("dashboard", "📊  Dashboard", "Halaman Utama & Status"),
-                ("session", "📁  Sesi Foto", "Pilih / Buat Sesi Baru"),
-                ("capture", "📷  Capture Foto", "Live View & Ambil Foto"),
-                ("review", "👁️  Review Foto", "Inspeksi & Simpan Tray"),
+                ("dashboard", "📊 Dashboard", "Halaman Utama & Status"),
+                ("session", "📁 Sesi Foto", "Pilih / Buat Sesi Baru"),
+                ("capture", "📷 Capture Foto", "Live View & Ambil Foto"),
+                ("review", "👁️ Review Foto", "Inspeksi & Simpan Tray"),
             ]),
             ("DATA & DISTRIBUSI", [
-                ("browser", "🔍  Photo Browser", "Galeri & Filter Foto"),
-                ("validation", "✅  Validasi Data", "Audit & Integritas"),
-                ("transfer", "📤  Transfer Server", "Kirim Data ke Server"),
-                ("settings", "⚙️  Pengaturan", "Diagnostik & Recovery"),
+                ("browser", "🔍 Photo Browser", "Galeri & Filter Foto"),
+                ("validation", "✅ Validasi Data", "Audit & Integritas"),
+                ("transfer", "📤 Transfer Server", "Kirim Data ke Server"),
+                ("settings", "⚙️ Pengaturan", "Diagnostik & Recovery"),
             ])
         ]
 
@@ -160,10 +160,10 @@ class CorePhotoApp(ctk.CTk):
             grp_lbl = ctk.CTkLabel(
                 self.sidebar,
                 text=group_title,
-                font=ctk.CTkFont(size=11, weight="bold"),
+                font=ctk.CTkFont(size=10, weight="bold"),
                 text_color="#94A3B8"
             )
-            grp_lbl.grid(row=current_row, column=0, padx=16, pady=(14 if current_row > 0 else 10, 4), sticky="w")
+            grp_lbl.grid(row=current_row, column=0, padx=14, pady=(12 if current_row > 0 else 8, 4), sticky="w")
             current_row += 1
 
             for route, label, tooltip in items:
@@ -171,15 +171,15 @@ class CorePhotoApp(ctk.CTk):
                     self.sidebar,
                     text=label,
                     anchor="w",
-                    font=ctk.CTkFont(size=13, weight="normal"),
-                    height=38,
-                    corner_radius=8,
+                    font=ctk.CTkFont(size=12, weight="normal"),
+                    height=35,
+                    corner_radius=6,
                     fg_color="transparent",
                     text_color="#334155",
                     hover_color="#E2E8F0",
                     command=lambda r=route: self.navigate_to(r)
                 )
-                btn.grid(row=current_row, column=0, padx=10, pady=2, sticky="ew")
+                btn.grid(row=current_row, column=0, padx=8, pady=1, sticky="ew")
                 self.nav_buttons[route] = btn
                 current_row += 1
 

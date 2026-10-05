@@ -30,23 +30,23 @@ class SettingsView(ctk.CTkFrame):
         self.grid_rowconfigure(1, weight=1)
 
         # ----------------- Header -----------------
-        header = ctk.CTkFrame(self, fg_color="#FFFFFF", corner_radius=12, border_width=1, border_color="#E2E8F0")
-        header.grid(row=0, column=0, columnspan=2, sticky="ew", padx=20, pady=(16, 10))
+        header = ctk.CTkFrame(self, fg_color="#FFFFFF", corner_radius=10, border_width=1, border_color="#E2E8F0")
+        header.grid(row=0, column=0, columnspan=2, sticky="ew", padx=20, pady=(14, 8))
 
         title_box = ctk.CTkFrame(header, fg_color="transparent")
-        title_box.pack(fill="x", padx=20, pady=(14, 12))
+        title_box.pack(fill="x", padx=16, pady=(12, 10))
 
         ctk.CTkLabel(
             title_box,
             text="⚙️ Pengaturan & Diagnostik Sistem",
-            font=ctk.CTkFont(size=20, weight="bold"),
+            font=ctk.CTkFont(size=16, weight="bold"),
             text_color="#1E293B"
         ).pack(anchor="w")
 
         ctk.CTkLabel(
             title_box,
             text="Panel teknisi dan geologis untuk pemecahan masalah (troubleshooting), pemulihan crash otomatis, dan inspeksi log aktivitas.",
-            font=ctk.CTkFont(size=12),
+            font=ctk.CTkFont(size=11),
             text_color="#64748B",
             wraplength=950,
             justify="left"
@@ -56,18 +56,18 @@ class SettingsView(ctk.CTkFrame):
         left_panel = ctk.CTkScrollableFrame(
             self,
             fg_color="#FFFFFF",
-            corner_radius=12,
+            corner_radius=10,
             border_width=1,
             border_color="#E2E8F0"
         )
-        left_panel.grid(row=1, column=0, sticky="nsew", padx=(20, 10), pady=(0, 16))
+        left_panel.grid(row=1, column=0, sticky="nsew", padx=(20, 8), pady=(0, 14))
 
         ctk.CTkLabel(
             left_panel,
             text="🔍 Pemeriksaan Diagnostik",
-            font=ctk.CTkFont(size=16, weight="bold"),
+            font=ctk.CTkFont(size=15, weight="bold"),
             text_color="#1E293B"
-        ).pack(anchor="w", padx=16, pady=(14, 2))
+        ).pack(anchor="w", padx=16, pady=(12, 2))
 
         ctk.CTkLabel(
             left_panel,
@@ -83,8 +83,8 @@ class SettingsView(ctk.CTkFrame):
         self.btn_run_diag = ctk.CTkButton(
             btn_row,
             text="Jalankan Diagnostik",
-            font=ctk.CTkFont(size=13, weight="bold"),
-            height=36,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            height=34,
             corner_radius=6,
             fg_color="#1D4ED8",
             hover_color="#1E40AF",
@@ -95,8 +95,8 @@ class SettingsView(ctk.CTkFrame):
         self.btn_export = ctk.CTkButton(
             btn_row,
             text="Ekspor Laporan JSON",
-            font=ctk.CTkFont(size=13),
-            height=36,
+            font=ctk.CTkFont(size=12),
+            height=34,
             corner_radius=6,
             fg_color="#F1F5F9",
             text_color="#1E293B",
@@ -121,9 +121,9 @@ class SettingsView(ctk.CTkFrame):
         ctk.CTkLabel(
             left_panel,
             text="🛡️ Pemulihan Crash (Crash Recovery)",
-            font=ctk.CTkFont(size=16, weight="bold"),
+            font=ctk.CTkFont(size=15, weight="bold"),
             text_color="#1E293B"
-        ).pack(anchor="w", padx=16, pady=(16, 2))
+        ).pack(anchor="w", padx=16, pady=(14, 2))
 
         ctk.CTkLabel(
             left_panel,
@@ -132,7 +132,7 @@ class SettingsView(ctk.CTkFrame):
             text_color="#64748B",
             wraplength=380,
             justify="left"
-        ).pack(anchor="w", padx=16, pady=(0, 8))
+        ).pack(anchor="w", padx=16, pady=(0, 6))
 
         self.recovery_card = ctk.CTkFrame(left_panel, fg_color="#F8FAFC", corner_radius=8, border_width=1, border_color="#E2E8F0")
         self.recovery_card.pack(fill="x", padx=16, pady=4)
@@ -140,55 +140,55 @@ class SettingsView(ctk.CTkFrame):
         self.recovery_lbl = ctk.CTkLabel(
             self.recovery_card,
             text="Memeriksa status crash recovery...",
-            font=ctk.CTkFont(size=12),
+            font=ctk.CTkFont(size=11),
             wraplength=360,
             justify="left",
             text_color="#334155"
         )
-        self.recovery_lbl.pack(anchor="w", padx=12, pady=(10, 8))
+        self.recovery_lbl.pack(anchor="w", padx=12, pady=(8, 6))
 
         self.btn_resume = ctk.CTkButton(
             self.recovery_card,
             text="Pulihkan Pekerjaan Tertunda (Resume Processing)",
-            font=ctk.CTkFont(size=13, weight="bold"),
-            height=38,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            height=36,
             corner_radius=6,
             fg_color="#059669",
             hover_color="#047857",
             command=self._on_resume_captures
         )
-        self.btn_resume.pack(fill="x", padx=12, pady=(0, 10))
+        self.btn_resume.pack(fill="x", padx=12, pady=(0, 8))
 
         # ----------------- Right: Settings & Log Viewer -----------------
-        right_panel = ctk.CTkFrame(self, fg_color="#FFFFFF", corner_radius=12, border_width=1, border_color="#E2E8F0")
-        right_panel.grid(row=1, column=1, sticky="nsew", padx=(10, 20), pady=(0, 16))
+        right_panel = ctk.CTkFrame(self, fg_color="#FFFFFF", corner_radius=10, border_width=1, border_color="#E2E8F0")
+        right_panel.grid(row=1, column=1, sticky="nsew", padx=(8, 20), pady=(0, 14))
         right_panel.grid_rowconfigure(2, weight=1)
         right_panel.grid_columnconfigure(0, weight=1)
 
         # Mode Info Bar
-        info_bar = ctk.CTkFrame(right_panel, fg_color="#F8FAFC", corner_radius=8, border_width=1, border_color="#E2E8F0")
-        info_bar.grid(row=0, column=0, sticky="ew", padx=16, pady=(14, 6))
+        info_bar = ctk.CTkFrame(right_panel, fg_color="#F8FAFC", corner_radius=6, border_width=1, border_color="#E2E8F0")
+        info_bar.grid(row=0, column=0, sticky="ew", padx=16, pady=(12, 6))
 
-        ctk.CTkLabel(info_bar, text="🎨 Mode Tampilan:", font=ctk.CTkFont(size=12, weight="bold"), text_color="#1E293B").pack(side="left", padx=12, pady=10)
-        ctk.CTkLabel(info_bar, text="Light Mode (Aktif Standar)", font=ctk.CTkFont(size=12), text_color="#059669").pack(side="left", pady=10)
+        ctk.CTkLabel(info_bar, text="🎨 Mode Tampilan:", font=ctk.CTkFont(size=11, weight="bold"), text_color="#1E293B").pack(side="left", padx=10, pady=8)
+        ctk.CTkLabel(info_bar, text="Light Mode (Aktif Standar)", font=ctk.CTkFont(size=11), text_color="#059669").pack(side="left", pady=8)
 
         # Log viewer Header
         log_header = ctk.CTkFrame(right_panel, fg_color="transparent")
-        log_header.grid(row=1, column=0, sticky="ew", padx=16, pady=(8, 4))
+        log_header.grid(row=1, column=0, sticky="ew", padx=16, pady=(6, 4))
 
         ctk.CTkLabel(
             log_header,
             text="📋 Log Sistem Terkini (Live Log)",
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=ctk.CTkFont(size=13, weight="bold"),
             text_color="#1E293B"
         ).pack(side="left")
 
         btn_refresh_log = ctk.CTkButton(
             log_header,
             text="Segarkan Log",
-            font=ctk.CTkFont(size=12),
-            width=100,
-            height=30,
+            font=ctk.CTkFont(size=11),
+            width=90,
+            height=28,
             corner_radius=6,
             fg_color="#F1F5F9",
             text_color="#1E293B",

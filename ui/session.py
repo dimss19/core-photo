@@ -29,159 +29,159 @@ class SessionView(ctk.CTkFrame):
         self.grid_rowconfigure(1, weight=1)
 
         # ----------------- Header -----------------
-        header = ctk.CTkFrame(self, fg_color="#FFFFFF", corner_radius=12, border_width=1, border_color="#E2E8F0")
-        header.grid(row=0, column=0, columnspan=2, sticky="ew", padx=20, pady=(16, 10))
+        header = ctk.CTkFrame(self, fg_color="#FFFFFF", corner_radius=10, border_width=1, border_color="#E2E8F0")
+        header.grid(row=0, column=0, columnspan=2, sticky="ew", padx=20, pady=(14, 8))
 
         title = ctk.CTkLabel(
             header,
             text="Manajemen Sesi Foto (Session)",
-            font=ctk.CTkFont(size=20, weight="bold"),
+            font=ctk.CTkFont(size=16, weight="bold"),
             text_color="#1E293B"
         )
-        title.pack(anchor="w", padx=20, pady=(14, 2))
+        title.pack(anchor="w", padx=16, pady=(12, 2))
 
         subtitle = ctk.CTkLabel(
             header,
             text="Setiap foto dikelompokkan ke dalam satu sesi berdasarkan Site, Operator, dan Tanggal. Anda dapat membuat sesi baru atau melanjutkan sesi sebelumnya.",
-            font=ctk.CTkFont(size=12),
+            font=ctk.CTkFont(size=11),
             text_color="#64748B",
             wraplength=950,
             justify="left"
         )
-        subtitle.pack(anchor="w", padx=20, pady=(0, 14))
+        subtitle.pack(anchor="w", padx=16, pady=(0, 12))
 
         # ----------------- Left Column: Create New Session -----------------
-        new_card = ctk.CTkFrame(self, fg_color="#FFFFFF", corner_radius=12, border_width=1, border_color="#E2E8F0")
-        new_card.grid(row=1, column=0, sticky="nsew", padx=(20, 10), pady=(0, 16))
+        new_card = ctk.CTkFrame(self, fg_color="#FFFFFF", corner_radius=10, border_width=1, border_color="#E2E8F0")
+        new_card.grid(row=1, column=0, sticky="nsew", padx=(20, 8), pady=(0, 14))
 
         ctk.CTkLabel(
             new_card,
             text="➕ Buat Sesi Baru (New Session)",
-            font=ctk.CTkFont(size=16, weight="bold"),
+            font=ctk.CTkFont(size=15, weight="bold"),
             text_color="#1E293B"
-        ).pack(anchor="w", padx=20, pady=(18, 4))
+        ).pack(anchor="w", padx=16, pady=(14, 2))
 
         ctk.CTkLabel(
             new_card,
             text="Isi formulir di bawah ini untuk memulai sesi foto baru di lapangan.",
-            font=ctk.CTkFont(size=12),
+            font=ctk.CTkFont(size=11),
             text_color="#64748B"
-        ).pack(anchor="w", padx=20, pady=(0, 14))
+        ).pack(anchor="w", padx=16, pady=(0, 10))
 
         # 1. Site
-        ctk.CTkLabel(new_card, text="Lokasi / Pit / Site *", font=ctk.CTkFont(size=13, weight="bold"), text_color="#334155").pack(anchor="w", padx=20, pady=(4, 2))
+        ctk.CTkLabel(new_card, text="Lokasi / Pit / Site *", font=ctk.CTkFont(size=12, weight="bold"), text_color="#334155").pack(anchor="w", padx=16, pady=(4, 1))
         self.entry_site = ctk.CTkEntry(
             new_card,
             placeholder_text="Contoh: PIT_NORTH_01 atau PROJECT_A",
-            height=38,
+            height=34,
             fg_color="#F8FAFC",
             border_color="#CBD5E1"
         )
-        self.entry_site.pack(fill="x", padx=20, pady=(0, 2))
+        self.entry_site.pack(fill="x", padx=16, pady=(0, 1))
 
         ctk.CTkLabel(
             new_card,
             text="Gunakan huruf kapital atau angka tanpa spasi untuk konsistensi penamaan.",
             font=ctk.CTkFont(size=11),
             text_color="#94A3B8"
-        ).pack(anchor="w", padx=20, pady=(0, 10))
+        ).pack(anchor="w", padx=16, pady=(0, 8))
 
         # 2. Operator
-        ctk.CTkLabel(new_card, text="Nama Operator / Geologis *", font=ctk.CTkFont(size=13, weight="bold"), text_color="#334155").pack(anchor="w", padx=20, pady=(4, 2))
+        ctk.CTkLabel(new_card, text="Nama Operator / Geologis *", font=ctk.CTkFont(size=12, weight="bold"), text_color="#334155").pack(anchor="w", padx=16, pady=(4, 1))
         self.entry_operator = ctk.CTkEntry(
             new_card,
             placeholder_text="Contoh: Dimas Prasetyo",
-            height=38,
+            height=34,
             fg_color="#F8FAFC",
             border_color="#CBD5E1"
         )
-        self.entry_operator.pack(fill="x", padx=20, pady=(0, 2))
+        self.entry_operator.pack(fill="x", padx=16, pady=(0, 1))
 
         ctk.CTkLabel(
             new_card,
             text="Nama teknisi atau geologis yang memimpin pengambilan foto tray.",
             font=ctk.CTkFont(size=11),
             text_color="#94A3B8"
-        ).pack(anchor="w", padx=20, pady=(0, 10))
+        ).pack(anchor="w", padx=16, pady=(0, 8))
 
         # 3. Date
-        ctk.CTkLabel(new_card, text="Tanggal Sesi (Format: YYYYMMDD) *", font=ctk.CTkFont(size=13, weight="bold"), text_color="#334155").pack(anchor="w", padx=20, pady=(4, 2))
+        ctk.CTkLabel(new_card, text="Tanggal Sesi (Format: YYYYMMDD) *", font=ctk.CTkFont(size=12, weight="bold"), text_color="#334155").pack(anchor="w", padx=16, pady=(4, 1))
         today_str = datetime.now().strftime("%Y%m%d")
         self.entry_date = ctk.CTkEntry(
             new_card,
-            height=38,
+            height=34,
             fg_color="#F8FAFC",
             border_color="#CBD5E1"
         )
         self.entry_date.insert(0, today_str)
-        self.entry_date.pack(fill="x", padx=20, pady=(0, 2))
+        self.entry_date.pack(fill="x", padx=16, pady=(0, 1))
 
         ctk.CTkLabel(
             new_card,
             text="Otomatis diisi dengan tanggal hari ini. Ubah jika mendokumentasikan data kemarin.",
             font=ctk.CTkFont(size=11),
             text_color="#94A3B8"
-        ).pack(anchor="w", padx=20, pady=(0, 16))
+        ).pack(anchor="w", padx=16, pady=(0, 12))
 
         # Button Create
         self.btn_create_session = ctk.CTkButton(
             new_card,
             text="Simpan & Mulai Sesi Baru →",
-            font=ctk.CTkFont(size=14, weight="bold"),
-            height=44,
-            corner_radius=8,
+            font=ctk.CTkFont(size=13, weight="bold"),
+            height=40,
+            corner_radius=6,
             fg_color="#1D4ED8",
             hover_color="#1E40AF",
             command=self._on_create_session
         )
-        self.btn_create_session.pack(fill="x", padx=20, pady=6)
+        self.btn_create_session.pack(fill="x", padx=16, pady=4)
 
         # Feedback box
-        self.new_feedback_lbl = ctk.CTkLabel(new_card, text="", font=ctk.CTkFont(size=12, weight="bold"), wraplength=420)
-        self.new_feedback_lbl.pack(anchor="w", padx=20, pady=4)
+        self.new_feedback_lbl = ctk.CTkLabel(new_card, text="", font=ctk.CTkFont(size=11, weight="bold"), wraplength=420)
+        self.new_feedback_lbl.pack(anchor="w", padx=16, pady=3)
 
         # ----------------- Right Column: Continue Existing Session -----------------
-        cont_card = ctk.CTkFrame(self, fg_color="#FFFFFF", corner_radius=12, border_width=1, border_color="#E2E8F0")
-        cont_card.grid(row=1, column=1, sticky="nsew", padx=(10, 20), pady=(0, 16))
+        cont_card = ctk.CTkFrame(self, fg_color="#FFFFFF", corner_radius=10, border_width=1, border_color="#E2E8F0")
+        cont_card.grid(row=1, column=1, sticky="nsew", padx=(8, 20), pady=(0, 14))
 
         ctk.CTkLabel(
             cont_card,
             text="📂 Lanjutkan Sesi (Continue Session)",
-            font=ctk.CTkFont(size=16, weight="bold"),
+            font=ctk.CTkFont(size=15, weight="bold"),
             text_color="#1E293B"
-        ).pack(anchor="w", padx=20, pady=(18, 4))
+        ).pack(anchor="w", padx=16, pady=(14, 2))
 
         ctk.CTkLabel(
             cont_card,
             text="Pilih sesi yang belum selesai dari penyimpanan lokal:",
-            font=ctk.CTkFont(size=12),
+            font=ctk.CTkFont(size=11),
             text_color="#64748B"
-        ).pack(anchor="w", padx=20, pady=(0, 12))
+        ).pack(anchor="w", padx=16, pady=(0, 8))
 
         # Scrollable list for existing sessions
         self.sessions_scroll = ctk.CTkScrollableFrame(
             cont_card,
-            height=260,
+            height=250,
             fg_color="#F8FAFC",
             border_width=1,
             border_color="#E2E8F0",
-            corner_radius=8
+            corner_radius=6
         )
-        self.sessions_scroll.pack(fill="both", expand=True, padx=20, pady=(0, 12))
+        self.sessions_scroll.pack(fill="both", expand=True, padx=16, pady=(0, 10))
 
         self.selected_session_var = ctk.StringVar(value="")
 
         self.btn_open_session = ctk.CTkButton(
             cont_card,
             text="Buka Sesi Terpilih →",
-            font=ctk.CTkFont(size=14, weight="bold"),
-            height=44,
-            corner_radius=8,
+            font=ctk.CTkFont(size=13, weight="bold"),
+            height=40,
+            corner_radius=6,
             fg_color="#059669",
             hover_color="#047857",
             command=self._on_open_session
         )
-        self.btn_open_session.pack(fill="x", padx=20, pady=6)
+        self.btn_open_session.pack(fill="x", padx=16, pady=4)
 
         self.cont_feedback_lbl = ctk.CTkLabel(cont_card, text="", font=ctk.CTkFont(size=12, weight="bold"), wraplength=420)
         self.cont_feedback_lbl.pack(anchor="w", padx=20, pady=4)

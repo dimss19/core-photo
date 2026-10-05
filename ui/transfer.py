@@ -35,45 +35,45 @@ class TransferView(ctk.CTkFrame):
         self.grid_rowconfigure(2, weight=1)
 
         # ----------------- Header -----------------
-        header = ctk.CTkFrame(self, fg_color="#FFFFFF", corner_radius=12, border_width=1, border_color="#E2E8F0")
-        header.grid(row=0, column=0, columnspan=2, sticky="ew", padx=20, pady=(16, 10))
+        header = ctk.CTkFrame(self, fg_color="#FFFFFF", corner_radius=10, border_width=1, border_color="#E2E8F0")
+        header.grid(row=0, column=0, columnspan=2, sticky="ew", padx=20, pady=(14, 8))
 
         title_box = ctk.CTkFrame(header, fg_color="transparent")
-        title_box.pack(fill="x", padx=20, pady=(14, 12))
+        title_box.pack(fill="x", padx=16, pady=(12, 10))
 
         ctk.CTkLabel(
             title_box,
             text="📤 Transfer Data ke Server Pusat",
-            font=ctk.CTkFont(size=20, weight="bold"),
+            font=ctk.CTkFont(size=16, weight="bold"),
             text_color="#1E293B"
         ).pack(anchor="w")
 
         ctk.CTkLabel(
             title_box,
             text="Kirim file foto drill core (RAW & JPG) beserta berkas metadata JSON ke server pusat. Seluruh file asli tetap tersimpan aman di disk lokal.",
-            font=ctk.CTkFont(size=12),
+            font=ctk.CTkFont(size=11),
             text_color="#64748B",
             wraplength=950,
             justify="left"
         ).pack(anchor="w", pady=(2, 0))
 
         # ----------------- Left: Server Configuration -----------------
-        cfg_card = ctk.CTkFrame(self, fg_color="#FFFFFF", corner_radius=12, border_width=1, border_color="#E2E8F0")
-        cfg_card.grid(row=1, column=0, sticky="nsew", padx=(20, 10), pady=(0, 10))
+        cfg_card = ctk.CTkFrame(self, fg_color="#FFFFFF", corner_radius=10, border_width=1, border_color="#E2E8F0")
+        cfg_card.grid(row=1, column=0, sticky="nsew", padx=(20, 8), pady=(0, 10))
 
         ctk.CTkLabel(
             cfg_card,
             text="Konfigurasi Server Tujuan",
-            font=ctk.CTkFont(size=16, weight="bold"),
+            font=ctk.CTkFont(size=15, weight="bold"),
             text_color="#1E293B"
-        ).pack(anchor="w", padx=16, pady=(14, 2))
+        ).pack(anchor="w", padx=16, pady=(12, 2))
 
         ctk.CTkLabel(
             cfg_card,
             text="Tentukan alamat endpoint REST API server pusat.",
             font=ctk.CTkFont(size=11),
             text_color="#64748B"
-        ).pack(anchor="w", padx=16, pady=(0, 10))
+        ).pack(anchor="w", padx=16, pady=(0, 8))
 
         # Server URL
         ctk.CTkLabel(cfg_card, text="URL Endpoint Server *", font=ctk.CTkFont(size=12, weight="bold"), text_color="#334155").pack(anchor="w", padx=16, pady=(2, 1))
@@ -81,13 +81,13 @@ class TransferView(ctk.CTkFrame):
         self.entry_url = ctk.CTkEntry(
             cfg_card,
             placeholder_text="Contoh: https://core-api.perusahaan.com/api/v1",
-            height=36,
+            height=34,
             fg_color="#F8FAFC",
             border_color="#CBD5E1"
         )
         self.entry_url.insert(0, server_url)
-        self.entry_url.pack(fill="x", padx=16, pady=(0, 2))
-        ctk.CTkLabel(cfg_card, text="Pastikan koneksi internet atau LAN terhubung ke host server.", font=ctk.CTkFont(size=11), text_color="#94A3B8").pack(anchor="w", padx=16, pady=(0, 8))
+        self.entry_url.pack(fill="x", padx=16, pady=(0, 1))
+        ctk.CTkLabel(cfg_card, text="Pastikan koneksi internet atau LAN terhubung ke host server.", font=ctk.CTkFont(size=11), text_color="#94A3B8").pack(anchor="w", padx=16, pady=(0, 6))
 
         # API Key
         ctk.CTkLabel(cfg_card, text="API Key / Auth Token (Opsional):", font=ctk.CTkFont(size=12, weight="bold"), text_color="#334155").pack(anchor="w", padx=16, pady=(2, 1))
@@ -95,14 +95,14 @@ class TransferView(ctk.CTkFrame):
         self.entry_key = ctk.CTkEntry(
             cfg_card,
             placeholder_text="Masukkan API key jika diperlukan otorisasi",
-            height=36,
+            height=34,
             show="*",
             fg_color="#F8FAFC",
             border_color="#CBD5E1"
         )
         self.entry_key.insert(0, api_key)
-        self.entry_key.pack(fill="x", padx=16, pady=(0, 2))
-        ctk.CTkLabel(cfg_card, text="Token autentikasi Bearer header.", font=ctk.CTkFont(size=11), text_color="#94A3B8").pack(anchor="w", padx=16, pady=(0, 12))
+        self.entry_key.pack(fill="x", padx=16, pady=(0, 1))
+        ctk.CTkLabel(cfg_card, text="Token autentikasi Bearer header.", font=ctk.CTkFont(size=11), text_color="#94A3B8").pack(anchor="w", padx=16, pady=(0, 10))
 
         # Button Row
         btn_row = ctk.CTkFrame(cfg_card, fg_color="transparent")
@@ -112,8 +112,8 @@ class TransferView(ctk.CTkFrame):
         self.btn_save_cfg = ctk.CTkButton(
             btn_row,
             text="Simpan Pengaturan",
-            font=ctk.CTkFont(size=13, weight="bold"),
-            height=36,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            height=34,
             corner_radius=6,
             fg_color="#1D4ED8",
             hover_color="#1E40AF",
@@ -124,8 +124,8 @@ class TransferView(ctk.CTkFrame):
         self.btn_test_conn = ctk.CTkButton(
             btn_row,
             text="Uji Koneksi Server",
-            font=ctk.CTkFont(size=13),
-            height=36,
+            font=ctk.CTkFont(size=12),
+            height=34,
             corner_radius=6,
             fg_color="#F1F5F9",
             text_color="#1E293B",
@@ -134,50 +134,50 @@ class TransferView(ctk.CTkFrame):
         )
         self.btn_test_conn.grid(row=0, column=1, sticky="ew", padx=(4, 0))
 
-        self.conn_feedback_lbl = ctk.CTkLabel(cfg_card, text="", font=ctk.CTkFont(size=12, weight="bold"), wraplength=340)
-        self.conn_feedback_lbl.pack(anchor="w", padx=16, pady=(8, 12))
+        self.conn_feedback_lbl = ctk.CTkLabel(cfg_card, text="", font=ctk.CTkFont(size=11, weight="bold"), wraplength=340)
+        self.conn_feedback_lbl.pack(anchor="w", padx=16, pady=(6, 10))
 
         # ----------------- Right: Transfer Execution & Progress -----------------
-        exec_card = ctk.CTkFrame(self, fg_color="#FFFFFF", corner_radius=12, border_width=1, border_color="#E2E8F0")
-        exec_card.grid(row=1, column=1, sticky="nsew", padx=(10, 20), pady=(0, 10))
+        exec_card = ctk.CTkFrame(self, fg_color="#FFFFFF", corner_radius=10, border_width=1, border_color="#E2E8F0")
+        exec_card.grid(row=1, column=1, sticky="nsew", padx=(8, 20), pady=(0, 10))
 
         ctk.CTkLabel(
             exec_card,
             text="Antrean Transfer Sesi Aktif",
-            font=ctk.CTkFont(size=16, weight="bold"),
+            font=ctk.CTkFont(size=15, weight="bold"),
             text_color="#1E293B"
-        ).pack(anchor="w", padx=16, pady=(14, 2))
+        ).pack(anchor="w", padx=16, pady=(12, 2))
 
         ctk.CTkLabel(
             exec_card,
             text="Proses upload batch foto yang telah tervalidasi.",
             font=ctk.CTkFont(size=11),
             text_color="#64748B"
-        ).pack(anchor="w", padx=16, pady=(0, 10))
+        ).pack(anchor="w", padx=16, pady=(0, 8))
 
         self.queue_info_lbl = ctk.CTkLabel(
             exec_card,
             text="Memeriksa antrean foto...",
-            font=ctk.CTkFont(size=13, weight="bold"),
+            font=ctk.CTkFont(size=12, weight="bold"),
             text_color="#1E293B"
         )
-        self.queue_info_lbl.pack(anchor="w", padx=16, pady=4)
+        self.queue_info_lbl.pack(anchor="w", padx=16, pady=2)
 
-        self.progress_bar = ctk.CTkProgressBar(exec_card, height=14, corner_radius=7, fg_color="#F1F5F9", progress_color="#059669")
-        self.progress_bar.pack(fill="x", padx=16, pady=(10, 6))
+        self.progress_bar = ctk.CTkProgressBar(exec_card, height=12, corner_radius=6, fg_color="#F1F5F9", progress_color="#059669")
+        self.progress_bar.pack(fill="x", padx=16, pady=(8, 4))
         self.progress_bar.set(0)
 
         self.btn_start_transfer = ctk.CTkButton(
             exec_card,
             text="📤  Mulai Transfer Seluruh Foto",
-            font=ctk.CTkFont(size=14, weight="bold"),
-            height=44,
-            corner_radius=8,
+            font=ctk.CTkFont(size=13, weight="bold"),
+            height=40,
+            corner_radius=6,
             fg_color="#059669",
             hover_color="#047857",
             command=self._on_start_transfer
         )
-        self.btn_start_transfer.pack(fill="x", padx=16, pady=(10, 6))
+        self.btn_start_transfer.pack(fill="x", padx=16, pady=(8, 4))
 
         ctk.CTkLabel(
             exec_card,
