@@ -105,18 +105,6 @@ class CorePhotoApp(ctk.CTk):
         )
         self.logo_lbl.pack(side="left")
 
-        app_tag = ctk.CTkLabel(
-            logo_frame,
-            text="PRO",
-            font=ctk.CTkFont(size=10, weight="bold"),
-            text_color="#FFFFFF",
-            fg_color="#1A73E8",
-            corner_radius=4,
-            width=36,
-            height=18
-        )
-        app_tag.pack(side="left", padx=8)
-
         # Top System Status Indicators (Light mode contrast)
         status_frame = ctk.CTkFrame(self.header_bar, fg_color="transparent")
         status_frame.grid(row=0, column=1, sticky="e", padx=20)
@@ -201,7 +189,7 @@ class CorePhotoApp(ctk.CTk):
 
         v_lbl = ctk.CTkLabel(
             v_frame,
-            text="Core Photo v1.0.0 Pro\nLight Mode • Offline-Ready",
+            text="Core Photo v1.0.0\nOffline-Ready",
             font=ctk.CTkFont(size=11),
             text_color="#94A3B8",
             justify="center"
