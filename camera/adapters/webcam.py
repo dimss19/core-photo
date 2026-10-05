@@ -61,12 +61,12 @@ class WebcamAdapter(AbstractCameraAdapter):
 
     def connect(self, device_id: Any = None) -> bool:
         if device_id is not None and str(device_id).lower() in ("sim", "simulator", "sample"):
-            logger.info("Connecting to Core Tray Reference Feed (Simulator)...")
+            logger.info("Connecting to Camera Standby Feed...")
             self._is_simulated = True
             self._state = CameraState.READY
-            self._info.model = "Canon EOS 60D (Core Tray Feed)"
-            self._info.serial_number = "3461404624"
-            self._info.firmware_version = "1.1.1"
+            self._info.model = "Camera Standby (Simulator)"
+            self._info.serial_number = "STANDBY"
+            self._info.firmware_version = "Standby"
             return True
 
         if device_id is not None:
@@ -82,6 +82,9 @@ class WebcamAdapter(AbstractCameraAdapter):
             logger.warning("OpenCV not installed. Using simulated camera pattern.")
             self._is_simulated = True
             self._state = CameraState.READY
+            self._info.model = "Camera Standby (No OpenCV)"
+            self._info.serial_number = "STANDBY"
+            self._info.firmware_version = "-"
             return True
 
         try:
@@ -93,14 +96,14 @@ class WebcamAdapter(AbstractCameraAdapter):
 
             if not cap.isOpened():
                 logger.warning(
-                    "Physical camera index %d could not be opened. Falling back to simulated core tray stream.",
+                    "Physical camera index %d could not be opened. Falling back to camera standby stream.",
                     self.device_index
                 )
                 self._is_simulated = True
                 self._state = CameraState.READY
-                self._info.model = "Canon EOS 60D (Core Tray Feed)"
-                self._info.serial_number = "3461404624"
-                self._info.firmware_version = "1.1.1"
+                self._info.model = "Standby (No Camera Detected)"
+                self._info.serial_number = "STANDBY"
+                self._info.firmware_version = "-"
                 return True
 
             # Attempt to set preferred resolution
@@ -262,43 +265,72 @@ class WebcamAdapter(AbstractCameraAdapter):
                     logger.debug("Live view callback exception: %s", e)
 
     def _generate_simulated_frame(self) -> np.ndarray:
-        """Generates realistic core tray frame matching geological reference sample."""
-        from pathlib import Path
-        ref_path = Path(__file__).resolve().parent.parent.parent / "assets" / "core_tray_reference.jpg"
-        if ref_path.exists():
-            if not hasattr(self, "_cached_ref_frame") or self._cached_ref_frame is None:
-                try:
-                    if OPENCV_AVAILABLE:
-                        bgr = cv2.imread(str(ref_path))
-                        if bgr is not None:
-                            self._cached_ref_frame = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
-                    else:
-                        from PIL import Image
-                        pil_ref = Image.open(ref_path).convert("RGB")
-                        self._cached_ref_frame = np.array(pil_ref)
-                except Exception as e:
-                    logger.debug("Failed loading reference frame: %s", e)
+        """Generates a neutral technical standby pattern when no physical camera is connected."""
+        w, h = 1280, 720
+        img = np.full((h, w, 3), (28, 28, 32), dtype=np.uint8)
 
-            if hasattr(self, "_cached_ref_frame") and self._cached_ref_frame is not None:
-                return self._cached_ref_frame.copy()
+        # Technical gridlines
+        grid_color = (40, 40, 48)
+        for x in range(0, w, 80):
+            img[:, x:x + 1] = grid_color
+        for y in range(0, h, 80):
+            img[y:y + 1, :] = grid_color
 
-        w, h = 640, 480
-        img = np.full((h, w, 3), (60, 65, 70), dtype=np.uint8)
-        row_height = 80
-        margin = 30
-        for i in range(3):
-            y_start = margin + i * (row_height + 25)
-            y_end = y_start + row_height
-            rock_color = (130 + i * 15, 120 + i * 10, 110 + i * 12)
-            img[y_start:y_end, 50:w - 50] = rock_color
-            for frac_x in range(120, w - 80, 75):
-                img[y_start:y_end, frac_x:frac_x + 3] = (30, 30, 30)
+        # Subtle center crosshairs
+        center_x, center_y = w // 2, h // 2
+        img[center_y:center_y + 1, center_x - 60:center_x + 60] = (70, 70, 80)
+        img[center_y - 60:center_y + 60, center_x:center_x + 1] = (70, 70, 80)
+
+        # Corner alignment markers
+        corner_color = (80, 80, 95)
+        m_len = 30
+        for cx, cy, dx, dy in [(40, 40, 1, 1), (w - 40, 40, -1, 1), (40, h - 40, 1, -1), (w - 40, h - 40, -1, -1)]:
+            img[cy:cy + 2, min(cx, cx + dx * m_len):max(cx, cx + dx * m_len)] = corner_color
+            img[min(cy, cy + dy * m_len):max(cy, cy + dy * m_len), cx:cx + 2] = corner_color
 
         if OPENCV_AVAILABLE:
-            cv2.putText(img, "CORE TRAY SIMULATION STREAM", (70, 460),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200, 220, 255), 2)
-            cv2.line(img, (50, 20), (w - 50, 20), (220, 220, 220), 2)
-            for tick in range(50, w - 50, 40):
-                cv2.line(img, (tick, 15), (tick, 25), (255, 255, 255), 2)
+            cv2.circle(img, (center_x, center_y), 40, (60, 60, 75), 1)
+            cv2.circle(img, (center_x, center_y), 4, (100, 100, 120), -1)
+
+            cv2.putText(
+                img,
+                "CAMERA STANDBY",
+                (center_x - 170, center_y - 70),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1.0,
+                (220, 220, 230),
+                2,
+                cv2.LINE_AA,
+            )
+            cv2.putText(
+                img,
+                "No physical camera video stream detected.",
+                (center_x - 220, center_y + 90),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.65,
+                (140, 140, 155),
+                1,
+                cv2.LINE_AA,
+            )
+            cv2.putText(
+                img,
+                "Connect USB / DSLR Camera and click Reconnect.",
+                (center_x - 235, center_y + 120),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.55,
+                (100, 100, 115),
+                1,
+                cv2.LINE_AA,
+            )
+            cv2.putText(
+                img,
+                "STANDBY TEST PATTERN  |  1280x720",
+                (45, h - 35),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.45,
+                (90, 90, 105),
+                1,
+                cv2.LINE_AA,
+            )
 
         return img
