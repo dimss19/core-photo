@@ -77,13 +77,8 @@ class CorePhotoApp(ctk.CTk):
         self.current_view_name = "dashboard"
         self.views: Dict[str, ctk.CTkFrame] = {}
 
-        # Accordion dropdown navigation state
+        # Primary navigation buttons state
         self.nav_buttons: Dict[str, ctk.CTkButton] = {}
-        self.group_headers: Dict[str, ctk.CTkButton] = {}
-        self.group_frames: Dict[str, ctk.CTkFrame] = {}
-        self.group_expanded: Dict[str, bool] = {}
-        self.group_rows: Dict[str, int] = {}
-        self.route_to_group: Dict[str, str] = {}
 
         self._build_layout()
         self._init_views()
@@ -173,7 +168,7 @@ class CorePhotoApp(ctk.CTk):
         self.top_storage_lbl.pack(side="left")
 
         # =========================================================================
-        # 2. LEFT SIDEBAR (Accordion / Collapsible Dropdown Navigation)
+        # 2. LEFT SIDEBAR (Direct Primary Navigation)
         # =========================================================================
         self.sidebar = ctk.CTkFrame(
             self,
@@ -185,93 +180,55 @@ class CorePhotoApp(ctk.CTk):
         )
         self.sidebar.grid(row=1, column=0, sticky="nsew")
         self.sidebar.grid_propagate(False)
-        self.sidebar.grid_rowconfigure(0, weight=1)
+        self.sidebar.grid_rowconfigure(1, weight=1)
         self.sidebar.grid_columnconfigure(0, weight=1)
 
-        # Scrollable container for accordion items
-        self.sidebar_nav_frame = ctk.CTkScrollableFrame(
+        # Primary navigation buttons container (clean flat layout, no unnecessary scrollbars)
+        self.sidebar_nav_frame = ctk.CTkFrame(
             self.sidebar,
             fg_color="transparent",
-            corner_radius=0,
         )
-        self.sidebar_nav_frame.grid(row=0, column=0, sticky="nsew", padx=2, pady=4)
+        self.sidebar_nav_frame.grid(row=0, column=0, sticky="new", padx=10, pady=16)
         self.sidebar_nav_frame.grid_columnconfigure(0, weight=1)
 
-        nav_structure = [
-            ("CAPTURE", [
-                ("capture", "Live Capture"),
-            ]),
-            ("REVIEW", [
-                ("review", "Review & Photo Catalog"),
-            ]),
-            ("DATA", [
-                ("data", "Session & Data Archives"),
-            ]),
-            ("SYSTEM", [
-                ("settings", "Settings & Diagnostics"),
-            ]),
+        ctk.CTkLabel(
+            self.sidebar_nav_frame,
+            text="NAVIGATION",
+            font=get_font(10, "bold"),
+            text_color=COLOR_TEXT_HINT,
+            anchor="w",
+        ).pack(fill="x", padx=6, pady=(0, 8))
+
+        nav_items = [
+            ("capture", "Live Capture"),
+            ("review", "Review & Photo Catalog"),
+            ("data", "Session & Data Archives"),
+            ("settings", "Settings & Diagnostics"),
         ]
 
-        grid_row = 0
-        for i, (group_title, items) in enumerate(nav_structure):
-            # Default state: CAPTURE is expanded on launch, others collapsed
-            is_expanded = (group_title == "CAPTURE")
-            self.group_expanded[group_title] = is_expanded
-            arrow = "▾" if is_expanded else "▸"
-
-            # Accordion Dropdown Header Button
-            header_btn = ctk.CTkButton(
+        for route_key, label in nav_items:
+            btn = ctk.CTkButton(
                 self.sidebar_nav_frame,
-                text=f"{arrow}  {group_title}",
+                text=label,
                 anchor="w",
-                font=get_font(10, "bold"),
-                height=28,
-                corner_radius=4,
+                font=get_font(12, "normal"),
+                height=36,
+                corner_radius=6,
                 fg_color="transparent",
+                text_color=COLOR_TEXT_PRIMARY,
                 hover_color=COLOR_PANEL_ALT,
-                text_color=COLOR_TEXT_HINT,
-                command=lambda g=group_title: self.toggle_group(g),
+                command=lambda r=route_key: self.navigate_to(r),
             )
-            header_btn.grid(row=grid_row, column=0, sticky="ew", padx=6, pady=(10 if i > 0 else 4, 1))
-            self.group_headers[group_title] = header_btn
-            grid_row += 1
+            btn.pack(fill="x", pady=2)
+            self.nav_buttons[route_key] = btn
 
-            # Sub-frame for dropdown menu items
-            sub_frame = ctk.CTkFrame(self.sidebar_nav_frame, fg_color="transparent")
-            self.group_frames[group_title] = sub_frame
-            self.group_rows[group_title] = grid_row
-
-            for route_key, label in items:
-                btn = ctk.CTkButton(
-                    sub_frame,
-                    text=label,
-                    anchor="w",
-                    font=get_font(12, "normal"),
-                    height=30,
-                    corner_radius=4,
-                    fg_color="transparent",
-                    text_color=COLOR_TEXT_PRIMARY,
-                    hover_color=COLOR_PANEL_ALT,
-                    command=lambda r=route_key: self.navigate_to(r),
-                )
-                btn.pack(fill="x", padx=(16, 6), pady=1)
-                self.nav_buttons[route_key] = btn
-                self.route_to_group[route_key] = group_title
-
-            if is_expanded:
-                sub_frame.grid(row=grid_row, column=0, sticky="ew")
-            else:
-                sub_frame.grid_remove()
-
-            grid_row += 1
-
-        # Sidebar footer (Version info)
+        # Sidebar footer (Version & Standalone status)
         side_footer = ctk.CTkFrame(self.sidebar, fg_color="transparent")
-        side_footer.grid(row=1, column=0, padx=12, pady=10, sticky="s")
+        side_footer.grid(row=2, column=0, padx=12, pady=12, sticky="s")
 
         lbl_version = ctk.CTkLabel(
             side_footer,
-            text="Core Photo v1.0.0\nIndustrial Edition",
+            text="Core Photo v1.0.0\n100% Offline Standalone",
             font=get_font(10),
             text_color=COLOR_TEXT_HINT,
             justify="center",
@@ -317,27 +274,8 @@ class CorePhotoApp(ctk.CTk):
         self.bottom_info_lbl.grid(row=0, column=1, padx=16, pady=2, sticky="e")
 
     def toggle_group(self, group_title: str, expand_only: bool = False) -> None:
-        """Toggles the accordion dropdown state of a navigation group."""
-        is_currently_expanded = self.group_expanded.get(group_title, False)
-
-        if expand_only and is_currently_expanded:
-            return
-
-        new_state = True if expand_only else not is_currently_expanded
-        self.group_expanded[group_title] = new_state
-
-        arrow = "▾" if new_state else "▸"
-        header_btn = self.group_headers.get(group_title)
-        if header_btn:
-            header_btn.configure(text=f"{arrow}  {group_title}")
-
-        sub_frame = self.group_frames.get(group_title)
-        if sub_frame:
-            if new_state:
-                row_idx = self.group_rows.get(group_title, 1)
-                sub_frame.grid(row=row_idx, column=0, sticky="ew")
-            else:
-                sub_frame.grid_remove()
+        """Compatibility no-op for accordion groups."""
+        pass
 
     def _init_views(self) -> None:
         """Instantiates all application screen frames."""
@@ -384,10 +322,6 @@ class CorePhotoApp(ctk.CTk):
         else:
             effective_route = route
 
-        # Automatically expand parent accordion dropdown if collapsed
-        parent_group = self.route_to_group.get(effective_route)
-        if parent_group and not self.group_expanded.get(parent_group, False):
-            self.toggle_group(parent_group, expand_only=True)
 
         # Handle view lifecycle transitions
         if self.current_view_name == "capture" and effective_route != "capture":
