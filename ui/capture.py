@@ -607,11 +607,19 @@ class CaptureView(ctk.CTkFrame):
             border_color=COLOR_BORDER,
             command=self._toggle_zoom,
         )
-        self.btn_zoom.grid(row=1, column=0, sticky="ew", pady=(0, 8))
+        self.btn_zoom.grid(row=1, column=0, sticky="ew", pady=(0, 4))
+
+        # Focus Drive Label
+        ctk.CTkLabel(
+            left_ctrl,
+            text="Lens Focus Drive (DSLR Tethered):",
+            font=get_font(9),
+            text_color=COLOR_TEXT_MUTED,
+        ).grid(row=2, column=0, sticky="w", pady=(0, 2))
 
         # 6 Step adjustment buttons: [ <<< ] [ << ] [ < ] [ > ] [ >> ] [ >>> ]
         step_bar = ctk.CTkFrame(left_ctrl, fg_color="transparent")
-        step_bar.grid(row=2, column=0, sticky="ew")
+        step_bar.grid(row=3, column=0, sticky="ew")
         for col_idx in range(6):
             step_bar.grid_columnconfigure(col_idx, weight=1)
 
@@ -1024,18 +1032,28 @@ class CaptureView(ctk.CTkFrame):
         """Manual focus / framing step adjustment: <<< << < > >> >>>"""
         logger.info("Focus / framing step clicked: %s (%d)", step_label, step_val)
         adapter = self.ctx.camera_manager._active_adapter
+        direction = "Near" if step_val < 0 else "Far"
+        speed = "Fine" if abs(step_val) == 1 else ("Medium" if abs(step_val) == 2 else "Coarse")
+
         if adapter and hasattr(adapter, "drive_lens"):
             try:
                 adapter.drive_lens(step_val)
+                self.lbl_capture_feedback.configure(
+                    text=f"DSLR Focus Drive: {step_label} ({speed} {direction})",
+                    text_color=COLOR_TEXT_PRIMARY,
+                )
             except Exception as e:
                 logger.debug("Lens drive exception: %s", e)
+                self.lbl_capture_feedback.configure(
+                    text=f"Lens drive error: {e}",
+                    text_color=COLOR_ERROR,
+                )
+        else:
+            self.lbl_capture_feedback.configure(
+                text=f"Focus Step {step_label} ({speed} {direction}): Hanya aktif pada kamera DSLR tethered (Canon EOS). Webcam laptop menggunakan lensa fixed-focus.",
+                text_color=COLOR_WARNING,
+            )
 
-        direction = "Near" if step_val < 0 else "Far"
-        speed = "Fine" if abs(step_val) == 1 else ("Medium" if abs(step_val) == 2 else "Coarse")
-        self.lbl_capture_feedback.configure(
-            text=f"Focus Step: {step_label} ({speed} {direction})",
-            text_color=COLOR_TEXT_PRIMARY,
-        )
 
     def _toggle_crop(self) -> None:
         self.crop_enabled = not self.crop_enabled
