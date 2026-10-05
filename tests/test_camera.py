@@ -70,6 +70,45 @@ def test_camera_manager_hot_folder(tmp_path):
     cm.disconnect_camera()
 
 
+def test_direct_usb_adapter_lifecycle():
+    from camera.adapters.direct_usb import DirectUsbAdapter
+    adapter = DirectUsbAdapter()
+    assert adapter.connect() is True
+    assert adapter.get_state() in (CameraState.READY, CameraState.STREAMING)
+
+    info = adapter.get_info()
+    assert info.adapter_name == "DirectUsbAdapter"
+
+    caps = adapter.get_capabilities()
+    assert caps.can_capture is True
+    assert caps.can_live_view is True
+
+    frame = adapter.get_live_frame()
+    assert frame is not None
+    assert frame.shape[0] > 0
+    assert frame.shape[1] > 0
+
+    res = adapter.capture()
+    assert len(res.raw_bytes) > 0
+    assert res.width > 0
+    assert res.height > 0
+
+    assert adapter.disconnect() is True
+    assert adapter.get_state() == CameraState.DISCONNECTED
+
+
+def test_camera_manager_direct_usb():
+    cm = CameraManager.get_instance()
+    cams = cm.detect_cameras()
+    assert any(c["adapter"] == "direct_usb" for c in cams)
+
+    assert cm.connect_camera("direct_usb", "0") is True
+    assert cm.is_ready() is True
+    assert "Direct USB" in cm.get_status_summary()
+
+    cm.disconnect_camera()
+
+
 def test_camera_manager():
     cm = CameraManager.get_instance()
     cams = cm.detect_cameras()

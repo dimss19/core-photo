@@ -135,13 +135,14 @@ class SettingsView(ctk.CTkFrame):
         self.opt_adapter_mode = ctk.CTkOptionMenu(
             cam_btns,
             values=[
+                "Direct USB DSLR (Canon/Nikon/Sony)",
                 "Universal Hot-Folder (All DSLRs)",
                 "Physical USB / Webcam",
                 "Standby / Simulator",
             ],
             command=self._on_adapter_mode_changed,
             height=32,
-            width=220,
+            width=240,
             font=get_font(10),
             fg_color=COLOR_PANEL,
             text_color=COLOR_CHARCOAL,
@@ -309,8 +310,21 @@ class SettingsView(ctk.CTkFrame):
         self._check_recovery()
 
     def _on_adapter_mode_changed(self, mode: str) -> None:
-        """Switches active camera adapter between Universal Hot-Folder, USB, and Standby."""
-        if "Hot-Folder" in mode:
+        """Switches active camera adapter between Direct USB, Hot-Folder, USB, and Standby."""
+        if "Direct USB" in mode:
+            self.ctx.camera_manager.connect_camera("direct_usb", "0")
+            if self.ctx.camera_manager.is_ready():
+                info = self.ctx.camera_manager.get_info()
+                self.lbl_cam_feedback.configure(
+                    text=f"✓ Direct USB Active: {info.model if info else 'Ready'}",
+                    text_color=COLOR_SUCCESS,
+                )
+            else:
+                self.lbl_cam_feedback.configure(
+                    text="✓ Direct USB Active: Connect camera with USB cable",
+                    text_color=COLOR_TEXT_PRIMARY,
+                )
+        elif "Hot-Folder" in mode:
             hot_dir = self.ctx.storage_manager.base_dir / "HotFolder"
             self.ctx.camera_manager.connect_camera("hot_folder", str(hot_dir))
             self.lbl_cam_feedback.configure(

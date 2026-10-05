@@ -8,6 +8,7 @@ import numpy as np
 from core.logger import get_logger
 from .adapters.webcam import WebcamAdapter
 from .adapters.hot_folder import HotFolderAdapter
+from .adapters.direct_usb import DirectUsbAdapter
 from .capabilities import CameraCapabilities
 from .interface import (
     AbstractCameraAdapter,
@@ -30,6 +31,9 @@ class CameraManager:
             "webcam": WebcamAdapter,
             "hot_folder": HotFolderAdapter,
             "hotfolder": HotFolderAdapter,
+            "direct_usb": DirectUsbAdapter,
+            "direct": DirectUsbAdapter,
+            "ptp": DirectUsbAdapter,
         }
 
     @classmethod
@@ -47,10 +51,19 @@ class CameraManager:
         """Scans system for available camera devices (PRD Section 8)."""
         available: List[Dict[str, Any]] = []
 
-        # 1. Universal Hot-Folder Ingest (Supports all DSLRs: Canon, Nikon, Sony, Fuji, etc.)
+        # 1. Direct USB Camera (Native Windows WIA & PTP - 0 DLLs, 0 Software)
+        available.append({
+            "id": "direct_usb",
+            "name": "Direct USB DSLR (Canon / Nikon / Sony — No Software Needed)",
+            "adapter": "direct_usb",
+            "supported": True,
+            "status": "Ready"
+        })
+
+        # 2. Universal Hot-Folder Ingest (Supports all DSLRs: Canon, Nikon, Sony, Fuji, etc.)
         available.append({
             "id": "hot_folder",
-            "name": "Universal Hot-Folder Ingest (Canon / Nikon / Sony / Any DSLR)",
+            "name": "Universal Hot-Folder Ingest (Tethered / Wi-Fi)",
             "adapter": "hot_folder",
             "supported": True,
             "status": "Ready"
@@ -93,6 +106,8 @@ class CameraManager:
         norm_dev = str(device_id).lower()
         if norm_name in ("hot_folder", "hotfolder") or norm_dev in ("hot_folder", "hotfolder"):
             adapter_name = "hot_folder"
+        elif norm_name in ("direct_usb", "direct", "ptp") or norm_dev in ("direct_usb", "direct", "ptp"):
+            adapter_name = "direct_usb"
 
         adapter_cls = self._registered_adapters.get(adapter_name.lower(), WebcamAdapter)
         adapter = adapter_cls()
