@@ -74,14 +74,19 @@ def test_app_view_lifecycle_and_aliases():
     try:
         application.update()
 
-        # Primary routes
-        routes = ["capture", "review", "browser", "data", "settings"]
+        # Primary routes (CAPTURE, REVIEW, DATA, SYSTEM)
+        routes = ["capture", "review", "data", "settings"]
         for r in routes:
             application.navigate_to(r)
             application.update()
-            assert application.current_view_name in ("capture", "review", "browser", "data", "settings")
+            assert application.current_view_name in ("capture", "review", "data", "settings")
 
         # Legacy aliases
+        application.navigate_to("browser")
+        application.update()
+        assert application.current_view_name == "review"
+        assert application.views["review"]._active_tab == "catalog"
+
         application.navigate_to("session")
         application.update()
         assert application.current_view_name == "data"

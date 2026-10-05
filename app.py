@@ -14,7 +14,6 @@ from PIL import Image, ImageTk
 from config.config_manager import get_config
 from core.app_context import get_app_context
 from core.logger import get_logger, setup_logging
-from ui.browser import BrowserView
 from ui.capture import CaptureView
 from ui.data_hub import DataHubView
 from ui.review import ReviewView
@@ -203,8 +202,7 @@ class CorePhotoApp(ctk.CTk):
                 ("capture", "Live Capture"),
             ]),
             ("REVIEW", [
-                ("review", "Tray Review & Audit"),
-                ("browser", "Photo Catalog"),
+                ("review", "Review & Photo Catalog"),
             ]),
             ("DATA", [
                 ("data", "Data & Transfer Hub"),
@@ -358,9 +356,9 @@ class CorePhotoApp(ctk.CTk):
             advance_tray_fn=capture_view.advance_to_next_tray,
         )
         self.views["review"] = review_view
+        self.views["browser"] = review_view
         self.views["validation"] = review_view
 
-        self.views["browser"] = BrowserView(self.content_area, navigate_fn=self.navigate_to)
         self.views["settings"] = SettingsView(self.content_area, navigate_fn=self.navigate_to)
 
     def navigate_to(self, route: str, tab: Optional[str] = None) -> None:
@@ -376,6 +374,10 @@ class CorePhotoApp(ctk.CTk):
             effective_route = "capture"
         elif route == "validation":
             effective_route = "review"
+            target_tab = "inspect"
+        elif route == "browser":
+            effective_route = "review"
+            target_tab = "catalog"
         elif route == "session":
             effective_route = "data"
             target_tab = "session"
