@@ -39,6 +39,25 @@ class CorePhotoApp(ctk.CTk):
         self.geometry("1300x820")
         self.minsize(1100, 700)
 
+        # Set Application Window Icon (PRD Section 1 & UI Branding)
+        from pathlib import Path
+        from PIL import Image, ImageTk
+        self.icon_dir = Path(__file__).parent / "assets"
+        ico_file = self.icon_dir / "icon.ico"
+        png_file = self.icon_dir / "icon.png"
+
+        if ico_file.exists():
+            try:
+                self.iconbitmap(default=str(ico_file))
+            except Exception as e:
+                logger.debug("Failed setting iconbitmap: %s", e)
+        if png_file.exists():
+            try:
+                self._app_icon_photo = ImageTk.PhotoImage(file=str(png_file))
+                self.iconphoto(True, self._app_icon_photo)
+            except Exception as e:
+                logger.debug("Failed setting iconphoto: %s", e)
+
         self.ctx = get_app_context()
         self.current_view_name = "dashboard"
         self.views: Dict[str, ctk.CTkFrame] = {}
@@ -64,13 +83,25 @@ class CorePhotoApp(ctk.CTk):
 
         # Logo text & sub-badge
         logo_frame = ctk.CTkFrame(self.header_bar, fg_color="transparent")
-        logo_frame.grid(row=0, column=0, padx=(20, 16), pady=8, sticky="w")
+        logo_frame.grid(row=0, column=0, padx=(16, 16), pady=8, sticky="w")
+
+        # Display App Icon Image in Header
+        png_file = self.icon_dir / "icon.png"
+        if png_file.exists():
+            try:
+                from PIL import Image
+                pil_logo = Image.open(png_file)
+                self.logo_ctk_image = ctk.CTkImage(light_image=pil_logo, dark_image=pil_logo, size=(32, 32))
+                self.logo_icon_lbl = ctk.CTkLabel(logo_frame, image=self.logo_ctk_image, text="")
+                self.logo_icon_lbl.pack(side="left", padx=(0, 10))
+            except Exception as e:
+                logger.debug("Could not load header logo image: %s", e)
 
         self.logo_lbl = ctk.CTkLabel(
             logo_frame,
             text="CORE PHOTO",
             font=ctk.CTkFont(size=17, weight="bold"),
-            text_color="#1A73E8"
+            text_color="#1E293B"
         )
         self.logo_lbl.pack(side="left")
 

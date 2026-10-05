@@ -12,6 +12,7 @@ ctk_dir = Path(customtkinter.__file__).parent.resolve()
 datas = [
     (str(ctk_dir), 'customtkinter'),
     ('config/settings.json', 'config'),
+    ('assets', 'assets'),
 ]
 
 hidden_imports = [
@@ -50,6 +51,7 @@ exe = EXE(
     [],
     exclude_binaries=True,
     name='CorePhoto',
+    icon='assets/icon.ico',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
