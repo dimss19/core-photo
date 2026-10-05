@@ -111,10 +111,10 @@ class ReviewView(ctk.CTkFrame):
 
         self.btn_tab_inspect = ctk.CTkButton(
             tab_btn_box,
-            text="TRAY INSPECTION & AUDIT",
+            text="TRAY INSPECTION",
             font=get_font(10, "bold"),
             height=30,
-            width=165,
+            width=140,
             corner_radius=4,
             fg_color=COLOR_ACCENT,
             hover_color=COLOR_ACCENT_HOVER,
@@ -125,10 +125,10 @@ class ReviewView(ctk.CTkFrame):
 
         self.btn_tab_catalog = ctk.CTkButton(
             tab_btn_box,
-            text="PHOTO CATALOG & GRID",
+            text="PHOTO CATALOG",
             font=get_font(10, "bold"),
             height=30,
-            width=165,
+            width=140,
             corner_radius=4,
             fg_color="transparent",
             hover_color=COLOR_BORDER,
