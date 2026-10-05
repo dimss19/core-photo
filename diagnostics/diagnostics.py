@@ -41,7 +41,7 @@ class DiagnosticsManager:
             "camera": self._check_camera(),
             "storage": self._check_storage(),
             "database": self._check_database(),
-            "offline_mode": self._check_offline_mode(),
+            "system": self._check_system_mode(),
             "recovery": self._check_crash_recovery(),
         }
         logger.info("Diagnostics completed: %s", results)
@@ -84,10 +84,9 @@ class DiagnosticsManager:
                 return {"status": "ERROR", "error": str(e)}
         return {"status": "NO_ACTIVE_SESSION_DB"}
 
-    def _check_offline_mode(self) -> Dict[str, Any]:
+    def _check_system_mode(self) -> Dict[str, Any]:
         return {
-            "mode": "100% Offline Standalone",
-            "online_sync": False,
+            "mode": "Local Database",
             "status": "OK"
         }
 

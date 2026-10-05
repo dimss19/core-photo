@@ -769,7 +769,7 @@ class ReviewView(ctk.CTkFrame):
         self.lbl_cat_title.configure(text=f"File: {photo.filename_base}.jpg")
         self.lbl_cat_interval.configure(text=f"Hole: {photo.hole_id}  ·  Tray: {photo.tray_number}  ·  {photo.interval_from:.2f} m - {photo.interval_to:.2f} m")
         self.lbl_cat_status.configure(text=f"Validation Status: {photo.status}")
-        self.lbl_cat_storage.configure(text="Storage: Local Session Archive (Offline)")
+        self.lbl_cat_storage.configure(text="Storage: Local Session Archive")
         self.lbl_cat_hashes.configure(text=f"RAW MD5: {photo.md5_raw}\nJPG MD5: {photo.md5_jpg}\nCamera: {photo.camera_model}")
 
     def _on_open_selected_in_inspect(self) -> None:

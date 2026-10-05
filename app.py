@@ -214,7 +214,7 @@ class CorePhotoApp(ctk.CTk):
             btn.pack(fill="x", pady=2)
             self.nav_buttons[route_key] = btn
 
-        # Sidebar footer (Version & Standalone status)
+        # Sidebar footer
         side_footer = ctk.CTkFrame(self.sidebar, fg_color="transparent")
         side_footer.grid(row=2, column=0, padx=12, pady=12, sticky="s")
 

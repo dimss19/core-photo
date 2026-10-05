@@ -1,7 +1,6 @@
 """Session & Data Archives Hub (Professional Industrial Redesign).
 Unified control center for borehole logging sessions, local disk storage archives,
 and geological 15-column CSV report generation.
-100% Offline Standalone Mode.
 Zero emojis, strict industrial standards.
 """
 
