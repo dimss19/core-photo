@@ -745,7 +745,7 @@ class CaptureView(ctk.CTkFrame):
         csv_path = sp.session_dir / f"{clean_hole}.csv"
 
         if not csv_path.exists():
-            photos = self.ctx.photo_repo.get_by_session_id(sess.id) if self.ctx.photo_repo else []
+            photos = self.ctx.photo_repo.list_by_session(sess.id) if self.ctx.photo_repo else []
             from imaging.processor import ImageProcessor
             ImageProcessor.export_csv_report(sess, photos, csv_path)
 
@@ -779,7 +779,7 @@ class CaptureView(ctk.CTkFrame):
                 self.entry_sess_site.delete(0, "end")
                 self.entry_sess_site.insert(0, sess.site)
             if hasattr(self, "lbl_series_count") and self.ctx.photo_repo:
-                cnt = len(self.ctx.photo_repo.get_by_session_id(sess.id))
+                cnt = len(self.ctx.photo_repo.list_by_session(sess.id))
                 self.lbl_series_count.configure(text=str(cnt))
             if hasattr(self, "entry_target_folder"):
                 sp = self.ctx.storage_manager.get_session_paths(f"{sess.site}_{sess.date}")
@@ -1186,7 +1186,7 @@ class CaptureView(ctk.CTkFrame):
 
         # Refresh Series count
         if hasattr(self, "lbl_series_count") and self.ctx.active_session and self.ctx.photo_repo:
-            cnt = len(self.ctx.photo_repo.get_by_session_id(self.ctx.active_session.id))
+            cnt = len(self.ctx.photo_repo.list_by_session(self.ctx.active_session.id))
             self.lbl_series_count.configure(text=str(cnt))
 
     def _on_capture_error(self, err_msg: str) -> None:
@@ -1258,7 +1258,7 @@ class CaptureView(ctk.CTkFrame):
 
         # Refresh Series count
         if hasattr(self, "lbl_series_count") and self.ctx.active_session and self.ctx.photo_repo:
-            cnt = len(self.ctx.photo_repo.get_by_session_id(self.ctx.active_session.id))
+            cnt = len(self.ctx.photo_repo.list_by_session(self.ctx.active_session.id))
             self.lbl_series_count.configure(text=str(cnt))
 
         self._evaluate_preflight()

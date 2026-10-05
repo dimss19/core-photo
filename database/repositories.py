@@ -289,6 +289,8 @@ class PhotoRepository:
             )
         return [self._row_to_model(r) for r in rows]
 
+    get_by_session_id = list_by_session
+
     def search(
         self,
         hole_id: Optional[str] = None,

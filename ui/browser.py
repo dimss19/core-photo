@@ -360,7 +360,7 @@ class BrowserView(ctk.CTkFrame):
         if not sess:
             return
 
-        photos = self.ctx.photo_repo.get_by_session_id(sess.id) if self.ctx.photo_repo else []
+        photos = self.ctx.photo_repo.list_by_session(sess.id) if self.ctx.photo_repo else []
         hole_id = "TSD168"
         if photos and photos[0].hole_id:
             hole_id = photos[0].hole_id

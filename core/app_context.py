@@ -75,6 +75,10 @@ class AppContext:
         # Attempt to resume any previously active session on startup (PRD Section 10 & 19)
         self._auto_restore_session()
 
+    @property
+    def config(self) -> ConfigManager:
+        return self.config_manager
+
     @classmethod
     def get_instance(cls) -> "AppContext":
         if cls._instance is None:
