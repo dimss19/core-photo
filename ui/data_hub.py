@@ -13,7 +13,9 @@ import customtkinter as ctk
 
 from core.app_context import get_app_context
 from core.logger import get_logger
+from database.db import DatabaseManager
 from database.models import PhotoModel, SessionModel
+from database.repositories import SessionRepository
 from ui.theme import (
     COLOR_ACCENT,
     COLOR_ACCENT_HOVER,
@@ -260,16 +262,17 @@ class DataHubView(ctk.CTkFrame):
         valid_photos = sum(1 for p in photos if p.status == "VALID")
         pct = (valid_photos / total_photos * 100) if total_photos > 0 else 0.0
 
-        sp = self.ctx.storage_manager.get_session_paths(f"{sess.site}_{sess.date}")
         dir_size_mb = 0.0
-        if sp.session_dir.exists():
+        display_name = f"{sess.site}_{sess.date}"
+        if self.ctx.session_paths and self.ctx.session_paths.session_dir.exists():
+            display_name = self.ctx.session_paths.session_dir.name
             try:
-                dir_size_bytes = sum(f.stat().st_size for f in sp.session_dir.rglob('*') if f.is_file())
+                dir_size_bytes = sum(f.stat().st_size for f in self.ctx.session_paths.session_dir.rglob('*') if f.is_file())
                 dir_size_mb = dir_size_bytes / (1024 * 1024)
             except Exception:
                 pass
 
-        self.lbl_active_title.configure(text=f"ACTIVE SESSION: {sess.site}_{sess.date}")
+        self.lbl_active_title.configure(text=f"ACTIVE SESSION: {display_name}")
         self.lbl_active_meta.configure(text=f"Site: {sess.site}  ·  Operator: {sess.operator}  ·  Date: {sess.date}")
         self.lbl_active_stats.configure(
             text=f"Trays: {total_photos}  ·  Storage: {dir_size_mb:.1f} MB  ·  Audit: {valid_photos}/{total_photos} Valid ({pct:.0f}%)"
@@ -279,24 +282,42 @@ class DataHubView(ctk.CTkFrame):
         for widget in self.hist_scroll.winfo_children():
             widget.destroy()
 
-        sessions = self.ctx.session_repo.list_all() if self.ctx.session_repo else []
-        if not sessions:
+        folders = self.ctx.storage_manager.list_sessions()
+        if not folders:
             ctk.CTkLabel(self.hist_scroll, text="No previous sessions recorded.", font=get_font(10), text_color=COLOR_TEXT_HINT).pack(pady=30)
             return
 
-        for s in reversed(sessions[-20:]):
+        folders.sort(reverse=True)
+        for folder_name in folders[:25]:
             row = ctk.CTkFrame(self.hist_scroll, fg_color=COLOR_PANEL, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
             row.pack(fill="x", padx=4, pady=3)
 
             info_box = ctk.CTkFrame(row, fg_color="transparent")
             info_box.pack(side="left", padx=10, pady=8)
 
-            is_cur = self.ctx.active_session and self.ctx.active_session.id == s.id
+            is_cur = False
+            if self.ctx.session_paths and self.ctx.session_paths.session_dir.name == folder_name:
+                is_cur = True
+            elif self.ctx.active_session and self.ctx.active_session.id == folder_name:
+                is_cur = True
+
             title_color = COLOR_ACCENT if is_cur else COLOR_TEXT_PRIMARY
             cur_tag = " (Active)" if is_cur else ""
 
-            ctk.CTkLabel(info_box, text=f"{s.site}_{s.date}{cur_tag}", font=get_font(11, "bold"), text_color=title_color).pack(anchor="w")
-            ctk.CTkLabel(info_box, text=f"Operator: {s.operator}  ·  Created: {s.created_at[:10] if s.created_at else '-'}", font=get_font(10), text_color=COLOR_TEXT_MUTED).pack(anchor="w")
+            sub_meta = "Session Directory"
+            try:
+                paths = self.ctx.storage_manager.get_session_paths(folder_name)
+                if paths.db_path.exists():
+                    db = DatabaseManager(paths.db_path)
+                    s_repo = SessionRepository(db)
+                    sess_info = s_repo.get_active() or (s_repo.list_all()[0] if s_repo.list_all() else None)
+                    if sess_info:
+                        sub_meta = f"Site: {sess_info.site}  ·  Operator: {sess_info.operator}  ·  Date: {sess_info.date}"
+            except Exception:
+                pass
+
+            ctk.CTkLabel(info_box, text=f"{folder_name}{cur_tag}", font=get_font(11, "bold"), text_color=title_color).pack(anchor="w")
+            ctk.CTkLabel(info_box, text=sub_meta, font=get_font(10), text_color=COLOR_TEXT_MUTED).pack(anchor="w")
 
             if not is_cur:
                 btn_switch = ctk.CTkButton(
@@ -310,7 +331,7 @@ class DataHubView(ctk.CTkFrame):
                     text_color=COLOR_TEXT_PRIMARY,
                     border_width=1,
                     border_color=COLOR_BORDER,
-                    command=lambda sid=s.id: self._on_switch_session(sid),
+                    command=lambda fname=folder_name: self._on_switch_session(fname),
                 )
                 btn_switch.pack(side="right", padx=10, pady=8)
 
@@ -334,21 +355,40 @@ class DataHubView(ctk.CTkFrame):
             logger.error("Failed creating session: %s", e)
             self.lbl_create_status.configure(text=f"Error: {e}", text_color=COLOR_ERROR)
 
-    def _on_switch_session(self, session_id: str) -> None:
+    def _on_switch_session(self, folder_name: str) -> None:
         try:
-            self.ctx.open_session(session_id)
+            self.ctx.open_session(folder_name)
             self.refresh()
         except Exception as e:
-            logger.error("Failed switching session to %s: %s", session_id, e)
+            logger.error("Failed switching session to %s: %s", folder_name, e)
 
     def _on_open_active_folder(self) -> None:
-        sess = self.ctx.active_session
-        if sess:
-            sp = self.ctx.storage_manager.get_session_paths(f"{sess.site}_{sess.date}")
+        target_dir = None
+        if self.ctx.session_paths and self.ctx.session_paths.session_dir.exists():
+            target_dir = self.ctx.session_paths.session_dir
+        elif self.ctx.active_session:
+            sess = self.ctx.active_session
+            for cand in self.ctx.storage_manager.list_sessions():
+                if cand == f"{sess.site}_{sess.date}" or cand.startswith(f"{sess.site}_{sess.date}") or cand == sess.id:
+                    cand_path = self.ctx.storage_manager.get_session_paths(cand).session_dir
+                    if cand_path.exists():
+                        target_dir = cand_path
+                        break
+
+        if not target_dir or not target_dir.exists():
+            target_dir = self.ctx.storage_manager.sessions_dir
+
+        if target_dir and target_dir.exists():
             try:
-                os.startfile(str(sp.session_dir))
+                os.startfile(str(target_dir))
+                logger.info("Opened folder in Explorer: %s", target_dir)
             except Exception as e:
-                logger.error("Failed opening folder %s: %s", sp.session_dir, e)
+                logger.error("os.startfile failed for %s: %s", target_dir, e)
+                try:
+                    import subprocess
+                    subprocess.Popen(f'explorer "{target_dir}"', shell=True)
+                except Exception as ex:
+                    logger.error("subprocess explorer failed: %s", ex)
 
     def _on_export_session_csv(self) -> None:
         from tkinter import filedialog

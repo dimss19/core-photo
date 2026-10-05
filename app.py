@@ -191,19 +191,11 @@ class CorePhotoApp(ctk.CTk):
         self.sidebar_nav_frame.grid(row=0, column=0, sticky="new", padx=10, pady=16)
         self.sidebar_nav_frame.grid_columnconfigure(0, weight=1)
 
-        ctk.CTkLabel(
-            self.sidebar_nav_frame,
-            text="NAVIGATION",
-            font=get_font(10, "bold"),
-            text_color=COLOR_TEXT_HINT,
-            anchor="w",
-        ).pack(fill="x", padx=6, pady=(0, 8))
-
         nav_items = [
-            ("capture", "Live Capture"),
-            ("review", "Review & Photo Catalog"),
-            ("data", "Session & Data Archives"),
-            ("settings", "Settings & Diagnostics"),
+            ("capture", "Capture"),
+            ("review", "Review"),
+            ("data", "Session"),
+            ("settings", "Settings"),
         ]
 
         for route_key, label in nav_items:
@@ -212,7 +204,7 @@ class CorePhotoApp(ctk.CTk):
                 text=label,
                 anchor="w",
                 font=get_font(12, "normal"),
-                height=36,
+                height=38,
                 corner_radius=6,
                 fg_color="transparent",
                 text_color=COLOR_TEXT_PRIMARY,

@@ -154,6 +154,12 @@ class AppContext:
         self._bind_session(session, paths, db)
         return session
 
+    def create_session(self, site: str, operator: str, date: str = "", date_str: str = "") -> SessionModel:
+        """Alias for create_new_session."""
+        from datetime import datetime
+        effective_date = date_str or date or datetime.now().strftime("%Y%m%d")
+        return self.create_new_session(site=site, operator=operator, date_str=effective_date)
+
     def open_session(self, folder_name: str) -> Optional[SessionModel]:
         """Loads an existing session from storage."""
         paths = self.storage_manager.get_session_paths(folder_name)
