@@ -1,14 +1,14 @@
 """Settings & Diagnostics Screen (Professional Industrial Redesign).
-Segmented into:
-- GENERAL (Application profile, Storage path and capacity)
-- CAMERA (Camera status, model, Detect / Reconnect buttons; no SDK leaks)
-- SERVER (Server URL, Auth credentials, connection tester)
-- SYSTEM (Diagnostics, Crash Recovery, Live Log inspector)
+Unified Single-Page View:
+- Application Profile & Storage Configuration
+- Camera Hardware Interface (Status & Connection Controls)
+- Technical Diagnostics & Crash Recovery
+- Live System Logs
 Zero emojis, strict professional industrial standards.
 """
 
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Optional
 import customtkinter as ctk
 
 from core.app_context import get_app_context
@@ -17,7 +17,6 @@ from diagnostics.diagnostics import get_diagnostics
 from ui.theme import (
     COLOR_ACCENT,
     COLOR_ACCENT_HOVER,
-    COLOR_ACCENT_LIGHT,
     COLOR_BG,
     COLOR_BORDER,
     COLOR_BORDER_STRONG,
@@ -26,9 +25,6 @@ from ui.theme import (
     COLOR_PANEL,
     COLOR_PANEL_ALT,
     COLOR_SUCCESS,
-    COLOR_SUCCESS_BG,
-    COLOR_SUCCESS_BORDER,
-    COLOR_TEXT_HINT,
     COLOR_TEXT_MUTED,
     COLOR_TEXT_PRIMARY,
     COLOR_WARNING,
@@ -41,7 +37,7 @@ logger = get_logger(__name__)
 
 
 class SettingsView(ctk.CTkFrame):
-    """Settings and Technical Diagnostics screen."""
+    """Settings and Technical Diagnostics screen (unified single-page layout)."""
 
     def __init__(self, master, navigate_fn: Callable[[str], None], **kwargs):
         super().__init__(master, fg_color=COLOR_BG, **kwargs)
@@ -64,101 +60,39 @@ class SettingsView(ctk.CTkFrame):
 
         ctk.CTkLabel(
             title_box,
-            text="SYSTEM SETTINGS & DIAGNOSTICS",
+            text="SETTINGS & DIAGNOSTICS",
             font=get_font(16, "bold"),
             text_color=COLOR_CHARCOAL,
         ).pack(anchor="w")
 
         ctk.CTkLabel(
             title_box,
-            text="General parameters, hardware adapters, server endpoints, crash recovery, and operational logs.",
+            text="General parameters, camera hardware, crash recovery, and operational logs.",
             font=get_font(11),
             text_color=COLOR_TEXT_MUTED,
         ).pack(anchor="w", pady=(2, 0))
 
-        # ----------------- Tabbed Sections -----------------
-        self.tabs = ctk.CTkTabview(
-            self,
-            fg_color=COLOR_PANEL,
-            segmented_button_fg_color=COLOR_BORDER,
-            segmented_button_selected_color=COLOR_ACCENT,
-            segmented_button_selected_hover_color=COLOR_ACCENT_HOVER,
-            segmented_button_unselected_color=COLOR_PANEL,
-            segmented_button_unselected_hover_color=COLOR_ACCENT_LIGHT,
-            corner_radius=6,
-            border_width=1,
-            border_color=COLOR_BORDER,
-            command=self._on_tab_changed,
-        )
-        self.tabs.grid(row=1, column=0, sticky="nsew", padx=24, pady=(0, 20))
+        # ----------------- Unified Scrollable Dashboard -----------------
+        scroll_body = ctk.CTkScrollableFrame(self, fg_color="transparent")
+        scroll_body.grid(row=1, column=0, sticky="nsew", padx=24, pady=(0, 20))
+        scroll_body.grid_columnconfigure((0, 1), weight=1)
 
-        tab_general = self.tabs.add("GENERAL")
-        tab_camera = self.tabs.add("CAMERA")
-        tab_diagnostics = self.tabs.add("DIAGNOSTICS")
+        # =====================================================================
+        # 1. APPLICATION PROFILE & STORAGE CONFIGURATION (Row 0)
+        # =====================================================================
+        app_box = ctk.CTkFrame(scroll_body, fg_color=COLOR_PANEL, corner_radius=6, border_width=1, border_color=COLOR_BORDER)
+        app_box.grid(row=0, column=0, sticky="nsew", padx=(0, 8), pady=(0, 12))
 
-        self._build_general_tab(tab_general)
-        self._build_camera_tab(tab_camera)
-        self._build_system_tab(tab_diagnostics)
-
-        self._update_tab_button_styles()
-
-    def _on_tab_changed(self) -> None:
-        """Invoked when user clicks a tab."""
-        self._update_tab_button_styles()
-
-    def _update_tab_button_styles(self) -> None:
-        """Ensures high-contrast readable text for active vs inactive tabs."""
-        current = self.tabs.get()
-        if not hasattr(self.tabs, "_segmented_button") or not hasattr(self.tabs._segmented_button, "_buttons_dict"):
-            return
-        for name, btn in self.tabs._segmented_button._buttons_dict.items():
-            if name == current:
-                btn.configure(
-                    text_color="#FFFFFF",
-                    font=get_font(11, "bold"),
-                    fg_color=COLOR_ACCENT,
-                )
-            else:
-                btn.configure(
-                    text_color=COLOR_CHARCOAL,
-                    font=get_font(11, "normal"),
-                    fg_color=COLOR_PANEL,
-                )
-
-    def select_tab(self, tab_name: str) -> None:
-        """Programmatically switch to a specific tab."""
-        try:
-            norm = tab_name.upper()
-            if norm in ("SYSTEM", "DIAGNOSTIC"):
-                norm = "DIAGNOSTICS"
-            elif norm == "SERVER":
-                norm = "GENERAL"
-            self.tabs.set(norm)
-            self._update_tab_button_styles()
-        except Exception as e:
-            logger.debug("Failed setting tab to %s: %s", tab_name, e)
-
-    # =========================================================================
-    # 1. GENERAL TAB
-    # =========================================================================
-    def _build_general_tab(self, parent: ctk.CTkFrame) -> None:
-        parent.grid_columnconfigure((0, 1), weight=1)
-
-        # Application Profile
-        app_box = ctk.CTkFrame(parent, fg_color=COLOR_PANEL_ALT, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
-        app_box.grid(row=0, column=0, sticky="nsew", padx=12, pady=12)
-
-        ctk.CTkLabel(app_box, text="APPLICATION PROFILE", font=get_font(12, "bold"), text_color=COLOR_CHARCOAL).pack(anchor="w", padx=16, pady=(16, 2))
+        ctk.CTkLabel(app_box, text="APPLICATION PROFILE", font=get_font(12, "bold"), text_color=COLOR_CHARCOAL).pack(anchor="w", padx=16, pady=(16, 6))
         ctk.CTkLabel(app_box, text="Name: Core Photo Desktop Industrial", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).pack(anchor="w", padx=16, pady=2)
         ctk.CTkLabel(app_box, text="Version: 1.0.0 (Windows Native)", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).pack(anchor="w", padx=16, pady=2)
         ctk.CTkLabel(app_box, text="Theme: Light Mode (Industrial High Contrast)", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).pack(anchor="w", padx=16, pady=2)
         ctk.CTkLabel(app_box, text="Database: SQLite (WAL mode, offline-first)", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).pack(anchor="w", padx=16, pady=(2, 16))
 
-        # Storage Management
-        stor_box = ctk.CTkFrame(parent, fg_color=COLOR_PANEL_ALT, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
-        stor_box.grid(row=0, column=1, sticky="nsew", padx=12, pady=12)
+        stor_box = ctk.CTkFrame(scroll_body, fg_color=COLOR_PANEL, corner_radius=6, border_width=1, border_color=COLOR_BORDER)
+        stor_box.grid(row=0, column=1, sticky="nsew", padx=(8, 0), pady=(0, 12))
 
-        ctk.CTkLabel(stor_box, text="STORAGE CONFIGURATION", font=get_font(12, "bold"), text_color=COLOR_CHARCOAL).pack(anchor="w", padx=16, pady=(16, 2))
+        ctk.CTkLabel(stor_box, text="STORAGE CONFIGURATION", font=get_font(12, "bold"), text_color=COLOR_CHARCOAL).pack(anchor="w", padx=16, pady=(16, 6))
         base_dir = str(self.ctx.storage_manager.base_dir)
         ctk.CTkLabel(stor_box, text=f"Archive Directory:\n{base_dir}", font=get_font(11), text_color=COLOR_TEXT_PRIMARY, justify="left").pack(anchor="w", padx=16, pady=2)
 
@@ -166,37 +100,43 @@ class SettingsView(ctk.CTkFrame):
         self.lbl_storage_space = ctk.CTkLabel(stor_box, text=f"Available Space: {free_gb:.1f} GB", font=get_font(11, "bold"), text_color=COLOR_SUCCESS)
         self.lbl_storage_space.pack(anchor="w", padx=16, pady=(4, 16))
 
-    # =========================================================================
-    # 2. CAMERA TAB (Clean operator view, no raw technical leaks)
-    # =========================================================================
-    def _build_camera_tab(self, parent: ctk.CTkFrame) -> None:
-        parent.grid_columnconfigure(0, weight=1)
+        # =====================================================================
+        # 2. CAMERA HARDWARE INTERFACE (Row 1, Full Width)
+        # =====================================================================
+        cam_box = ctk.CTkFrame(scroll_body, fg_color=COLOR_PANEL, corner_radius=6, border_width=1, border_color=COLOR_BORDER)
+        cam_box.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(0, 12))
 
-        cam_box = ctk.CTkFrame(parent, fg_color=COLOR_PANEL_ALT, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
-        cam_box.pack(fill="x", padx=12, pady=12)
+        cam_head = ctk.CTkFrame(cam_box, fg_color="transparent")
+        cam_head.pack(fill="x", padx=16, pady=(14, 6))
 
-        ctk.CTkLabel(cam_box, text="CAMERA INTERFACE", font=get_font(13, "bold"), text_color=COLOR_CHARCOAL).pack(anchor="w", padx=18, pady=(16, 2))
-        ctk.CTkLabel(cam_box, text="Connected imaging hardware status and detection controls.", font=get_font(10), text_color=COLOR_TEXT_MUTED).pack(anchor="w", padx=18, pady=(0, 10))
+        ctk.CTkLabel(cam_head, text="CAMERA HARDWARE INTERFACE", font=get_font(12, "bold"), text_color=COLOR_CHARCOAL).pack(anchor="w")
+        ctk.CTkLabel(cam_head, text="Connected imaging hardware status and detection controls.", font=get_font(10), text_color=COLOR_TEXT_MUTED).pack(anchor="w", pady=(1, 0))
 
-        # Status & Model Card
-        card = ctk.CTkFrame(cam_box, fg_color=COLOR_PANEL, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
-        card.pack(fill="x", padx=18, pady=4)
+        cam_content = ctk.CTkFrame(cam_box, fg_color=COLOR_PANEL_ALT, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
+        cam_content.pack(fill="x", padx=16, pady=(0, 14))
+        cam_content.grid_columnconfigure(0, weight=1)
+        cam_content.grid_columnconfigure(1, weight=0)
 
-        self.lbl_cam_tab_status = ctk.CTkLabel(card, text="Camera: ● Checking...", font=get_font(12, "bold"), text_color=COLOR_TEXT_PRIMARY)
-        self.lbl_cam_tab_status.pack(anchor="w", padx=14, pady=(12, 2))
+        cam_info = ctk.CTkFrame(cam_content, fg_color="transparent")
+        cam_info.grid(row=0, column=0, sticky="w", padx=14, pady=10)
 
-        self.lbl_cam_tab_model = ctk.CTkLabel(card, text="Model: USB Video Device (WebcamAdapter)", font=get_font(11), text_color=COLOR_TEXT_MUTED)
-        self.lbl_cam_tab_model.pack(anchor="w", padx=14, pady=(0, 12))
+        self.lbl_cam_tab_status = ctk.CTkLabel(cam_info, text="Camera: ● Checking...", font=get_font(12, "bold"), text_color=COLOR_TEXT_PRIMARY)
+        self.lbl_cam_tab_status.pack(anchor="w")
 
-        # Buttons Row: [ Detect Camera ] [ Reconnect ]
-        btn_box = ctk.CTkFrame(cam_box, fg_color="transparent")
-        btn_box.pack(fill="x", padx=18, pady=(10, 16))
+        self.lbl_cam_tab_model = ctk.CTkLabel(cam_info, text="Model: USB Video Device (WebcamAdapter)", font=get_font(11), text_color=COLOR_TEXT_MUTED)
+        self.lbl_cam_tab_model.pack(anchor="w", pady=(2, 0))
+
+        self.lbl_cam_feedback = ctk.CTkLabel(cam_info, text="", font=get_font(10, "bold"), text_color=COLOR_TEXT_MUTED)
+        self.lbl_cam_feedback.pack(anchor="w", pady=(2, 0))
+
+        cam_btns = ctk.CTkFrame(cam_content, fg_color="transparent")
+        cam_btns.grid(row=0, column=1, sticky="e", padx=14, pady=10)
 
         btn_detect = ctk.CTkButton(
-            btn_box,
+            cam_btns,
             text="Detect Camera",
             font=get_font(11, "bold"),
-            height=34,
+            height=32,
             corner_radius=4,
             fg_color=COLOR_ACCENT,
             hover_color=COLOR_ACCENT_HOVER,
@@ -206,10 +146,10 @@ class SettingsView(ctk.CTkFrame):
         btn_detect.pack(side="left", padx=(0, 8))
 
         btn_reconnect = ctk.CTkButton(
-            btn_box,
+            cam_btns,
             text="Reconnect",
             font=get_font(11),
-            height=34,
+            height=32,
             corner_radius=4,
             fg_color=COLOR_PANEL,
             hover_color=COLOR_BORDER,
@@ -220,24 +160,16 @@ class SettingsView(ctk.CTkFrame):
         )
         btn_reconnect.pack(side="left")
 
-        self.lbl_cam_feedback = ctk.CTkLabel(cam_box, text="", font=get_font(11, "bold"), text_color=COLOR_TEXT_MUTED)
-        self.lbl_cam_feedback.pack(anchor="w", padx=18, pady=(0, 10))
+        # =====================================================================
+        # 3. DIAGNOSTICS & LIVE LOGS (Row 2, 2 Columns)
+        # =====================================================================
+        diag_box = ctk.CTkFrame(scroll_body, fg_color=COLOR_PANEL, corner_radius=6, border_width=1, border_color=COLOR_BORDER)
+        diag_box.grid(row=2, column=0, sticky="nsew", padx=(0, 8), pady=(0, 12))
 
-    # =========================================================================
-    # 3. SYSTEM / DIAGNOSTICS TAB
-    # =========================================================================
-    def _build_system_tab(self, parent: ctk.CTkFrame) -> None:
-        parent.grid_columnconfigure((0, 1), weight=1)
-        parent.grid_rowconfigure(0, weight=1)
+        ctk.CTkLabel(diag_box, text="TECHNICAL DIAGNOSTICS", font=get_font(12, "bold"), text_color=COLOR_CHARCOAL).pack(anchor="w", padx=16, pady=(16, 2))
+        ctk.CTkLabel(diag_box, text="Hardware adapters, SDK status, and database checks.", font=get_font(10), text_color=COLOR_TEXT_MUTED).pack(anchor="w", padx=16, pady=(0, 8))
 
-        # Left: Diagnostics & Crash Recovery
-        left_col = ctk.CTkFrame(parent, fg_color=COLOR_PANEL_ALT, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
-        left_col.grid(row=0, column=0, sticky="nsew", padx=(12, 6), pady=12)
-
-        ctk.CTkLabel(left_col, text="TECHNICAL DIAGNOSTICS", font=get_font(12, "bold"), text_color=COLOR_CHARCOAL).pack(anchor="w", padx=16, pady=(16, 2))
-        ctk.CTkLabel(left_col, text="Hardware adapters, SDK status, and database checks.", font=get_font(10), text_color=COLOR_TEXT_MUTED).pack(anchor="w", padx=16, pady=(0, 8))
-
-        diag_btns = ctk.CTkFrame(left_col, fg_color="transparent")
+        diag_btns = ctk.CTkFrame(diag_box, fg_color="transparent")
         diag_btns.pack(fill="x", padx=16, pady=4)
         diag_btns.grid_columnconfigure((0, 1), weight=1)
 
@@ -270,10 +202,10 @@ class SettingsView(ctk.CTkFrame):
         btn_export.grid(row=0, column=1, sticky="ew", padx=(4, 0))
 
         self.diag_result_box = ctk.CTkTextbox(
-            left_col,
+            diag_box,
             height=130,
             font=ctk.CTkFont(family="Consolas", size=10),
-            fg_color=COLOR_PANEL,
+            fg_color=COLOR_PANEL_ALT,
             border_width=1,
             border_color=COLOR_BORDER,
             text_color=COLOR_TEXT_PRIMARY,
@@ -281,11 +213,11 @@ class SettingsView(ctk.CTkFrame):
         self.diag_result_box.pack(fill="both", expand=True, padx=16, pady=(6, 8))
 
         # Crash Recovery
-        ctk.CTkLabel(left_col, text="CRASH RECOVERY", font=get_font(11, "bold"), text_color=COLOR_CHARCOAL).pack(anchor="w", padx=16, pady=(6, 2))
-        self.recovery_card = ctk.CTkFrame(left_col, fg_color=COLOR_PANEL, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
+        ctk.CTkLabel(diag_box, text="CRASH RECOVERY", font=get_font(11, "bold"), text_color=COLOR_CHARCOAL).pack(anchor="w", padx=16, pady=(6, 2))
+        self.recovery_card = ctk.CTkFrame(diag_box, fg_color=COLOR_PANEL_ALT, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
         self.recovery_card.pack(fill="x", padx=16, pady=(0, 16))
 
-        self.recovery_lbl = ctk.CTkLabel(self.recovery_card, text="Checking crash status...", font=get_font(10), text_color=COLOR_TEXT_MUTED, wraplength=260, justify="left")
+        self.recovery_lbl = ctk.CTkLabel(self.recovery_card, text="Checking crash status...", font=get_font(10), text_color=COLOR_TEXT_MUTED, wraplength=280, justify="left")
         self.recovery_lbl.pack(anchor="w", padx=12, pady=(8, 4))
 
         self.btn_resume = ctk.CTkButton(
@@ -301,13 +233,13 @@ class SettingsView(ctk.CTkFrame):
         )
         self.btn_resume.pack(fill="x", padx=12, pady=(0, 8))
 
-        # Right: Live System Logs
-        right_col = ctk.CTkFrame(parent, fg_color=COLOR_PANEL_ALT, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
-        right_col.grid(row=0, column=1, sticky="nsew", padx=(6, 12), pady=12)
-        right_col.grid_rowconfigure(1, weight=1)
-        right_col.grid_columnconfigure(0, weight=1)
+        # Live Logs (Right)
+        log_box = ctk.CTkFrame(scroll_body, fg_color=COLOR_PANEL, corner_radius=6, border_width=1, border_color=COLOR_BORDER)
+        log_box.grid(row=2, column=1, sticky="nsew", padx=(8, 0), pady=(0, 12))
+        log_box.grid_rowconfigure(1, weight=1)
+        log_box.grid_columnconfigure(0, weight=1)
 
-        log_head = ctk.CTkFrame(right_col, fg_color="transparent")
+        log_head = ctk.CTkFrame(log_box, fg_color="transparent")
         log_head.grid(row=0, column=0, sticky="ew", padx=16, pady=(14, 4))
 
         ctk.CTkLabel(log_head, text="LIVE SYSTEM LOGS", font=get_font(12, "bold"), text_color=COLOR_CHARCOAL).pack(side="left")
@@ -329,14 +261,18 @@ class SettingsView(ctk.CTkFrame):
         btn_ref_log.pack(side="right")
 
         self.log_textbox = ctk.CTkTextbox(
-            right_col,
+            log_box,
             font=ctk.CTkFont(family="Consolas", size=10),
-            fg_color=COLOR_PANEL,
+            fg_color=COLOR_PANEL_ALT,
             border_width=1,
             border_color=COLOR_BORDER,
             text_color=COLOR_TEXT_PRIMARY,
         )
         self.log_textbox.grid(row=1, column=0, sticky="nsew", padx=16, pady=(4, 16))
+
+    def select_tab(self, tab_name: str = "") -> None:
+        """Compatibility method for external callers navigating to settings."""
+        pass
 
     def refresh(self) -> None:
         """Refreshes camera status, logs, and storage."""
@@ -366,7 +302,6 @@ class SettingsView(ctk.CTkFrame):
     def _on_reconnect_camera(self) -> None:
         self._on_detect_camera()
 
-
     def _refresh_logs(self) -> None:
         text = self.diag.read_recent_logs(max_lines=150)
         self.log_textbox.delete("1.0", "end")
@@ -384,7 +319,7 @@ class SettingsView(ctk.CTkFrame):
             )
             self.btn_resume.configure(state="normal", fg_color=COLOR_ACCENT)
         else:
-            self.recovery_card.configure(fg_color=COLOR_PANEL, border_color=COLOR_BORDER)
+            self.recovery_card.configure(fg_color=COLOR_PANEL_ALT, border_color=COLOR_BORDER)
             self.recovery_lbl.configure(
                 text="✓ All captures consistent. No orphaned raw files.",
                 text_color=COLOR_SUCCESS,
