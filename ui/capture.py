@@ -253,9 +253,6 @@ class CaptureView(ctk.CTkFrame):
         self.btn_browse_folder = ctk.CTkButton(f_target, text="...", width=26, height=24, font=get_font(10, "bold"), fg_color=COLOR_BORDER, text_color=COLOR_CHARCOAL, hover_color=COLOR_BORDER_STRONG, command=self._on_browse_target)
         self.btn_browse_folder.grid(row=0, column=1, sticky="e", padx=(4, 0))
 
-        ctk.CTkLabel(grid_series, text="Server Folder:", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).grid(row=3, column=0, sticky="w", pady=2)
-        self.entry_server_folder = ctk.CTkEntry(grid_series, height=24, font=get_font(10), fg_color=COLOR_PANEL, border_color=COLOR_BORDER, border_width=1)
-        self.entry_server_folder.grid(row=3, column=1, sticky="ew", padx=(8, 0), pady=2)
 
         self.btn_open_csv = ctk.CTkButton(
             box_series,
@@ -782,7 +779,8 @@ class CaptureView(ctk.CTkFrame):
                 self.entry_sess_date.insert(0, sess.date)
             if hasattr(self, "entry_sess_name"):
                 self.entry_sess_name.delete(0, "end")
-                self.entry_sess_name.insert(0, sess.operator)
+                if sess.operator:
+                    self.entry_sess_name.insert(0, sess.operator)
             if hasattr(self, "entry_sess_site"):
                 self.entry_sess_site.delete(0, "end")
                 self.entry_sess_site.insert(0, sess.site)
@@ -790,13 +788,9 @@ class CaptureView(ctk.CTkFrame):
                 cnt = len(self.ctx.photo_repo.list_by_session(sess.id))
                 self.lbl_series_count.configure(text=str(cnt))
             if hasattr(self, "entry_target_folder"):
-                sp = self.ctx.storage_manager.get_session_paths(f"{sess.site}_{sess.date}")
+                sp = self.ctx.session_paths if self.ctx.session_paths else self.ctx.storage_manager.get_session_paths(f"{sess.site}_{sess.date}")
                 self.entry_target_folder.delete(0, "end")
                 self.entry_target_folder.insert(0, str(sp.jpg_dir))
-            if hasattr(self, "entry_server_folder"):
-                s_url = self.ctx.config.get("transfer", "server_url", r"C:\CorePhotos\Server\GOSOWONG")
-                self.entry_server_folder.delete(0, "end")
-                self.entry_server_folder.insert(0, s_url)
         if hasattr(self, "lbl_series_space"):
             free_mb = self.ctx.storage_manager.get_available_space_mb()
             self.lbl_series_space.configure(text=f"{free_mb:.0f} MB free")

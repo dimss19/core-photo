@@ -285,7 +285,8 @@ class ImageProcessor:
                 pass
 
         left_text = f"HOLE ID: {hole_id}  TRAY ID: {tray_id}  FROM: {interval_from:g}  TO: {interval_to:g}"
-        right_text = f"OPERATOR: {operator}  TIMESTAMP: {timestamp_str}"
+        op_text = f"OPERATOR: {operator}  " if operator and operator.strip() else ""
+        right_text = f"{op_text}TIMESTAMP: {timestamp_str}"
 
         y_pos = h - banner_h + (banner_h - font_size) // 2
         draw.text((8, y_pos), left_text, fill=(15, 20, 25), font=font)

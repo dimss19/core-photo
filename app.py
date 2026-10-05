@@ -362,8 +362,9 @@ class CorePhotoApp(ctk.CTk):
                 text=f"Session: {sess.site}",
                 text_color=COLOR_CHARCOAL,
             )
+            op_text = f"  |  Operator: {sess.operator}" if sess.operator and sess.operator.strip() else ""
             self.bottom_status_lbl.configure(
-                text=f"Session: {sess.site}  |  Operator: {sess.operator}  |  Date: {sess.date}"
+                text=f"Session: {sess.site}{op_text}  |  Date: {sess.date}"
             )
         else:
             self.top_session_lbl.configure(

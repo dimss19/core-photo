@@ -172,8 +172,8 @@ class DataHubView(ctk.CTkFrame):
         self.entry_site = ctk.CTkEntry(new_card, placeholder_text="e.g. GOSOWONG or PIT_A", height=32, font=get_font(11))
         self.entry_site.pack(fill="x", padx=16, pady=(0, 6))
 
-        ctk.CTkLabel(new_card, text="Operator / Geologist *", font=get_font(10, "bold"), text_color=COLOR_TEXT_PRIMARY).pack(anchor="w", padx=16, pady=(2, 1))
-        self.entry_operator = ctk.CTkEntry(new_card, placeholder_text="e.g. J. Smith", height=32, font=get_font(11))
+        ctk.CTkLabel(new_card, text="Operator / Geologist (Optional)", font=get_font(10, "bold"), text_color=COLOR_TEXT_PRIMARY).pack(anchor="w", padx=16, pady=(2, 1))
+        self.entry_operator = ctk.CTkEntry(new_card, placeholder_text="Optional (leave empty if none)", height=32, font=get_font(11))
         self.entry_operator.pack(fill="x", padx=16, pady=(0, 6))
 
         ctk.CTkLabel(new_card, text="Date (YYYYMMDD) *", font=get_font(10, "bold"), text_color=COLOR_TEXT_PRIMARY).pack(anchor="w", padx=16, pady=(2, 1))
@@ -260,8 +260,8 @@ class DataHubView(ctk.CTkFrame):
             except Exception:
                 pass
 
-        self.lbl_active_title.configure(text=f"ACTIVE SESSION: {display_name}")
-        self.lbl_active_meta.configure(text=f"Site: {sess.site}  ·  Operator: {sess.operator}  ·  Date: {sess.date}")
+        op_str = f"  ·  Operator: {sess.operator}" if sess.operator and sess.operator.strip() else ""
+        self.lbl_active_meta.configure(text=f"Site: {sess.site}{op_str}  ·  Date: {sess.date}")
         self.lbl_active_stats.configure(
             text=f"Trays: {total_photos}  ·  Storage: {dir_size_mb:.1f} MB  ·  Audit: {valid_photos}/{total_photos} Valid ({pct:.0f}%)"
         )
@@ -300,7 +300,8 @@ class DataHubView(ctk.CTkFrame):
                     s_repo = SessionRepository(db)
                     sess_info = s_repo.get_active() or (s_repo.list_all()[0] if s_repo.list_all() else None)
                     if sess_info:
-                        sub_meta = f"Site: {sess_info.site}  ·  Operator: {sess_info.operator}  ·  Date: {sess_info.date}"
+                        op_info = f"  ·  Operator: {sess_info.operator}" if sess_info.operator and sess_info.operator.strip() else ""
+                        sub_meta = f"Site: {sess_info.site}{op_info}  ·  Date: {sess_info.date}"
             except Exception:
                 pass
 
@@ -331,8 +332,8 @@ class DataHubView(ctk.CTkFrame):
         operator = self.entry_operator.get().strip()
         date_str = self.entry_date.get().strip()
 
-        if not site or not operator or not date_str:
-            self.lbl_create_status.configure(text="Please fill in Site, Operator, and Date.", text_color=COLOR_ERROR)
+        if not site or not date_str:
+            self.lbl_create_status.configure(text="Please fill in Site and Date.", text_color=COLOR_ERROR)
             return
 
         try:

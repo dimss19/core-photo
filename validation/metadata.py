@@ -10,7 +10,6 @@ MANDATORY_METADATA_FIELDS = [
     "interval_from",
     "interval_to",
     "date",
-    "operator",
     "site",
     "md5_raw",
     "md5_jpg",
