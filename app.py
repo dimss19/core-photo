@@ -32,8 +32,8 @@ class CorePhotoApp(ctk.CTk):
         self.config = get_config()
         theme = self.config.get("app", "theme", "dark")
         color_theme = self.config.get("app", "color_theme", "blue")
-        ctk.set_appearance_mode(theme)
-        ctk.set_default_color_theme(color_theme)
+        ctk.set_appearance_mode("light")
+        ctk.set_default_color_theme("blue")
 
         self.title("Core Photo — Sistem Pengambilan Foto Drill Core")
         self.geometry("1300x820")
@@ -57,93 +57,128 @@ class CorePhotoApp(ctk.CTk):
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(1, weight=1)
 
-        # ----------------- Top Header Bar -----------------
-        self.header_bar = ctk.CTkFrame(self, height=48, corner_radius=0, fg_color="#1F1F1F")
+        # ----------------- Top Header Bar (Light Mode) -----------------
+        self.header_bar = ctk.CTkFrame(self, height=54, corner_radius=0, fg_color="#FFFFFF", border_width=1, border_color="#E5E7EB")
         self.header_bar.grid(row=0, column=0, columnspan=2, sticky="ew")
         self.header_bar.grid_columnconfigure(1, weight=1)
 
-        # Logo text
-        self.logo_lbl = ctk.CTkLabel(
-            self.header_bar,
-            text="CORE PHOTO",
-            font=ctk.CTkFont(size=16, weight="bold"),
-            text_color="#3B8ED0"
-        )
-        self.logo_lbl.grid(row=0, column=0, padx=(20, 16), pady=8)
+        # Logo text & sub-badge
+        logo_frame = ctk.CTkFrame(self.header_bar, fg_color="transparent")
+        logo_frame.grid(row=0, column=0, padx=(20, 16), pady=8, sticky="w")
 
-        # Top System Status Indicators
+        self.logo_lbl = ctk.CTkLabel(
+            logo_frame,
+            text="CORE PHOTO",
+            font=ctk.CTkFont(size=17, weight="bold"),
+            text_color="#1A73E8"
+        )
+        self.logo_lbl.pack(side="left")
+
+        app_tag = ctk.CTkLabel(
+            logo_frame,
+            text="PRO",
+            font=ctk.CTkFont(size=10, weight="bold"),
+            text_color="#FFFFFF",
+            fg_color="#1A73E8",
+            corner_radius=4,
+            width=36,
+            height=18
+        )
+        app_tag.pack(side="left", padx=8)
+
+        # Top System Status Indicators (Light mode contrast)
         status_frame = ctk.CTkFrame(self.header_bar, fg_color="transparent")
         status_frame.grid(row=0, column=1, sticky="e", padx=20)
 
         self.top_session_lbl = ctk.CTkLabel(
             status_frame,
             text="Sesi: [Belum Ada]",
-            font=ctk.CTkFont(size=12),
-            text_color="gray75"
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="#D97706"
         )
-        self.top_session_lbl.pack(side="left", padx=12)
+        self.top_session_lbl.pack(side="left", padx=10)
 
         self.top_cam_lbl = ctk.CTkLabel(
             status_frame,
             text="Kamera: Disconnected",
             font=ctk.CTkFont(size=12),
-            text_color="#E5A93C"
+            text_color="#6B7280"
         )
-        self.top_cam_lbl.pack(side="left", padx=12)
+        self.top_cam_lbl.pack(side="left", padx=10)
 
         self.top_storage_lbl = ctk.CTkLabel(
             status_frame,
             text="Storage: OK",
             font=ctk.CTkFont(size=12),
-            text_color="#2CC985"
+            text_color="#059669"
         )
-        self.top_storage_lbl.pack(side="left", padx=12)
+        self.top_storage_lbl.pack(side="left", padx=10)
 
-        # ----------------- Left Navigation Sidebar -----------------
-        self.sidebar = ctk.CTkFrame(self, width=220, corner_radius=0, fg_color="#181818")
+        # ----------------- Left Navigation Sidebar (Light Mode) -----------------
+        self.sidebar = ctk.CTkFrame(self, width=230, corner_radius=0, fg_color="#F8FAFC", border_width=1, border_color="#E2E8F0")
         self.sidebar.grid(row=1, column=0, sticky="nsew")
-        self.sidebar.grid_rowconfigure(9, weight=1)
+        self.sidebar.grid_rowconfigure(20, weight=1)
 
         self.nav_buttons: Dict[str, ctk.CTkButton] = {}
 
-        nav_items = [
-            ("dashboard", "📊  Dashboard"),
-            ("session", "📁  Sesi (Session)"),
-            ("capture", "📷  Capture Foto"),
-            ("review", "👁️  Review Foto"),
-            ("browser", "🔍  Photo Browser"),
-            ("validation", "✅  Validasi Data"),
-            ("transfer", "📤  Transfer Server"),
-            ("settings", "⚙️  Pengaturan & Tes"),
+        nav_groups = [
+            ("ALUR KERJA UTAMA", [
+                ("dashboard", "📊  1. Dashboard", "Halaman Utama & Status"),
+                ("session", "📁  2. Sesi Foto", "Pilih / Buat Sesi Baru"),
+                ("capture", "📷  3. Capture Foto", "Live View & Ambil Foto"),
+                ("review", "👁️  4. Review Foto", "Inspeksi & Simpan Tray"),
+            ]),
+            ("DATA & DISTRIBUSI", [
+                ("browser", "🔍  Photo Browser", "Galeri & Filter Foto"),
+                ("validation", "✅  Validasi Data", "Audit & Integritas"),
+                ("transfer", "📤  Transfer Server", "Kirim Data ke Server"),
+                ("settings", "⚙️  Pengaturan", "Diagnostik & Recovery"),
+            ])
         ]
 
-        for idx, (route, label) in enumerate(nav_items):
-            btn = ctk.CTkButton(
+        current_row = 0
+        for group_title, items in nav_groups:
+            grp_lbl = ctk.CTkLabel(
                 self.sidebar,
-                text=label,
-                anchor="w",
-                font=ctk.CTkFont(size=13, weight="normal"),
-                height=40,
-                corner_radius=8,
-                fg_color="transparent",
-                hover_color="#282828",
-                command=lambda r=route: self.navigate_to(r)
+                text=group_title,
+                font=ctk.CTkFont(size=11, weight="bold"),
+                text_color="#94A3B8"
             )
-            btn.grid(row=idx, column=0, padx=12, pady=3, sticky="ew")
-            self.nav_buttons[route] = btn
+            grp_lbl.grid(row=current_row, column=0, padx=16, pady=(14 if current_row > 0 else 10, 4), sticky="w")
+            current_row += 1
+
+            for route, label, tooltip in items:
+                btn = ctk.CTkButton(
+                    self.sidebar,
+                    text=label,
+                    anchor="w",
+                    font=ctk.CTkFont(size=13, weight="normal"),
+                    height=38,
+                    corner_radius=8,
+                    fg_color="transparent",
+                    text_color="#334155",
+                    hover_color="#E2E8F0",
+                    command=lambda r=route: self.navigate_to(r)
+                )
+                btn.grid(row=current_row, column=0, padx=10, pady=2, sticky="ew")
+                self.nav_buttons[route] = btn
+                current_row += 1
 
         # Version stamp
+        v_frame = ctk.CTkFrame(self.sidebar, fg_color="transparent")
+        v_frame.grid(row=21, column=0, padx=12, pady=16, sticky="s")
+
         v_lbl = ctk.CTkLabel(
-            self.sidebar,
-            text="Core Photo v1.0.0\nDesktop Offline-Ready",
+            v_frame,
+            text="Core Photo v1.0.0 Pro\nLight Mode • Offline-Ready",
             font=ctk.CTkFont(size=11),
-            text_color="gray50",
+            text_color="#94A3B8",
             justify="center"
         )
-        v_lbl.grid(row=10, column=0, padx=12, pady=16)
+        v_lbl.pack()
 
-        # ----------------- Main Content Area -----------------
-        self.content_area = ctk.CTkFrame(self, corner_radius=0, fg_color="#121212")
+        # ----------------- Main Content Area (Light Mode) -----------------
+        self.content_area = ctk.CTkFrame(self, corner_radius=0, fg_color="#F1F5F9")
         self.content_area.grid(row=1, column=1, sticky="nsew")
         self.content_area.grid_rowconfigure(0, weight=1)
         self.content_area.grid_columnconfigure(0, weight=1)
@@ -173,12 +208,12 @@ class CorePhotoApp(ctk.CTk):
         if self.current_view_name == "capture" and route != "capture":
             self.views["capture"].stop_view()
 
-        # Update button highlights
+        # Update button highlights for Light Mode
         for r, btn in self.nav_buttons.items():
             if r == route:
-                btn.configure(fg_color="#3B8ED0", hover_color="#2E75B6", text_color="#FFFFFF")
+                btn.configure(fg_color="#EBF5FF", hover_color="#DBEAFE", text_color="#1D4ED8", font=ctk.CTkFont(size=13, weight="bold"))
             else:
-                btn.configure(fg_color="transparent", hover_color="#282828", text_color="#DCE4EE")
+                btn.configure(fg_color="transparent", hover_color="#E2E8F0", text_color="#475569", font=ctk.CTkFont(size=13, weight="normal"))
 
         # Hide current view
         if self.current_view_name in self.views:
@@ -197,23 +232,23 @@ class CorePhotoApp(ctk.CTk):
         self._update_top_header()
 
     def _update_top_header(self) -> None:
-        """Refreshes status in top bar."""
+        """Refreshes status in top bar for light mode."""
         sess = self.ctx.active_session
         if sess:
-            self.top_session_lbl.configure(text=f"Sesi: {sess.site} ({sess.date})", text_color="#E0E0E0")
+            self.top_session_lbl.configure(text=f"Sesi Aktif: {sess.site} ({sess.date})", text_color="#047857")
         else:
-            self.top_session_lbl.configure(text="Sesi: [Belum Ada]", text_color="#E5A93C")
+            self.top_session_lbl.configure(text="Sesi: [Belum Ada]", text_color="#D97706")
 
         cam_summary = self.ctx.camera_manager.get_status_summary()
         self.top_cam_lbl.configure(
             text=cam_summary,
-            text_color="#2CC985" if self.ctx.camera_manager.is_ready() else "#E5A93C"
+            text_color="#059669" if self.ctx.camera_manager.is_ready() else "#D97706"
         )
 
         free_gb = self.ctx.storage_manager.get_available_space_mb() / 1024.0
         self.top_storage_lbl.configure(
             text=f"Storage: {free_gb:.1f} GB Bebas",
-            text_color="#2CC985" if free_gb > 1.0 else "#D9534F"
+            text_color="#059669" if free_gb > 1.0 else "#DC2626"
         )
 
     def _startup_camera_init(self) -> None:

@@ -1,5 +1,6 @@
 """Validation Results & Audit Screen (PRD Section 20).
 Displays comprehensive data integrity audit results and enables re-running validation.
+Designed with Light Mode aesthetics, clear audit badges, and informative explanations.
 """
 
 from typing import Callable
@@ -15,7 +16,7 @@ class ValidationView(ctk.CTkFrame):
     """Validation report and integrity check screen."""
 
     def __init__(self, master, navigate_fn: Callable[[str], None], **kwargs):
-        super().__init__(master, **kwargs)
+        super().__init__(master, fg_color="#F8FAFC", **kwargs)
         self.navigate_fn = navigate_fn
         self.ctx = get_app_context()
 
@@ -25,44 +26,64 @@ class ValidationView(ctk.CTkFrame):
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=1)
 
-        # Header
-        header = ctk.CTkFrame(self, fg_color="transparent")
-        header.grid(row=0, column=0, sticky="ew", padx=24, pady=(20, 10))
+        # ----------------- Header -----------------
+        header = ctk.CTkFrame(self, fg_color="#FFFFFF", corner_radius=12, border_width=1, border_color="#E2E8F0")
+        header.grid(row=0, column=0, sticky="ew", padx=20, pady=(16, 10))
 
-        title = ctk.CTkLabel(header, text="Pusat Validasi & Integritas Data", font=ctk.CTkFont(size=24, weight="bold"))
-        title.pack(anchor="w")
+        title_box = ctk.CTkFrame(header, fg_color="transparent")
+        title_box.pack(fill="x", padx=20, pady=(14, 6))
 
-        subtitle = ctk.CTkLabel(
-            header,
-            text="Pemeriksaan otomatis kelengkapan data, konvensi nama, hash MD5, dan konsistensi file lokal.",
-            font=ctk.CTkFont(size=13),
-            text_color="gray70"
+        ctk.CTkLabel(
+            title_box,
+            text="✅ Pusat Validasi & Integritas Data",
+            font=ctk.CTkFont(size=20, weight="bold"),
+            text_color="#1E293B"
+        ).pack(anchor="w")
+
+        ctk.CTkLabel(
+            title_box,
+            text="Sistem melakukan audit kepatuhan otomatis: format penamaan file, keutuhan checksum MD5, kelengkapan metadata, dan validitas rentang interval.",
+            font=ctk.CTkFont(size=12),
+            text_color="#64748B",
+            wraplength=950,
+            justify="left"
         )
-        subtitle.pack(anchor="w", pady=(2, 10))
+        subtitle = title_box.winfo_children()[-1]
+        subtitle.pack(anchor="w", pady=(2, 6))
 
-        # Toolbar & Summary
-        summary_bar = ctk.CTkFrame(header, fg_color="transparent")
-        summary_bar.pack(fill="x")
+        # Toolbar & Summary Bar
+        summary_bar = ctk.CTkFrame(header, fg_color="#F1F5F9", corner_radius=8)
+        summary_bar.pack(fill="x", padx=20, pady=(4, 14))
 
         self.summary_lbl = ctk.CTkLabel(
             summary_bar,
             text="Memuat status validasi...",
-            font=ctk.CTkFont(size=14, weight="bold")
+            font=ctk.CTkFont(size=13, weight="bold"),
+            text_color="#1E293B"
         )
-        self.summary_lbl.pack(side="left")
+        self.summary_lbl.pack(side="left", padx=16, pady=10)
 
         self.btn_run_all = ctk.CTkButton(
             summary_bar,
             text="🔄  Jalankan Validasi Ulang Sesi",
             font=ctk.CTkFont(size=13, weight="bold"),
-            height=36,
+            height=34,
+            corner_radius=6,
+            fg_color="#1D4ED8",
+            hover_color="#1E40AF",
             command=self._on_rerun_validation
         )
-        self.btn_run_all.pack(side="right")
+        self.btn_run_all.pack(side="right", padx=12, pady=8)
 
-        # Scrollable list of validation findings
-        self.results_scroll = ctk.CTkScrollableFrame(self, corner_radius=12)
-        self.results_scroll.grid(row=1, column=0, sticky="nsew", padx=24, pady=(0, 20))
+        # ----------------- Scrollable List of Findings -----------------
+        self.results_scroll = ctk.CTkScrollableFrame(
+            self,
+            fg_color="#FFFFFF",
+            corner_radius=12,
+            border_width=1,
+            border_color="#E2E8F0"
+        )
+        self.results_scroll.grid(row=1, column=0, sticky="nsew", padx=20, pady=(0, 16))
         self.results_scroll.grid_columnconfigure(0, weight=1)
 
     def refresh(self) -> None:
@@ -71,8 +92,13 @@ class ValidationView(ctk.CTkFrame):
             widget.destroy()
 
         if not self.ctx.active_session or not self.ctx.photo_repo or not self.ctx.validation_repo:
-            ctk.CTkLabel(self.results_scroll, text="Tidak ada sesi aktif.", text_color="gray60").pack(pady=40)
-            self.summary_lbl.configure(text="Sesi: Tidak ada")
+            ctk.CTkLabel(
+                self.results_scroll,
+                text="Tidak ada sesi aktif. Buat sesi di menu Sesi Foto terlebih dahulu.",
+                font=ctk.CTkFont(size=13),
+                text_color="#94A3B8"
+            ).pack(pady=60)
+            self.summary_lbl.configure(text="Sesi: Belum Ada Sesi Aktif")
             return
 
         photos = self.ctx.photo_repo.list_by_session(self.ctx.active_session.id, active_only=True)
@@ -81,26 +107,42 @@ class ValidationView(ctk.CTkFrame):
         invalid_count = total - valid_count
 
         self.summary_lbl.configure(
-            text=f"Total: {total} Foto  |  ✅ Tervalidasi: {valid_count}  |  ⚠️ Memerlukan Perhatian: {invalid_count}",
-            text_color="#2CC985" if invalid_count == 0 else "#E5A93C"
+            text=f"Total: {total} Foto Tray  |  ✅ Tervalidasi Penuh: {valid_count}  |  ⚠️ Perlu Perhatian: {invalid_count}",
+            text_color="#059669" if invalid_count == 0 else "#D97706"
         )
 
         if not photos:
-            ctk.CTkLabel(self.results_scroll, text="Belum ada foto dalam sesi ini.", text_color="gray60").pack(pady=40)
+            ctk.CTkLabel(
+                self.results_scroll,
+                text="Belum ada foto yang diambil dalam sesi aktif ini.\nAmbil foto di menu Capture untuk melihat hasil audit.",
+                font=ctk.CTkFont(size=13),
+                text_color="#94A3B8",
+                justify="center"
+            ).pack(pady=60)
             return
 
         for photo in photos:
-            card = ctk.CTkFrame(self.results_scroll, corner_radius=8)
-            card.pack(fill="x", padx=10, pady=6)
+            card = ctk.CTkFrame(self.results_scroll, fg_color="#F8FAFC", corner_radius=8, border_width=1, border_color="#E2E8F0")
+            card.pack(fill="x", padx=12, pady=6)
 
             card_top = ctk.CTkFrame(card, fg_color="transparent")
-            card_top.pack(fill="x", padx=12, pady=(10, 4))
+            card_top.pack(fill="x", padx=14, pady=(10, 4))
 
             title_text = f"Foto ID #{photo.id} — {photo.filename_base}.jpg"
-            ctk.CTkLabel(card_top, text=title_text, font=ctk.CTkFont(size=14, weight="bold")).pack(side="left")
+            ctk.CTkLabel(card_top, text=title_text, font=ctk.CTkFont(size=13, weight="bold"), text_color="#1E293B").pack(side="left")
 
-            status_color = "#2CC985" if photo.status == "VALID" else "#D9534F"
-            badge = ctk.CTkLabel(card_top, text=f" {photo.status} ", font=ctk.CTkFont(size=12, weight="bold"), text_color=status_color)
+            is_valid = photo.status == "VALID"
+            status_color = "#059669" if is_valid else "#DC2626"
+            status_bg = "#ECFDF5" if is_valid else "#FEF2F2"
+
+            badge = ctk.CTkLabel(
+                card_top,
+                text=f" {photo.status} ",
+                font=ctk.CTkFont(size=11, weight="bold"),
+                text_color=status_color,
+                fg_color=status_bg,
+                corner_radius=4
+            )
             badge.pack(side="right")
 
             # Load validation checks for this photo
@@ -108,10 +150,10 @@ class ValidationView(ctk.CTkFrame):
             if checks:
                 for chk in checks:
                     chk_frame = ctk.CTkFrame(card, fg_color="transparent")
-                    chk_frame.pack(fill="x", padx=16, pady=1)
+                    chk_frame.pack(fill="x", padx=16, pady=2)
 
                     icon = "✅" if chk.is_valid else "❌"
-                    color = "#E0E0E0" if chk.is_valid else "#D9534F"
+                    color = "#047857" if chk.is_valid else "#DC2626"
                     ctk.CTkLabel(
                         chk_frame,
                         text=f"{icon}  [{chk.rule_name}] {chk.message}",
@@ -119,7 +161,7 @@ class ValidationView(ctk.CTkFrame):
                         text_color=color
                     ).pack(anchor="w")
             else:
-                ctk.CTkLabel(card, text="Pemeriksaan belum dijalankan.", font=ctk.CTkFont(size=12), text_color="gray60").pack(anchor="w", padx=16, pady=4)
+                ctk.CTkLabel(card, text="Pemeriksaan belum dijalankan. Klik 'Jalankan Validasi Ulang'.", font=ctk.CTkFont(size=12), text_color="#94A3B8").pack(anchor="w", padx=16, pady=4)
 
     def _on_rerun_validation(self) -> None:
         """Re-runs validation across all photos in active session."""
