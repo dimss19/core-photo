@@ -43,7 +43,7 @@ class TransferView(ctk.CTkFrame):
 
         ctk.CTkLabel(
             title_box,
-            text="📤 Langkah 4: Transfer Data ke Server Pusat",
+            text="📤 Transfer Data ke Server Pusat",
             font=ctk.CTkFont(size=20, weight="bold"),
             text_color="#1E293B"
         ).pack(anchor="w")

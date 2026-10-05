@@ -116,7 +116,7 @@ class CaptureView(ctk.CTkFrame):
         # Header Title
         ctk.CTkLabel(
             right_panel,
-            text="Langkah 2: Data Tray Core",
+            text="Data Tray Core",
             font=ctk.CTkFont(size=18, weight="bold"),
             text_color="#1E293B"
         ).pack(anchor="w", padx=12, pady=(10, 2))

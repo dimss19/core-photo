@@ -123,10 +123,10 @@ class CorePhotoApp(ctk.CTk):
 
         nav_groups = [
             ("ALUR KERJA UTAMA", [
-                ("dashboard", "📊  1. Dashboard", "Halaman Utama & Status"),
-                ("session", "📁  2. Sesi Foto", "Pilih / Buat Sesi Baru"),
-                ("capture", "📷  3. Capture Foto", "Live View & Ambil Foto"),
-                ("review", "👁️  4. Review Foto", "Inspeksi & Simpan Tray"),
+                ("dashboard", "📊  Dashboard", "Halaman Utama & Status"),
+                ("session", "📁  Sesi Foto", "Pilih / Buat Sesi Baru"),
+                ("capture", "📷  Capture Foto", "Live View & Ambil Foto"),
+                ("review", "👁️  Review Foto", "Inspeksi & Simpan Tray"),
             ]),
             ("DATA & DISTRIBUSI", [
                 ("browser", "🔍  Photo Browser", "Galeri & Filter Foto"),

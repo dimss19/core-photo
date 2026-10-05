@@ -44,7 +44,7 @@ class ReviewView(ctk.CTkFrame):
 
         ctk.CTkLabel(
             header_box,
-            text="👁️ Langkah 3: Review Hasil Foto Tray",
+            text="👁️ Review Hasil Foto Tray",
             font=ctk.CTkFont(size=17, weight="bold"),
             text_color="#1E293B"
         ).pack(anchor="w")

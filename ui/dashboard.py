@@ -58,10 +58,10 @@ class DashboardView(ctk.CTkFrame):
         steps_container.grid_columnconfigure((0, 1, 2, 3), weight=1)
 
         steps = [
-            ("1. Sesi Foto", "Tentukan Site & Operator", "#1D4ED8"),
-            ("2. Ambil Foto", "Framing & Capture RAW", "#0284C7"),
-            ("3. Review Foto", "Periksa & Validasi Tray", "#059669"),
-            ("4. Transfer Data", "Kirim ke Server Pusat", "#7C3AED"),
+            ("Sesi Foto", "Tentukan Site & Operator", "#1D4ED8"),
+            ("Ambil Foto", "Framing & Capture RAW", "#0284C7"),
+            ("Review Foto", "Periksa & Validasi Tray", "#059669"),
+            ("Transfer Data", "Kirim ke Server Pusat", "#7C3AED"),
         ]
 
         for idx, (step_title, step_desc, step_color) in enumerate(steps):
@@ -296,12 +296,12 @@ class DashboardView(ctk.CTkFrame):
                 text="Klik tombol aksi untuk membuat sesi"
             )
             self.primary_cta_btn.configure(
-                text="📁  1. Buat Sesi Baru Terlebih Dahulu",
+                text="📁  Buat Sesi Baru Terlebih Dahulu",
                 fg_color="#1D4ED8",
                 hover_color="#1E40AF"
             )
             self.primary_cta_hint.configure(
-                text="Langkah 1: Tentukan lokasi pit/site dan nama operator untuk memulai.",
+                text="Tentukan lokasi pit/site dan nama operator untuk memulai.",
                 text_color="#64748B"
             )
 

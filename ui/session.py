@@ -34,7 +34,7 @@ class SessionView(ctk.CTkFrame):
 
         title = ctk.CTkLabel(
             header,
-            text="Langkah 1: Manajemen Sesi Foto (Session)",
+            text="Manajemen Sesi Foto (Session)",
             font=ctk.CTkFont(size=20, weight="bold"),
             text_color="#1E293B"
         )
