@@ -132,6 +132,24 @@ class SettingsView(ctk.CTkFrame):
         cam_btns = ctk.CTkFrame(cam_content, fg_color="transparent")
         cam_btns.grid(row=0, column=1, sticky="e", padx=14, pady=10)
 
+        self.opt_adapter_mode = ctk.CTkOptionMenu(
+            cam_btns,
+            values=[
+                "Universal Hot-Folder (All DSLRs)",
+                "Physical USB / Webcam",
+                "Standby / Simulator",
+            ],
+            command=self._on_adapter_mode_changed,
+            height=32,
+            width=220,
+            font=get_font(10),
+            fg_color=COLOR_PANEL,
+            text_color=COLOR_CHARCOAL,
+            button_color=COLOR_BORDER,
+            button_hover_color=COLOR_BORDER_STRONG,
+        )
+        self.opt_adapter_mode.pack(side="left", padx=(0, 8))
+
         btn_detect = ctk.CTkButton(
             cam_btns,
             text="Detect Camera",
@@ -290,14 +308,32 @@ class SettingsView(ctk.CTkFrame):
         self._refresh_logs()
         self._check_recovery()
 
-    def _on_detect_camera(self) -> None:
-        self.lbl_cam_feedback.configure(text="Scanning video devices...", text_color=COLOR_TEXT_MUTED)
-        self.ctx.camera_manager.connect_camera("webcam", "0")
-        self.refresh()
-        if self.ctx.camera_manager.is_ready():
-            self.lbl_cam_feedback.configure(text="✓ Camera detected and connected successfully.", text_color=COLOR_SUCCESS)
+    def _on_adapter_mode_changed(self, mode: str) -> None:
+        """Switches active camera adapter between Universal Hot-Folder, USB, and Standby."""
+        if "Hot-Folder" in mode:
+            hot_dir = self.ctx.storage_manager.base_dir / "HotFolder"
+            self.ctx.camera_manager.connect_camera("hot_folder", str(hot_dir))
+            self.lbl_cam_feedback.configure(
+                text=f"✓ Universal Hot-Folder Active: Watching {hot_dir.name}",
+                text_color=COLOR_SUCCESS,
+            )
+        elif "Standby" in mode:
+            self.ctx.camera_manager.connect_camera("webcam", "sim")
+            self.lbl_cam_feedback.configure(
+                text="✓ Standby Simulator Pattern Active.",
+                text_color=COLOR_TEXT_MUTED,
+            )
         else:
-            self.lbl_cam_feedback.configure(text="✕ Camera detected but not responding. Check connection.", text_color=COLOR_ERROR)
+            self.ctx.camera_manager.connect_camera("webcam", "0")
+            if self.ctx.camera_manager.is_ready():
+                self.lbl_cam_feedback.configure(text="✓ Physical USB Camera connected.", text_color=COLOR_SUCCESS)
+            else:
+                self.lbl_cam_feedback.configure(text="✕ No physical video camera detected on USB index 0.", text_color=COLOR_ERROR)
+        self.refresh()
+
+    def _on_detect_camera(self) -> None:
+        cur_mode = self.opt_adapter_mode.get() if hasattr(self, "opt_adapter_mode") else "Physical USB / Webcam"
+        self._on_adapter_mode_changed(cur_mode)
 
     def _on_reconnect_camera(self) -> None:
         self._on_detect_camera()

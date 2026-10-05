@@ -7,6 +7,7 @@ import numpy as np
 
 from core.logger import get_logger
 from .adapters.webcam import WebcamAdapter
+from .adapters.hot_folder import HotFolderAdapter
 from .capabilities import CameraCapabilities
 from .interface import (
     AbstractCameraAdapter,
@@ -27,6 +28,8 @@ class CameraManager:
         self._active_adapter: Optional[AbstractCameraAdapter] = None
         self._registered_adapters: Dict[str, type] = {
             "webcam": WebcamAdapter,
+            "hot_folder": HotFolderAdapter,
+            "hotfolder": HotFolderAdapter,
         }
 
     @classmethod
@@ -44,7 +47,16 @@ class CameraManager:
         """Scans system for available camera devices (PRD Section 8)."""
         available: List[Dict[str, Any]] = []
 
-        # Check default webcam adapter indices (up to 3 indices)
+        # 1. Universal Hot-Folder Ingest (Supports all DSLRs: Canon, Nikon, Sony, Fuji, etc.)
+        available.append({
+            "id": "hot_folder",
+            "name": "Universal Hot-Folder Ingest (Canon / Nikon / Sony / Any DSLR)",
+            "adapter": "hot_folder",
+            "supported": True,
+            "status": "Ready"
+        })
+
+        # 2. Check default webcam / UVC DirectShow adapter indices
         try:
             import cv2
             for idx in range(3):
@@ -61,7 +73,7 @@ class CameraManager:
         except Exception as e:
             logger.debug("Hardware camera scan exception: %s", e)
 
-        # Always include high-fidelity Core Tray sample feed
+        # 3. Always include technical simulation feed
         available.append({
             "id": "sim",
             "name": "Core Tray Sample Feed (Canon EOS 60D)",
@@ -76,6 +88,11 @@ class CameraManager:
         """Connects to specified camera using appropriate adapter."""
         if self._active_adapter:
             self._active_adapter.disconnect()
+
+        norm_name = str(adapter_name).lower()
+        norm_dev = str(device_id).lower()
+        if norm_name in ("hot_folder", "hotfolder") or norm_dev in ("hot_folder", "hotfolder"):
+            adapter_name = "hot_folder"
 
         adapter_cls = self._registered_adapters.get(adapter_name.lower(), WebcamAdapter)
         adapter = adapter_cls()

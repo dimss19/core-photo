@@ -47,8 +47,11 @@ class RawHandler:
 
         ext = raw_path.suffix.lower()
 
-        # Try rawpy for professional camera vendor raw formats (.cr2, .cr3, .nef, .arw, .dng)
-        if ext in ('.cr2', '.cr3', '.nef', '.arw', '.dng', '.raw'):
+        # Try rawpy for all professional camera vendor raw formats:
+        # Canon (.cr2, .cr3), Nikon (.nef, .nrw), Sony (.arw, .srf), Fujifilm (.raf),
+        # Panasonic (.rw2), Olympus (.orf), Pentax (.pef), Adobe/Universal (.dng), generic (.raw)
+        raw_exts = ('.cr2', '.cr3', '.nef', '.nrw', '.arw', '.srf', '.raf', '.dng', '.raw', '.rw2', '.orf', '.pef', '.srw')
+        if ext in raw_exts:
             try:
                 import rawpy
                 with rawpy.imread(str(raw_path)) as raw:
