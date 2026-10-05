@@ -92,14 +92,14 @@ class ReviewView(ctk.CTkFrame):
 
         ctk.CTkLabel(
             title_box,
-            text="REVIEW & PHOTO CATALOG",
+            text="REVIEW & PHOTO BROWSER",
             font=get_font(14, "bold"),
             text_color=COLOR_CHARCOAL,
         ).pack(anchor="w")
 
         self.lbl_header_subtitle = ctk.CTkLabel(
             title_box,
-            text="Inspect captured core trays, verify validation integrity, and browse catalog archive.",
+            text="Inspect captured core trays, verify validation integrity, and browse photo archives.",
             font=get_font(10),
             text_color=COLOR_TEXT_MUTED,
         )
@@ -125,7 +125,7 @@ class ReviewView(ctk.CTkFrame):
 
         self.btn_tab_catalog = ctk.CTkButton(
             tab_btn_box,
-            text="PHOTO CATALOG",
+            text="PHOTO BROWSER",
             font=get_font(10, "bold"),
             height=30,
             width=140,
@@ -243,7 +243,7 @@ class ReviewView(ctk.CTkFrame):
         self.filename_banner.pack(side="left", anchor="w")
 
         btn_view_catalog = ctk.CTkButton(
-            footer_box, text="View in Catalog ⊞", font=get_font(10, "bold"), height=26, width=120,
+            footer_box, text="View in Browser ⊞", font=get_font(10, "bold"), height=26, width=120,
             corner_radius=4, fg_color=COLOR_ACCENT, hover_color=COLOR_ACCENT_HOVER, text_color="#FFFFFF",
             command=self._switch_to_catalog_at_current,
         )
@@ -407,7 +407,7 @@ class ReviewView(ctk.CTkFrame):
         bar_inner = ctk.CTkFrame(filter_bar, fg_color="transparent")
         bar_inner.pack(fill="x", padx=14, pady=8)
 
-        ctk.CTkLabel(bar_inner, text="CATALOG ARCHIVES", font=get_font(12, "bold"), text_color=COLOR_CHARCOAL).pack(side="left")
+        ctk.CTkLabel(bar_inner, text="PHOTO BROWSER", font=get_font(12, "bold"), text_color=COLOR_CHARCOAL).pack(side="left")
 
         controls_box = ctk.CTkFrame(bar_inner, fg_color="transparent")
         controls_box.pack(side="right")
@@ -449,7 +449,7 @@ class ReviewView(ctk.CTkFrame):
         self.cat_detail_panel.grid(row=1, column=1, sticky="nsew", padx=(6, 0), pady=0)
 
         ctk.CTkLabel(self.cat_detail_panel, text="SELECTED PHOTO DETAILS", font=get_font(12, "bold"), text_color=COLOR_CHARCOAL).pack(anchor="w", padx=16, pady=(14, 2))
-        ctk.CTkLabel(self.cat_detail_panel, text="Click any photo in the catalog to inspect.", font=get_font(10), text_color=COLOR_TEXT_MUTED).pack(anchor="w", padx=16, pady=(0, 8))
+        ctk.CTkLabel(self.cat_detail_panel, text="Click any photo in the browser to inspect.", font=get_font(10), text_color=COLOR_TEXT_MUTED).pack(anchor="w", padx=16, pady=(0, 8))
 
         preview_card = ctk.CTkFrame(self.cat_detail_panel, fg_color="#09090B", corner_radius=4, border_width=1, border_color=COLOR_BORDER)
         preview_card.pack(fill="x", padx=16, pady=4)
