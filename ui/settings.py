@@ -67,7 +67,7 @@ class SettingsView(ctk.CTkFrame):
 
         ctk.CTkLabel(
             title_box,
-            text="General parameters, camera hardware, crash recovery, and operational logs.",
+            text="Camera hardware interface, crash recovery, and operational diagnostic logs.",
             font=get_font(11),
             text_color=COLOR_TEXT_MUTED,
         ).pack(anchor="w", pady=(2, 0))
@@ -78,35 +78,10 @@ class SettingsView(ctk.CTkFrame):
         scroll_body.grid_columnconfigure((0, 1), weight=1)
 
         # =====================================================================
-        # 1. STORAGE CONFIGURATION (Row 0, Full Width)
-        # =====================================================================
-        stor_box = ctk.CTkFrame(scroll_body, fg_color=COLOR_PANEL, corner_radius=6, border_width=1, border_color=COLOR_BORDER)
-        stor_box.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 12))
-
-        stor_inner = ctk.CTkFrame(stor_box, fg_color="transparent")
-        stor_inner.pack(fill="x", padx=16, pady=14)
-        stor_inner.grid_columnconfigure(0, weight=1)
-        stor_inner.grid_columnconfigure(1, weight=0)
-
-        stor_left = ctk.CTkFrame(stor_inner, fg_color="transparent")
-        stor_left.grid(row=0, column=0, sticky="w")
-
-        ctk.CTkLabel(stor_left, text="STORAGE CONFIGURATION", font=get_font(12, "bold"), text_color=COLOR_CHARCOAL).pack(anchor="w")
-        base_dir = str(self.ctx.storage_manager.base_dir)
-        ctk.CTkLabel(stor_left, text=f"Archive Directory: {base_dir}", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).pack(anchor="w", pady=(2, 0))
-
-        stor_right = ctk.CTkFrame(stor_inner, fg_color="transparent")
-        stor_right.grid(row=0, column=1, sticky="e")
-
-        free_gb = self.ctx.storage_manager.get_available_space_mb() / 1024.0
-        self.lbl_storage_space = ctk.CTkLabel(stor_right, text=f"Available Space: {free_gb:.1f} GB", font=get_font(12, "bold"), text_color=COLOR_SUCCESS)
-        self.lbl_storage_space.pack(anchor="e")
-
-        # =====================================================================
-        # 2. CAMERA HARDWARE INTERFACE (Row 1, Full Width)
+        # 1. CAMERA HARDWARE INTERFACE (Row 0, Full Width)
         # =====================================================================
         cam_box = ctk.CTkFrame(scroll_body, fg_color=COLOR_PANEL, corner_radius=6, border_width=1, border_color=COLOR_BORDER)
-        cam_box.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(0, 12))
+        cam_box.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 12))
 
         cam_head = ctk.CTkFrame(cam_box, fg_color="transparent")
         cam_head.pack(fill="x", padx=16, pady=(14, 6))
@@ -182,10 +157,10 @@ class SettingsView(ctk.CTkFrame):
         btn_reconnect.pack(side="left")
 
         # =====================================================================
-        # 3. DIAGNOSTICS & LIVE LOGS (Row 2, 2 Columns)
+        # 2. DIAGNOSTICS & LIVE LOGS (Row 1, 2 Columns)
         # =====================================================================
         diag_box = ctk.CTkFrame(scroll_body, fg_color=COLOR_PANEL, corner_radius=6, border_width=1, border_color=COLOR_BORDER)
-        diag_box.grid(row=2, column=0, sticky="nsew", padx=(0, 8), pady=(0, 12))
+        diag_box.grid(row=1, column=0, sticky="nsew", padx=(0, 8), pady=(0, 12))
 
         ctk.CTkLabel(diag_box, text="TECHNICAL DIAGNOSTICS", font=get_font(12, "bold"), text_color=COLOR_CHARCOAL).pack(anchor="w", padx=16, pady=(16, 2))
         ctk.CTkLabel(diag_box, text="Hardware adapters, SDK status, and database checks.", font=get_font(10), text_color=COLOR_TEXT_MUTED).pack(anchor="w", padx=16, pady=(0, 8))
@@ -256,7 +231,7 @@ class SettingsView(ctk.CTkFrame):
 
         # Live Logs (Right)
         log_box = ctk.CTkFrame(scroll_body, fg_color=COLOR_PANEL, corner_radius=6, border_width=1, border_color=COLOR_BORDER)
-        log_box.grid(row=2, column=1, sticky="nsew", padx=(8, 0), pady=(0, 12))
+        log_box.grid(row=1, column=1, sticky="nsew", padx=(8, 0), pady=(0, 12))
         log_box.grid_rowconfigure(1, weight=1)
         log_box.grid_columnconfigure(0, weight=1)
 
@@ -304,9 +279,6 @@ class SettingsView(ctk.CTkFrame):
         else:
             self.lbl_cam_tab_status.configure(text="Camera: ● Disconnected", text_color=COLOR_ERROR)
             self.lbl_cam_tab_model.configure(text="No active camera adapter recognized")
-
-        free_gb = self.ctx.storage_manager.get_available_space_mb() / 1024.0
-        self.lbl_storage_space.configure(text=f"Available Space: {free_gb:.1f} GB")
 
         self._refresh_logs()
         self._check_recovery()
