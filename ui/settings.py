@@ -78,27 +78,29 @@ class SettingsView(ctk.CTkFrame):
         scroll_body.grid_columnconfigure((0, 1), weight=1)
 
         # =====================================================================
-        # 1. APPLICATION PROFILE & STORAGE CONFIGURATION (Row 0)
+        # 1. STORAGE CONFIGURATION (Row 0, Full Width)
         # =====================================================================
-        app_box = ctk.CTkFrame(scroll_body, fg_color=COLOR_PANEL, corner_radius=6, border_width=1, border_color=COLOR_BORDER)
-        app_box.grid(row=0, column=0, sticky="nsew", padx=(0, 8), pady=(0, 12))
-
-        ctk.CTkLabel(app_box, text="APPLICATION PROFILE", font=get_font(12, "bold"), text_color=COLOR_CHARCOAL).pack(anchor="w", padx=16, pady=(16, 6))
-        ctk.CTkLabel(app_box, text="Name: Core Photo Desktop Industrial", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).pack(anchor="w", padx=16, pady=2)
-        ctk.CTkLabel(app_box, text="Version: 1.0.0 (Windows Native)", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).pack(anchor="w", padx=16, pady=2)
-        ctk.CTkLabel(app_box, text="Theme: Light Mode (Industrial High Contrast)", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).pack(anchor="w", padx=16, pady=2)
-        ctk.CTkLabel(app_box, text="Database: SQLite (WAL mode, offline-first)", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).pack(anchor="w", padx=16, pady=(2, 16))
-
         stor_box = ctk.CTkFrame(scroll_body, fg_color=COLOR_PANEL, corner_radius=6, border_width=1, border_color=COLOR_BORDER)
-        stor_box.grid(row=0, column=1, sticky="nsew", padx=(8, 0), pady=(0, 12))
+        stor_box.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 12))
 
-        ctk.CTkLabel(stor_box, text="STORAGE CONFIGURATION", font=get_font(12, "bold"), text_color=COLOR_CHARCOAL).pack(anchor="w", padx=16, pady=(16, 6))
+        stor_inner = ctk.CTkFrame(stor_box, fg_color="transparent")
+        stor_inner.pack(fill="x", padx=16, pady=14)
+        stor_inner.grid_columnconfigure(0, weight=1)
+        stor_inner.grid_columnconfigure(1, weight=0)
+
+        stor_left = ctk.CTkFrame(stor_inner, fg_color="transparent")
+        stor_left.grid(row=0, column=0, sticky="w")
+
+        ctk.CTkLabel(stor_left, text="STORAGE CONFIGURATION", font=get_font(12, "bold"), text_color=COLOR_CHARCOAL).pack(anchor="w")
         base_dir = str(self.ctx.storage_manager.base_dir)
-        ctk.CTkLabel(stor_box, text=f"Archive Directory:\n{base_dir}", font=get_font(11), text_color=COLOR_TEXT_PRIMARY, justify="left").pack(anchor="w", padx=16, pady=2)
+        ctk.CTkLabel(stor_left, text=f"Archive Directory: {base_dir}", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).pack(anchor="w", pady=(2, 0))
+
+        stor_right = ctk.CTkFrame(stor_inner, fg_color="transparent")
+        stor_right.grid(row=0, column=1, sticky="e")
 
         free_gb = self.ctx.storage_manager.get_available_space_mb() / 1024.0
-        self.lbl_storage_space = ctk.CTkLabel(stor_box, text=f"Available Space: {free_gb:.1f} GB", font=get_font(11, "bold"), text_color=COLOR_SUCCESS)
-        self.lbl_storage_space.pack(anchor="w", padx=16, pady=(4, 16))
+        self.lbl_storage_space = ctk.CTkLabel(stor_right, text=f"Available Space: {free_gb:.1f} GB", font=get_font(12, "bold"), text_color=COLOR_SUCCESS)
+        self.lbl_storage_space.pack(anchor="e")
 
         # =====================================================================
         # 2. CAMERA HARDWARE INTERFACE (Row 1, Full Width)
