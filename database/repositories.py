@@ -84,6 +84,25 @@ class SessionRepository:
         )
         return count > 0
 
+    def update(self, session: SessionModel) -> bool:
+        now = datetime.now().isoformat()
+        count = self.db.execute_write(
+            """
+            UPDATE sessions
+            SET site = ?, date = ?, operator = ?, status = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (session.site, session.date, session.operator, session.status, now, session.id)
+        )
+        return count > 0
+
+    def delete(self, session_id: str) -> bool:
+        count = self.db.execute_write(
+            "DELETE FROM sessions WHERE id = ?",
+            (session_id,)
+        )
+        return count > 0
+
     def list_all(self) -> List[SessionModel]:
         rows = self.db.execute_query(
             "SELECT id, site, date, operator, status, created_at, updated_at FROM sessions ORDER BY created_at DESC"

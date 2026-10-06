@@ -226,6 +226,17 @@ class DatabaseManager:
         with conn:
             conn.executescript(script)
 
+    def close(self) -> None:
+        """Closes the current thread connection if active to free file handles."""
+        conn_attr = f"_conn_{hash(str(self.db_path))}"
+        conn = getattr(self._thread_local, conn_attr, None)
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
+            setattr(self._thread_local, conn_attr, None)
+
 
 _active_db_manager: Optional[DatabaseManager] = None
 

@@ -7,6 +7,7 @@ Zero emojis, strict industrial standards.
 from datetime import datetime
 import os
 from pathlib import Path
+from tkinter import filedialog, messagebox
 from typing import Callable, List, Optional
 import customtkinter as ctk
 
@@ -24,6 +25,7 @@ from ui.theme import (
     COLOR_BORDER_STRONG,
     COLOR_CHARCOAL,
     COLOR_ERROR,
+    COLOR_ERROR_BG,
     COLOR_PANEL,
     COLOR_PANEL_ALT,
     COLOR_SUCCESS,
@@ -35,6 +37,123 @@ from ui.theme import (
 )
 
 logger = get_logger(__name__)
+
+
+class EditSessionModal(ctk.CTkToplevel):
+    """Clean industrial modal dialog for updating session metadata."""
+
+    def __init__(
+        self,
+        parent,
+        folder_name: str,
+        initial_site: str,
+        initial_operator: str,
+        initial_date: str,
+        on_save_callback: Callable[[str, str, str, str], bool],
+    ):
+        super().__init__(parent)
+        self.folder_name = folder_name
+        self.on_save_callback = on_save_callback
+
+        self.title("Edit Session")
+        self.geometry("420x350")
+        self.resizable(False, False)
+        self.configure(fg_color=COLOR_BG)
+
+        try:
+            top_window = parent.winfo_toplevel()
+            self.transient(top_window)
+            x = top_window.winfo_x() + (top_window.winfo_width() // 2) - 210
+            y = top_window.winfo_y() + (top_window.winfo_height() // 2) - 175
+            self.geometry(f"420x350+{max(0, x)}+{max(0, y)}")
+        except Exception:
+            pass
+
+        self.grab_set()
+
+        card = ctk.CTkFrame(self, fg_color=COLOR_PANEL, corner_radius=6, border_width=1, border_color=COLOR_BORDER)
+        card.pack(fill="both", expand=True, padx=16, pady=16)
+
+        ctk.CTkLabel(
+            card,
+            text="EDIT SESSION METADATA",
+            font=get_font(13, "bold"),
+            text_color=COLOR_CHARCOAL,
+        ).pack(anchor="w", padx=16, pady=(16, 2))
+
+        ctk.CTkLabel(
+            card,
+            text=f"Archive: {folder_name}",
+            font=get_font(10),
+            text_color=COLOR_TEXT_HINT,
+        ).pack(anchor="w", padx=16, pady=(0, 10))
+
+        # Site Code
+        ctk.CTkLabel(card, text="Site Code *", font=get_font(10, "bold"), text_color=COLOR_TEXT_PRIMARY).pack(anchor="w", padx=16, pady=(2, 1))
+        self.entry_site = ctk.CTkEntry(card, height=30, font=get_font(11))
+        self.entry_site.insert(0, initial_site)
+        self.entry_site.pack(fill="x", padx=16, pady=(0, 6))
+
+        # Operator
+        ctk.CTkLabel(card, text="Operator Name", font=get_font(10, "bold"), text_color=COLOR_TEXT_PRIMARY).pack(anchor="w", padx=16, pady=(2, 1))
+        self.entry_operator = ctk.CTkEntry(card, height=30, font=get_font(11))
+        self.entry_operator.insert(0, initial_operator)
+        self.entry_operator.pack(fill="x", padx=16, pady=(0, 6))
+
+        # Date
+        ctk.CTkLabel(card, text="Date (YYYYMMDD) *", font=get_font(10, "bold"), text_color=COLOR_TEXT_PRIMARY).pack(anchor="w", padx=16, pady=(2, 1))
+        self.entry_date = ctk.CTkEntry(card, height=30, font=get_font(11))
+        self.entry_date.insert(0, initial_date)
+        self.entry_date.pack(fill="x", padx=16, pady=(0, 10))
+
+        self.lbl_status = ctk.CTkLabel(card, text="", font=get_font(10), text_color=COLOR_ERROR)
+        self.lbl_status.pack(padx=16, pady=(0, 6))
+
+        # Actions
+        btn_box = ctk.CTkFrame(card, fg_color="transparent")
+        btn_box.pack(fill="x", padx=16, pady=(0, 14))
+
+        btn_cancel = ctk.CTkButton(
+            btn_box,
+            text="Cancel",
+            font=get_font(10, "bold"),
+            height=30,
+            width=80,
+            corner_radius=4,
+            fg_color=COLOR_PANEL_ALT,
+            text_color=COLOR_TEXT_PRIMARY,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            command=self.destroy,
+        )
+        btn_cancel.pack(side="left")
+
+        btn_save = ctk.CTkButton(
+            btn_box,
+            text="Save Changes",
+            font=get_font(10, "bold"),
+            height=30,
+            corner_radius=4,
+            fg_color=COLOR_ACCENT,
+            hover_color=COLOR_ACCENT_HOVER,
+            text_color="#FFFFFF",
+            command=self._on_save,
+        )
+        btn_save.pack(side="right")
+
+    def _on_save(self) -> None:
+        site = self.entry_site.get().strip().upper()
+        op = self.entry_operator.get().strip()
+        dt = self.entry_date.get().strip()
+        if not site or not dt:
+            self.lbl_status.configure(text="Site Code and Date cannot be blank.")
+            return
+
+        success = self.on_save_callback(self.folder_name, site, op, dt)
+        if success:
+            self.destroy()
+        else:
+            self.lbl_status.configure(text="Failed to update session database.")
 
 
 class DataHubView(ctk.CTkFrame):
@@ -106,6 +225,21 @@ class DataHubView(ctk.CTkFrame):
         act_right = ctk.CTkFrame(active_inner, fg_color="transparent")
         act_right.pack(side="right", anchor="e")
 
+        self.btn_edit_active = ctk.CTkButton(
+            act_right,
+            text="Edit Session",
+            font=get_font(10, "bold"),
+            height=30,
+            corner_radius=4,
+            fg_color=COLOR_PANEL_ALT,
+            hover_color=COLOR_BORDER,
+            text_color=COLOR_TEXT_PRIMARY,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            command=self._on_edit_active_session,
+        )
+        self.btn_edit_active.pack(side="left", padx=4)
+
         btn_open_exp = ctk.CTkButton(
             act_right,
             text="Open Folder in Explorer",
@@ -113,6 +247,7 @@ class DataHubView(ctk.CTkFrame):
             height=30,
             corner_radius=4,
             fg_color=COLOR_PANEL_ALT,
+            hover_color=COLOR_BORDER,
             text_color=COLOR_TEXT_PRIMARY,
             border_width=1,
             border_color=COLOR_BORDER,
@@ -145,8 +280,8 @@ class DataHubView(ctk.CTkFrame):
         self.entry_site = ctk.CTkEntry(new_card, placeholder_text="e.g. GOSOWONG or PIT_A", height=32, font=get_font(11))
         self.entry_site.pack(fill="x", padx=16, pady=(0, 6))
 
-        ctk.CTkLabel(new_card, text="Operator / Geologist (Optional)", font=get_font(10, "bold"), text_color=COLOR_TEXT_PRIMARY).pack(anchor="w", padx=16, pady=(2, 1))
-        self.entry_operator = ctk.CTkEntry(new_card, placeholder_text="Optional (leave empty if none)", height=32, font=get_font(11))
+        ctk.CTkLabel(new_card, text="Operator Name", font=get_font(10, "bold"), text_color=COLOR_TEXT_PRIMARY).pack(anchor="w", padx=16, pady=(2, 1))
+        self.entry_operator = ctk.CTkEntry(new_card, placeholder_text="e.g. Geologist / Field Tech", height=32, font=get_font(11))
         self.entry_operator.pack(fill="x", padx=16, pady=(0, 6))
 
         ctk.CTkLabel(new_card, text="Date (YYYYMMDD) *", font=get_font(10, "bold"), text_color=COLOR_TEXT_PRIMARY).pack(anchor="w", padx=16, pady=(2, 1))
@@ -170,7 +305,7 @@ class DataHubView(ctk.CTkFrame):
         self.lbl_create_status = ctk.CTkLabel(new_card, text="", font=get_font(10), text_color=COLOR_SUCCESS)
         self.lbl_create_status.pack(padx=16, pady=(0, 10))
 
-        # Right: Session Archives & History
+        # Right: Session Archives
         hist_card = ctk.CTkFrame(self.main_container, fg_color=COLOR_PANEL, corner_radius=6, border_width=1, border_color=COLOR_BORDER)
         hist_card.grid(row=1, column=1, sticky="nsew", padx=(6, 0))
         hist_card.grid_rowconfigure(1, weight=1)
@@ -179,7 +314,7 @@ class DataHubView(ctk.CTkFrame):
         hist_header = ctk.CTkFrame(hist_card, fg_color="transparent")
         hist_header.grid(row=0, column=0, sticky="ew", padx=16, pady=(14, 6))
 
-        ctk.CTkLabel(hist_header, text="SESSION ARCHIVE & HISTORY", font=get_font(12, "bold"), text_color=COLOR_CHARCOAL).pack(side="left")
+        ctk.CTkLabel(hist_header, text="SESSION ARCHIVE", font=get_font(12, "bold"), text_color=COLOR_CHARCOAL).pack(side="left")
 
         btn_refresh_hist = ctk.CTkButton(
             hist_header,
@@ -189,6 +324,7 @@ class DataHubView(ctk.CTkFrame):
             width=65,
             corner_radius=4,
             fg_color=COLOR_PANEL_ALT,
+            hover_color=COLOR_BORDER,
             text_color=COLOR_TEXT_PRIMARY,
             border_width=1,
             border_color=COLOR_BORDER,
@@ -210,13 +346,27 @@ class DataHubView(ctk.CTkFrame):
         self._refresh_active_session_card()
         self._refresh_session_history()
 
+    def _notify_app_state(self) -> None:
+        """Notifies top window to refresh system status indicators."""
+        try:
+            app_win = self.winfo_toplevel()
+            if hasattr(app_win, "_update_top_header"):
+                app_win._update_top_header()
+        except Exception:
+            pass
+
     def _refresh_active_session_card(self) -> None:
         sess = self.ctx.active_session
         if not sess:
             self.lbl_active_title.configure(text="ACTIVE SESSION: [None]")
             self.lbl_active_meta.configure(text="No active borehole logging session loaded.")
             self.lbl_active_stats.configure(text="Trays: 0  ·  Storage: 0 MB  ·  Status: INACTIVE")
+            if hasattr(self, "btn_edit_active"):
+                self.btn_edit_active.configure(state="disabled")
             return
+
+        if hasattr(self, "btn_edit_active"):
+            self.btn_edit_active.configure(state="normal")
 
         photos = self.ctx.photo_repo.list_by_session(sess.id, active_only=True) if self.ctx.photo_repo else []
         total_photos = len(photos)
@@ -234,6 +384,7 @@ class DataHubView(ctk.CTkFrame):
                 pass
 
         op_str = f"  ·  Operator: {sess.operator}" if sess.operator and sess.operator.strip() else ""
+        self.lbl_active_title.configure(text=f"ACTIVE SESSION: {display_name}")
         self.lbl_active_meta.configure(text=f"Site: {sess.site}{op_str}  ·  Date: {sess.date}")
         self.lbl_active_stats.configure(
             text=f"Trays: {total_photos}  ·  Storage: {dir_size_mb:.1f} MB  ·  Audit: {valid_photos}/{total_photos} Valid ({pct:.0f}%)"
@@ -254,7 +405,7 @@ class DataHubView(ctk.CTkFrame):
             row.pack(fill="x", padx=4, pady=3)
 
             info_box = ctk.CTkFrame(row, fg_color="transparent")
-            info_box.pack(side="left", padx=10, pady=8)
+            info_box.pack(side="left", fill="x", expand=True, padx=10, pady=8)
 
             is_cur = False
             if self.ctx.session_paths and self.ctx.session_paths.session_dir.name == folder_name:
@@ -265,40 +416,104 @@ class DataHubView(ctk.CTkFrame):
             title_color = COLOR_ACCENT if is_cur else COLOR_TEXT_PRIMARY
             cur_tag = " (Active)" if is_cur else ""
 
-            sub_meta = "Session Directory"
+            site_val = ""
+            op_val = ""
+            date_val = ""
+            tray_count = 0
+            photo_count = 0
+            has_db = False
+
             try:
                 paths = self.ctx.storage_manager.get_session_paths(folder_name)
                 if paths.db_path.exists():
+                    has_db = True
                     db = DatabaseManager(paths.db_path)
-                    s_repo = SessionRepository(db)
-                    sess_info = s_repo.get_active() or (s_repo.list_all()[0] if s_repo.list_all() else None)
-                    if sess_info:
-                        op_info = f"  ·  Operator: {sess_info.operator}" if sess_info.operator and sess_info.operator.strip() else ""
-                        sub_meta = f"Site: {sess_info.site}{op_info}  ·  Date: {sess_info.date}"
-            except Exception:
-                pass
+                    try:
+                        s_repo = SessionRepository(db)
+                        sess_info = s_repo.get_active() or (s_repo.list_all()[0] if s_repo.list_all() else None)
+                        if sess_info:
+                            site_val = sess_info.site
+                            op_val = sess_info.operator or ""
+                            date_val = sess_info.date
+
+                        t_row = db.execute_one("SELECT COUNT(*) AS c FROM trays")
+                        if t_row:
+                            tray_count = t_row["c"]
+                        p_row = db.execute_one("SELECT COUNT(*) AS c FROM photos")
+                        if p_row:
+                            photo_count = p_row["c"]
+                    finally:
+                        db.close()
+            except Exception as e:
+                logger.debug("Could not inspect session %s: %s", folder_name, e)
+
+            if not site_val and "_" in folder_name:
+                parts = folder_name.split("_")
+                site_val = parts[0]
+                if len(parts) > 1:
+                    date_val = parts[1]
+
+            op_info = f"  ·  Operator: {op_val}" if op_val else ""
+            stat_info = f"  ·  Trays: {tray_count}  ·  Photos: {photo_count}" if has_db else ""
+            sub_meta = f"Site: {site_val or '-'}  ·  Date: {date_val or '-'}{op_info}{stat_info}"
 
             ctk.CTkLabel(info_box, text=f"{folder_name}{cur_tag}", font=get_font(11, "bold"), text_color=title_color).pack(anchor="w")
             ctk.CTkLabel(info_box, text=sub_meta, font=get_font(10), text_color=COLOR_TEXT_MUTED).pack(anchor="w")
 
+            btn_box = ctk.CTkFrame(row, fg_color="transparent")
+            btn_box.pack(side="right", padx=10, pady=8)
+
             if not is_cur:
                 btn_switch = ctk.CTkButton(
-                    row,
+                    btn_box,
                     text="Open",
                     font=get_font(10, "bold"),
                     height=26,
-                    width=60,
+                    width=50,
                     corner_radius=4,
                     fg_color=COLOR_PANEL_ALT,
+                    hover_color=COLOR_BORDER,
                     text_color=COLOR_TEXT_PRIMARY,
                     border_width=1,
                     border_color=COLOR_BORDER,
                     command=lambda fname=folder_name: self._on_switch_session(fname),
                 )
-                btn_switch.pack(side="right", padx=10, pady=8)
+                btn_switch.pack(side="left", padx=2)
+
+            btn_edit = ctk.CTkButton(
+                btn_box,
+                text="Edit",
+                font=get_font(10),
+                height=26,
+                width=46,
+                corner_radius=4,
+                fg_color=COLOR_PANEL_ALT,
+                hover_color=COLOR_BORDER,
+                text_color=COLOR_TEXT_PRIMARY,
+                border_width=1,
+                border_color=COLOR_BORDER,
+                command=lambda fname=folder_name, s=site_val, o=op_val, d=date_val: self._on_edit_session(fname, s, o, d),
+            )
+            btn_edit.pack(side="left", padx=2)
+
+            btn_del = ctk.CTkButton(
+                btn_box,
+                text="Delete",
+                font=get_font(10),
+                height=26,
+                width=50,
+                corner_radius=4,
+                fg_color=COLOR_PANEL_ALT,
+                hover_color=COLOR_ERROR_BG,
+                text_color=COLOR_ERROR,
+                border_width=1,
+                border_color=COLOR_BORDER,
+                command=lambda fname=folder_name: self._on_delete_session(fname),
+            )
+            btn_del.pack(side="left", padx=2)
 
     # =========================================================================
-    # EVENT HANDLERS
+    # EVENT HANDLERS (CRUD)
     # =========================================================================
     def _on_create_session(self) -> None:
         site = self.entry_site.get().strip().upper()
@@ -313,6 +528,7 @@ class DataHubView(ctk.CTkFrame):
             sess = self.ctx.create_session(site=site, date=date_str, operator=operator)
             self.lbl_create_status.configure(text=f"Session {sess.id} created successfully!", text_color=COLOR_SUCCESS)
             self.refresh()
+            self._notify_app_state()
         except Exception as e:
             logger.error("Failed creating session: %s", e)
             self.lbl_create_status.configure(text=f"Error: {e}", text_color=COLOR_ERROR)
@@ -321,8 +537,67 @@ class DataHubView(ctk.CTkFrame):
         try:
             self.ctx.open_session(folder_name)
             self.refresh()
+            self._notify_app_state()
         except Exception as e:
             logger.error("Failed switching session to %s: %s", folder_name, e)
+
+    def _on_edit_session(self, folder_name: str, site: str, operator: str, date_str: str) -> None:
+        EditSessionModal(
+            parent=self,
+            folder_name=folder_name,
+            initial_site=site,
+            initial_operator=operator,
+            initial_date=date_str,
+            on_save_callback=self._handle_save_session_edit,
+        )
+
+    def _on_edit_active_session(self) -> None:
+        sess = self.ctx.active_session
+        if not sess:
+            return
+        folder_name = self.ctx.session_paths.session_dir.name if self.ctx.session_paths else sess.id
+        self._on_edit_session(folder_name, sess.site, sess.operator, sess.date)
+
+    def _handle_save_session_edit(self, folder_name: str, site: str, operator: str, date_str: str) -> bool:
+        try:
+            success = self.ctx.update_session(folder_name, site=site, operator=operator, date_str=date_str)
+            if success:
+                logger.info("Session %s updated successfully: site=%s, op=%s, date=%s", folder_name, site, operator, date_str)
+                self.refresh()
+                self._notify_app_state()
+                return True
+            return False
+        except Exception as e:
+            logger.error("Failed updating session %s: %s", folder_name, e)
+            return False
+
+    def _on_delete_session(self, folder_name: str) -> None:
+        confirm = messagebox.askyesno(
+            title="Confirm Delete Session",
+            message=(
+                f"Are you sure you want to permanently delete session archive:\n\n"
+                f"'{folder_name}'\n\n"
+                f"All captured core photos, raw files, thumbnails, and database records in this session will be permanently deleted.\n\n"
+                f"This action cannot be undone."
+            ),
+            icon="warning",
+            parent=self.winfo_toplevel(),
+        )
+        if not confirm:
+            return
+
+        try:
+            self.ctx.delete_session(folder_name)
+            logger.info("Session archive deleted: %s", folder_name)
+            self.refresh()
+            self._notify_app_state()
+        except Exception as e:
+            logger.error("Failed deleting session %s: %s", folder_name, e)
+            messagebox.showerror(
+                title="Delete Error",
+                message=f"Failed to delete session {folder_name}:\n{e}",
+                parent=self.winfo_toplevel(),
+            )
 
     def _on_open_active_folder(self) -> None:
         target_dir = None
@@ -353,7 +628,6 @@ class DataHubView(ctk.CTkFrame):
                     logger.error("subprocess explorer failed: %s", ex)
 
     def _on_export_session_csv(self) -> None:
-        from tkinter import filedialog
         sess = self.ctx.active_session
         if not sess:
             return

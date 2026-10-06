@@ -43,3 +43,16 @@ def test_storage_space_check(temp_storage):
     free_mb = temp_storage.get_available_space_mb()
     assert free_mb > 0
     assert temp_storage.is_storage_sufficient(min_mb=1.0) is True
+
+
+def test_delete_session_storage(temp_storage):
+    paths = temp_storage.create_session_storage("PIT_DEL", "20261006")
+    folder_name = paths.session_dir.name
+    assert folder_name in temp_storage.list_sessions()
+
+    # Delete
+    deleted = temp_storage.delete_session(folder_name)
+    assert deleted is True
+    assert folder_name not in temp_storage.list_sessions()
+    assert not paths.session_dir.exists()
+

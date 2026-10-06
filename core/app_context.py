@@ -173,6 +173,54 @@ class AppContext:
             self._bind_session(session, paths, db)
         return session
 
+    def close_active_session(self) -> None:
+        """Closes and unbinds the active session."""
+        if self.session_db:
+            try:
+                self.session_db.close()
+            except Exception:
+                pass
+        self.active_session = None
+        self.session_paths = None
+        self.session_db = None
+        self.session_repo = None
+        self.tray_repo = None
+        self.photo_repo = None
+        self.transfer_repo = None
+        self.validation_repo = None
+        self.event_repo = None
+
+    def update_session(self, folder_name: str, site: str, operator: str, date_str: str) -> bool:
+        """Updates session metadata (site, operator, date) in its database."""
+        paths = self.storage_manager.get_session_paths(folder_name)
+        if not paths.db_path.exists():
+            return False
+
+        if self.session_paths and self.session_paths.session_dir.name == folder_name and self.session_repo and self.active_session:
+            self.active_session.site = site
+            self.active_session.operator = operator
+            self.active_session.date = date_str
+            return self.session_repo.update(self.active_session)
+
+        db = DatabaseManager(paths.db_path)
+        try:
+            s_repo = SessionRepository(db)
+            sess = s_repo.get_active() or (s_repo.list_all()[0] if s_repo.list_all() else None)
+            if not sess:
+                return False
+            sess.site = site
+            sess.operator = operator
+            sess.date = date_str
+            return s_repo.update(sess)
+        finally:
+            db.close()
+
+    def delete_session(self, folder_name: str) -> bool:
+        """Deletes session data and unbinds it if currently active."""
+        if self.session_paths and self.session_paths.session_dir.name == folder_name:
+            self.close_active_session()
+        return self.storage_manager.delete_session(folder_name)
+
     def list_available_sessions(self) -> List[str]:
         return self.storage_manager.list_sessions()
 

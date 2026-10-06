@@ -111,3 +111,31 @@ def test_app_view_lifecycle_and_aliases():
 
     finally:
         application.destroy()
+
+
+def test_app_context_session_crud(tmp_path):
+    from core.app_context import get_app_context
+    ctx = get_app_context()
+    ctx.storage_manager = StorageManager(base_dir=tmp_path / "CorePhotoData")
+
+    # Create
+    sess = ctx.create_session("SITE_ALPHA", "DIMAS", "20261006")
+    assert sess.site == "SITE_ALPHA"
+    assert ctx.active_session.site == "SITE_ALPHA"
+    folder_name = ctx.session_paths.session_dir.name
+    assert folder_name in ctx.list_available_sessions()
+
+    # Update
+    updated = ctx.update_session(folder_name, site="SITE_BETA", operator="ANDI", date_str="20261007")
+    assert updated is True
+    assert ctx.active_session.site == "SITE_BETA"
+    assert ctx.active_session.operator == "ANDI"
+    assert ctx.active_session.date == "20261007"
+
+    # Delete
+    deleted = ctx.delete_session(folder_name)
+    assert deleted is True
+    assert ctx.active_session is None
+    assert folder_name not in ctx.list_available_sessions()
+
+

@@ -59,3 +59,25 @@ def test_tray_and_photo_repositories(temp_db):
     updated = p_repo.get_by_id(photo.id)
     assert updated.status == PhotoStatus.SUPERSEDED.value
     assert updated.is_active == 0
+
+
+def test_session_crud(temp_db):
+    s_repo = SessionRepository(temp_db)
+    s = s_repo.create(SessionModel(id="S3", site="SITE_OLD", date="20261001", operator="Tech1"))
+    assert s.site == "SITE_OLD"
+
+    # Update
+    s.site = "SITE_NEW"
+    s.operator = "Tech2"
+    s.date = "20261006"
+    assert s_repo.update(s) is True
+
+    fetched = s_repo.get_by_id("S3")
+    assert fetched.site == "SITE_NEW"
+    assert fetched.operator == "Tech2"
+    assert fetched.date == "20261006"
+
+    # Delete
+    assert s_repo.delete("S3") is True
+    assert s_repo.get_by_id("S3") is None
+

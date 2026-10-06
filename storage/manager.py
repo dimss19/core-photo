@@ -135,6 +135,15 @@ class StorageManager:
             if item.is_dir()
         ]
 
+    def delete_session(self, folder_name: str) -> bool:
+        """Safely removes a session folder and all its contents."""
+        paths = self.get_session_paths(folder_name)
+        if paths.session_dir.exists():
+            shutil.rmtree(paths.session_dir, ignore_errors=True)
+            logger.info("Session storage removed: %s", paths.session_dir)
+            return True
+        return False
+
     def get_available_space_mb(self, target_path: Optional[Path] = None) -> float:
         """Returns available disk space in megabytes for the target directory."""
         path_to_check = target_path if target_path else self.base_dir
