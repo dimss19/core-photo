@@ -134,14 +134,22 @@ class CorePhotoApp(ctk.CTk):
         status_frame = ctk.CTkFrame(self.top_bar, fg_color="transparent")
         status_frame.grid(row=0, column=1, sticky="e", padx=16, pady=6)
 
-        # Session status
-        self.top_session_lbl = ctk.CTkLabel(
+        # Session status (Interactive button linking to Session Manager & Archive)
+        self.top_session_btn = ctk.CTkButton(
             status_frame,
             text="Session: [None]",
             font=get_font(11, "bold"),
+            height=28,
+            corner_radius=4,
+            fg_color="transparent",
+            hover_color=COLOR_PANEL_ALT,
             text_color=COLOR_TEXT_MUTED,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            command=lambda: self.navigate_to("data"),
         )
-        self.top_session_lbl.pack(side="left", padx=(0, 16))
+        self.top_session_btn.pack(side="left", padx=(0, 16))
+        self.top_session_lbl = self.top_session_btn
 
         # Divider
         ctk.CTkLabel(status_frame, text="|", font=get_font(11), text_color=COLOR_BORDER_STRONG).pack(side="left", padx=(0, 16))
@@ -194,7 +202,6 @@ class CorePhotoApp(ctk.CTk):
         nav_items = [
             ("capture", "Capture"),
             ("review", "Review"),
-            ("data", "Session"),
             ("settings", "Settings"),
         ]
 
@@ -357,22 +364,29 @@ class CorePhotoApp(ctk.CTk):
     def _update_top_header(self) -> None:
         """Refreshes status in top bar and bottom status bar."""
         sess = self.ctx.active_session
+        is_on_session = (self.current_view_name == "data")
         if sess:
-            self.top_session_lbl.configure(
+            self.top_session_btn.configure(
                 text=f"Session: {sess.site}",
-                text_color=COLOR_CHARCOAL,
+                text_color=COLOR_ACCENT if is_on_session else COLOR_CHARCOAL,
+                fg_color=COLOR_ACCENT_LIGHT if is_on_session else "transparent",
+                hover_color=COLOR_ACCENT_LIGHT if is_on_session else COLOR_PANEL_ALT,
+                border_color=COLOR_ACCENT if is_on_session else COLOR_BORDER,
             )
             op_text = f"  |  Operator: {sess.operator}" if sess.operator and sess.operator.strip() else ""
             self.bottom_status_lbl.configure(
                 text=f"Session: {sess.site}{op_text}  |  Date: {sess.date}"
             )
         else:
-            self.top_session_lbl.configure(
+            self.top_session_btn.configure(
                 text="Session: [None]",
-                text_color=COLOR_TEXT_HINT,
+                text_color=COLOR_ACCENT if is_on_session else COLOR_TEXT_HINT,
+                fg_color=COLOR_ACCENT_LIGHT if is_on_session else "transparent",
+                hover_color=COLOR_ACCENT_LIGHT if is_on_session else COLOR_PANEL_ALT,
+                border_color=COLOR_ACCENT if is_on_session else COLOR_BORDER,
             )
             self.bottom_status_lbl.configure(
-                text="No active session  |  Create or select a session to begin capture"
+                text="No active session  |  Click 'Session' in header to create or select a session"
             )
 
         cam_ready = self.ctx.camera_manager.is_ready()
