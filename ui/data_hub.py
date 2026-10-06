@@ -51,40 +51,13 @@ class DataHubView(ctk.CTkFrame):
 
     def _build_ui(self) -> None:
         self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(1, weight=1)
+        self.grid_rowconfigure(0, weight=1)
 
         # =========================================================================
-        # 1. TOP HEADER
-        # =========================================================================
-        top_header = ctk.CTkFrame(self, fg_color=COLOR_PANEL, corner_radius=6, border_width=1, border_color=COLOR_BORDER)
-        top_header.grid(row=0, column=0, sticky="ew", padx=20, pady=(16, 10))
-
-        header_inner = ctk.CTkFrame(top_header, fg_color="transparent")
-        header_inner.pack(fill="x", padx=16, pady=12)
-
-        title_box = ctk.CTkFrame(header_inner, fg_color="transparent")
-        title_box.pack(side="left", anchor="w")
-
-        ctk.CTkLabel(
-            title_box,
-            text="SESSION & DATA ARCHIVES",
-            font=get_font(14, "bold"),
-            text_color=COLOR_CHARCOAL,
-        ).pack(anchor="w")
-
-        ctk.CTkLabel(
-            title_box,
-            text="Manage borehole logging sessions, local disk storage archives, and geological CSV report generation.",
-            font=get_font(10),
-            text_color=COLOR_TEXT_MUTED,
-        ).pack(anchor="w", pady=(2, 0))
-
-
-        # =========================================================================
-        # 2. MAIN CONTAINER
+        # MAIN CONTAINER
         # =========================================================================
         self.main_container = ctk.CTkFrame(self, fg_color="transparent")
-        self.main_container.grid(row=1, column=0, sticky="nsew", padx=20, pady=(0, 16))
+        self.main_container.grid(row=0, column=0, sticky="nsew", padx=20, pady=16)
         self.main_container.grid_columnconfigure((0, 1), weight=1)
         self.main_container.grid_rowconfigure(1, weight=1)
 
