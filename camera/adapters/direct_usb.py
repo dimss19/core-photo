@@ -57,6 +57,9 @@ class DirectUsbAdapter(AbstractCameraAdapter):
             adapter_name="DirectUsbAdapter",
             device_id=self.device_id,
         )
+        self.target_resolution: Tuple[int, int] = (5184, 3456)
+        self.resolution_mode: str = "best_native"
+
         self._capabilities = CameraCapabilities(
             can_capture=True,
             can_live_view=True,
@@ -65,7 +68,14 @@ class DirectUsbAdapter(AbstractCameraAdapter):
             supports_aperture=True,
             supports_focus=True,
             supports_zoom=False,
-            supported_resolutions=[(6000, 4000), (4000, 3000), (1920, 1080)],
+            supported_resolutions=[
+                (6000, 4000),  # 24MP Modern DSLR/Mirrorless
+                (5184, 3456),  # 18MP Canon EOS 60D Native Sensor Max
+                (4000, 3000),  # 12MP High Res
+                (3840, 2160),  # 4K UHD
+                (1920, 1080),  # Full HD 1080p
+                (1280, 720),   # HD 720p
+            ],
         )
 
     def connect(self, device_id: Any = None) -> bool:
@@ -189,7 +199,8 @@ class DirectUsbAdapter(AbstractCameraAdapter):
                 )
 
         # 3. Clean fallback standby capture
-        frame = self._generate_standby_frame()
+        target_res = getattr(self, "target_resolution", (5184, 3456))
+        frame = self._generate_standby_frame(target_size=target_res)
         h, w = frame.shape[:2]
         with io.BytesIO() as bio:
             Image.fromarray(frame).save(bio, format="PNG")
@@ -206,14 +217,27 @@ class DirectUsbAdapter(AbstractCameraAdapter):
                 "camera_serial": self._info.serial_number,
                 "adapter": "DirectUsbAdapter",
                 "source": "DirectUsb Standby",
+                "resolution": f"{w}x{h}",
             },
             preview_rgb=frame,
         )
 
     def set_setting(self, key: str, value: Any) -> bool:
+        if key in ("resolution", "target_resolution"):
+            if isinstance(value, (list, tuple)) and len(value) == 2:
+                self.target_resolution = (int(value[0]), int(value[1]))
+                logger.info("DirectUsbAdapter target resolution configured to: %dx%d", self.target_resolution[0], self.target_resolution[1])
+                return True
+        elif key == "resolution_mode":
+            self.resolution_mode = str(value)
+            return True
         return True
 
     def get_setting(self, key: str) -> Any:
+        if key in ("resolution", "target_resolution"):
+            return getattr(self, "target_resolution", (5184, 3456))
+        if key == "resolution_mode":
+            return getattr(self, "resolution_mode", "best_native")
         return None
 
     # -------------------------------------------------------------------------
@@ -327,14 +351,17 @@ class DirectUsbAdapter(AbstractCameraAdapter):
 
             time.sleep(0.04)  # ~25 FPS
 
-    def _generate_standby_frame(self) -> np.ndarray:
+    def _generate_standby_frame(self, target_size: Optional[Tuple[int, int]] = None) -> np.ndarray:
         """Industrial technical standby pattern for Direct USB mode."""
-        w, h = 960, 540
+        if target_size:
+            w, h = target_size
+        else:
+            w, h = 960, 540
         frame = np.full((h, w, 3), (20, 22, 28), dtype=np.uint8)
 
         # Subtle dark grid
         grid_color = (32, 36, 46)
-        grid_step = 60
+        grid_step = max(40, int(h / 9))
         for y in range(0, h, grid_step):
             frame[y:y+1, :, :] = grid_color
         for x in range(0, w, grid_step):
@@ -345,12 +372,13 @@ class DirectUsbAdapter(AbstractCameraAdapter):
         draw = ImageDraw.Draw(pil_img)
         font = ImageFont.load_default()
 
+        scale = max(1.0, h / 540.0)
         title = "DIRECT USB CAMERA (PTP / WIA NATIVE) — ACTIVE"
-        sub = f"Status: {self._info.model}"
+        sub = f"Status: {self._info.model} · Resolution: {w}x{h}"
         tip = "Plug camera via USB cable · Zero vendor software required · Click [ Capture ] to shoot"
 
-        draw.text((20, 20), title, fill=(234, 88, 12), font=font)
-        draw.text((20, 42), sub, fill=(161, 161, 170), font=font)
-        draw.text((20, h - 35), tip, fill=(113, 113, 122), font=font)
+        draw.text((int(20 * scale), int(20 * scale)), title, fill=(234, 88, 12), font=font)
+        draw.text((int(20 * scale), int(42 * scale)), sub, fill=(161, 161, 170), font=font)
+        draw.text((int(20 * scale), h - int(35 * scale)), tip, fill=(113, 113, 122), font=font)
 
         return np.array(pil_img)

@@ -90,7 +90,7 @@ class SettingsView(ctk.CTkFrame):
         ctk.CTkLabel(cam_head, text="Connected imaging hardware status and detection controls.", font=get_font(10), text_color=COLOR_TEXT_MUTED).pack(anchor="w", pady=(1, 0))
 
         cam_content = ctk.CTkFrame(cam_box, fg_color=COLOR_PANEL_ALT, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
-        cam_content.pack(fill="x", padx=16, pady=(0, 14))
+        cam_content.pack(fill="x", padx=16, pady=(0, 8))
         cam_content.grid_columnconfigure(0, weight=1)
         cam_content.grid_columnconfigure(1, weight=0)
 
@@ -155,6 +155,72 @@ class SettingsView(ctk.CTkFrame):
             command=self._on_reconnect_camera,
         )
         btn_reconnect.pack(side="left")
+
+        # Resolution Controls & Quality Panel
+        res_content = ctk.CTkFrame(cam_box, fg_color=COLOR_PANEL_ALT, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
+        res_content.pack(fill="x", padx=16, pady=(0, 14))
+        res_content.grid_columnconfigure(0, weight=1)
+        res_content.grid_columnconfigure(1, weight=0)
+
+        res_info = ctk.CTkFrame(res_content, fg_color="transparent")
+        res_info.grid(row=0, column=0, sticky="w", padx=14, pady=10)
+
+        ctk.CTkLabel(res_info, text="Capture Resolution Quality:", font=get_font(12, "bold"), text_color=COLOR_TEXT_PRIMARY).pack(anchor="w")
+        self.lbl_res_active = ctk.CTkLabel(
+            res_info,
+            text="Active: 5184 x 3456 (18.0 MP · Best DSLR Native)",
+            font=get_font(11),
+            text_color=COLOR_TEXT_MUTED,
+        )
+        self.lbl_res_active.pack(anchor="w", pady=(2, 0))
+
+        res_btns = ctk.CTkFrame(res_content, fg_color="transparent")
+        res_btns.grid(row=0, column=1, sticky="e", padx=14, pady=10)
+
+        self.opt_resolution = ctk.CTkOptionMenu(
+            res_btns,
+            values=[
+                "Auto (Best Native DSLR — 18MP/24MP+)",
+                "5184 x 3456 (18MP Canon 60D Native)",
+                "6000 x 4000 (24MP Ultra High Res)",
+                "4000 x 3000 (12MP High Res)",
+                "3840 x 2160 (4K UHD)",
+                "1920 x 1080 (Full HD 1080p)",
+                "1280 x 720 (HD 720p)",
+                "Custom Resolution...",
+            ],
+            command=self._on_resolution_changed,
+            height=32,
+            width=240,
+            font=get_font(10),
+            fg_color=COLOR_PANEL,
+            text_color=COLOR_CHARCOAL,
+            button_color=COLOR_BORDER,
+            button_hover_color=COLOR_BORDER_STRONG,
+        )
+        self.opt_resolution.pack(side="left", padx=(0, 6))
+
+        self.entry_res_w = ctk.CTkEntry(res_btns, placeholder_text="W", width=50, height=32, font=get_font(10))
+        self.entry_res_w.pack(side="left", padx=2)
+
+        ctk.CTkLabel(res_btns, text="×", font=get_font(11, "bold"), text_color=COLOR_TEXT_MUTED).pack(side="left", padx=2)
+
+        self.entry_res_h = ctk.CTkEntry(res_btns, placeholder_text="H", width=50, height=32, font=get_font(10))
+        self.entry_res_h.pack(side="left", padx=2)
+
+        self.btn_apply_custom_res = ctk.CTkButton(
+            res_btns,
+            text="Set",
+            font=get_font(11, "bold"),
+            height=32,
+            width=42,
+            corner_radius=4,
+            fg_color=COLOR_ACCENT,
+            hover_color=COLOR_ACCENT_HOVER,
+            text_color="#FFFFFF",
+            command=self._on_apply_custom_resolution,
+        )
+        self.btn_apply_custom_res.pack(side="left", padx=(4, 0))
 
         # =====================================================================
         # 2. DIAGNOSTICS & LIVE LOGS (Row 1, 2 Columns)
@@ -280,6 +346,39 @@ class SettingsView(ctk.CTkFrame):
             self.lbl_cam_tab_status.configure(text="Camera: ● Disconnected", text_color=COLOR_ERROR)
             self.lbl_cam_tab_model.configure(text="No active camera adapter recognized")
 
+        # Update resolution display
+        try:
+            cur_w, cur_h = self.ctx.camera_manager.get_current_resolution()
+            cur_mode = self.ctx.camera_manager.get_resolution_mode()
+            mp = (cur_w * cur_h) / 1_000_000.0
+            mode_desc = "Best DSLR Native" if cur_mode == "best_native" else "Custom / Configured"
+            self.lbl_res_active.configure(
+                text=f"Active: {cur_w} x {cur_h} ({mp:.1f} MP · {mode_desc})"
+            )
+
+            if cur_mode == "best_native":
+                self.opt_resolution.set("Auto (Best Native DSLR — 18MP/24MP+)")
+            elif (cur_w, cur_h) == (5184, 3456):
+                self.opt_resolution.set("5184 x 3456 (18MP Canon 60D Native)")
+            elif (cur_w, cur_h) == (6000, 4000):
+                self.opt_resolution.set("6000 x 4000 (24MP Ultra High Res)")
+            elif (cur_w, cur_h) == (4000, 3000):
+                self.opt_resolution.set("4000 x 3000 (12MP High Res)")
+            elif (cur_w, cur_h) == (3840, 2160):
+                self.opt_resolution.set("3840 x 2160 (4K UHD)")
+            elif (cur_w, cur_h) == (1920, 1080):
+                self.opt_resolution.set("1920 x 1080 (Full HD 1080p)")
+            elif (cur_w, cur_h) == (1280, 720):
+                self.opt_resolution.set("1280 x 720 (HD 720p)")
+            else:
+                self.opt_resolution.set("Custom Resolution...")
+                self.entry_res_w.delete(0, "end")
+                self.entry_res_w.insert(0, str(cur_w))
+                self.entry_res_h.delete(0, "end")
+                self.entry_res_h.insert(0, str(cur_h))
+        except Exception as e:
+            logger.debug("Resolution UI sync exception: %s", e)
+
         self._refresh_logs()
         self._check_recovery()
 
@@ -367,3 +466,45 @@ class SettingsView(ctk.CTkFrame):
         self.diag.resume_incomplete_captures()
         self._check_recovery()
         self._refresh_logs()
+
+    def _on_resolution_changed(self, choice: str) -> None:
+        """Handles resolution option selection."""
+        if "Auto (Best Native" in choice:
+            self.ctx.camera_manager.set_resolution(5184, 3456, mode="best_native")
+        elif "5184 x 3456" in choice:
+            self.ctx.camera_manager.set_resolution(5184, 3456, mode="5184x3456")
+        elif "6000 x 4000" in choice:
+            self.ctx.camera_manager.set_resolution(6000, 4000, mode="6000x4000")
+        elif "4000 x 3000" in choice:
+            self.ctx.camera_manager.set_resolution(4000, 3000, mode="4000x3000")
+        elif "3840 x 2160" in choice:
+            self.ctx.camera_manager.set_resolution(3840, 2160, mode="4k")
+        elif "1920 x 1080" in choice:
+            self.ctx.camera_manager.set_resolution(1920, 1080, mode="1080p")
+        elif "1280 x 720" in choice:
+            self.ctx.camera_manager.set_resolution(1280, 720, mode="720p")
+        elif "Custom" in choice:
+            cur_w, cur_h = self.ctx.camera_manager.get_current_resolution()
+            self.entry_res_w.delete(0, "end")
+            self.entry_res_w.insert(0, str(cur_w))
+            self.entry_res_h.delete(0, "end")
+            self.entry_res_h.insert(0, str(cur_h))
+            return
+        self.refresh()
+
+    def _on_apply_custom_resolution(self) -> None:
+        """Applies custom width and height resolution values."""
+        try:
+            w_str = self.entry_res_w.get().strip()
+            h_str = self.entry_res_h.get().strip()
+            if not w_str or not h_str:
+                return
+            w = int(w_str)
+            h = int(h_str)
+            if w < 320 or h < 240:
+                return
+            self.ctx.camera_manager.set_resolution(w, h, mode="custom")
+            self.refresh()
+        except Exception as e:
+            logger.error("Failed applying custom resolution: %s", e)
+

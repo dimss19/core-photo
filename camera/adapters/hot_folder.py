@@ -152,8 +152,17 @@ class HotFolderAdapter(AbstractCameraAdapter):
             supports_aperture=True,
             supports_focus=False,
             supports_zoom=False,
-            supported_resolutions=[(6000, 4000), (4000, 3000), (1920, 1080)],
+            supported_resolutions=[
+                (6000, 4000),  # 24MP Modern DSLR/Mirrorless
+                (5184, 3456),  # 18MP Canon EOS 60D Native Sensor Max
+                (4000, 3000),  # 12MP High Res
+                (3840, 2160),  # 4K UHD
+                (1920, 1080),  # Full HD 1080p
+                (1280, 720),   # HD 720p
+            ],
         )
+        self.target_resolution = (5184, 3456)
+        self.resolution_mode = "best_native"
 
     def connect(self, device_id: Any = None) -> bool:
         if device_id and str(device_id).strip():
@@ -268,11 +277,22 @@ class HotFolderAdapter(AbstractCameraAdapter):
             else:
                 self.watch_dir = new_path
             return True
+        elif key in ("resolution", "target_resolution"):
+            if isinstance(value, (list, tuple)) and len(value) == 2:
+                self.target_resolution = (int(value[0]), int(value[1]))
+                return True
+        elif key == "resolution_mode":
+            self.resolution_mode = str(value)
+            return True
         return False
 
     def get_setting(self, key: str) -> Any:
         if key == "folder":
             return str(self.watch_dir)
+        elif key in ("resolution", "target_resolution"):
+            return getattr(self, "target_resolution", (5184, 3456))
+        elif key == "resolution_mode":
+            return getattr(self, "resolution_mode", "best_native")
         return None
 
     # -------------------------------------------------------------------------

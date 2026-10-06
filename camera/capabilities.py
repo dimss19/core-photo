@@ -18,7 +18,16 @@ class CameraCapabilities:
     supports_zoom: bool = False
     supports_flash: bool = False
     supports_metering: bool = False
-    supported_resolutions: List[Tuple[int, int]] = field(default_factory=lambda: [(1920, 1080), (1280, 720), (640, 480)])
+    supported_resolutions: List[Tuple[int, int]] = field(
+        default_factory=lambda: [
+            (6000, 4000),  # 24MP Modern DSLR/Mirrorless Native
+            (5184, 3456),  # 18MP Canon EOS 60D Native
+            (4000, 3000),  # 12MP Standard
+            (3840, 2160),  # 4K UHD
+            (1920, 1080),  # Full HD 1080p
+            (1280, 720),   # HD 720p
+        ]
+    )
     supported_iso_values: List[int] = field(default_factory=list)
     supported_aperture_values: List[str] = field(default_factory=list)
     supported_shutter_speeds: List[str] = field(default_factory=list)

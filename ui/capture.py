@@ -420,6 +420,32 @@ class CaptureView(ctk.CTkFrame):
         self.opt_cam_iso.set("100")
         self.opt_cam_iso.grid(row=6, column=1, sticky="ew", padx=(8, 0), pady=3)
 
+        # 8. Resolution Quality
+        ctk.CTkLabel(set_grid, text="Resolution:", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).grid(row=7, column=0, sticky="w", pady=3)
+        self.opt_cam_resolution = ctk.CTkOptionMenu(
+            set_grid,
+            values=[
+                "Auto (Best Native DSLR — 18MP/24MP+)",
+                "5184 x 3456 (18MP Canon 60D Native)",
+                "6000 x 4000 (24MP UHD)",
+                "4000 x 3000 (12MP High Res)",
+                "3840 x 2160 (4K UHD)",
+                "1920 x 1080 (Full HD 1080p)",
+                "1280 x 720 (HD 720p)",
+            ],
+            height=26,
+            font=get_font(10),
+            fg_color=COLOR_PANEL,
+            text_color=COLOR_CHARCOAL,
+            button_color=COLOR_BORDER,
+            button_hover_color=COLOR_BORDER_STRONG,
+            dropdown_fg_color=COLOR_PANEL,
+            dropdown_text_color=COLOR_CHARCOAL,
+            command=self._on_cam_resolution_changed,
+        )
+        self.opt_cam_resolution.set("Auto (Best Native DSLR — 18MP/24MP+)")
+        self.opt_cam_resolution.grid(row=7, column=1, sticky="ew", padx=(8, 0), pady=3)
+
         self._update_left_tab_styles()
 
         # =========================================================================
@@ -823,6 +849,30 @@ class CaptureView(ctk.CTkFrame):
             text_color=COLOR_TEXT_MUTED,
         )
 
+    def _on_cam_resolution_changed(self, choice: str) -> None:
+        """Handles resolution changes from Capture screen."""
+        if "Auto (Best Native" in choice:
+            self.ctx.camera_manager.set_resolution(5184, 3456, mode="best_native")
+        elif "5184 x 3456" in choice:
+            self.ctx.camera_manager.set_resolution(5184, 3456, mode="5184x3456")
+        elif "6000 x 4000" in choice:
+            self.ctx.camera_manager.set_resolution(6000, 4000, mode="6000x4000")
+        elif "4000 x 3000" in choice:
+            self.ctx.camera_manager.set_resolution(4000, 3000, mode="4000x3000")
+        elif "3840 x 2160" in choice:
+            self.ctx.camera_manager.set_resolution(3840, 2160, mode="4k")
+        elif "1920 x 1080" in choice:
+            self.ctx.camera_manager.set_resolution(1920, 1080, mode="1080p")
+        elif "1280 x 720" in choice:
+            self.ctx.camera_manager.set_resolution(1280, 720, mode="720p")
+
+        w, h = self.ctx.camera_manager.get_current_resolution()
+        mp = (w * h) / 1_000_000.0
+        self.lbl_capture_feedback.configure(
+            text=f"Resolution configured: {w}x{h} ({mp:.1f} MP)",
+            text_color=COLOR_SUCCESS,
+        )
+
     def _refresh_cam_info(self) -> None:
         if not hasattr(self, "lbl_dev_model"):
             return
@@ -835,6 +885,27 @@ class CaptureView(ctk.CTkFrame):
             self.lbl_dev_model.configure(text="Model: Canon EOS 60D")
             self.lbl_dev_serial.configure(text="Serial No: 3461404624")
             self.lbl_dev_fw.configure(text="Firmware: 1.1.1")
+
+        if hasattr(self, "opt_cam_resolution"):
+            try:
+                cur_w, cur_h = self.ctx.camera_manager.get_current_resolution()
+                cur_mode = self.ctx.camera_manager.get_resolution_mode()
+                if cur_mode == "best_native":
+                    self.opt_cam_resolution.set("Auto (Best Native DSLR — 18MP/24MP+)")
+                elif (cur_w, cur_h) == (5184, 3456):
+                    self.opt_cam_resolution.set("5184 x 3456 (18MP Canon 60D Native)")
+                elif (cur_w, cur_h) == (6000, 4000):
+                    self.opt_cam_resolution.set("6000 x 4000 (24MP UHD)")
+                elif (cur_w, cur_h) == (4000, 3000):
+                    self.opt_cam_resolution.set("4000 x 3000 (12MP High Res)")
+                elif (cur_w, cur_h) == (3840, 2160):
+                    self.opt_cam_resolution.set("3840 x 2160 (4K UHD)")
+                elif (cur_w, cur_h) == (1920, 1080):
+                    self.opt_cam_resolution.set("1920 x 1080 (Full HD 1080p)")
+                elif (cur_w, cur_h) == (1280, 720):
+                    self.opt_cam_resolution.set("1280 x 720 (HD 720p)")
+            except Exception:
+                pass
 
     def stop_view(self) -> None:
         """Called when navigating away or ending live view."""

@@ -15,20 +15,34 @@
   "camera": {
     "default_adapter": "webcam",
     "preferred_index": 0,
-    "default_resolution": [1920, 1080],
+    "default_resolution": [
+      5184,
+      3456
+    ],
+    "resolution_mode": "best_native",
     "fps": 30
   },
   "imaging": {
     "crop_width": 300,
     "crop_height": 200,
     "jpg_quality": 95,
-    "thumbnail_size": [150, 100],
+    "thumbnail_size": [
+      150,
+      100
+    ],
     "preserve_raw": true
   },
   "validation": {
     "min_interval_diff": 0.0,
     "require_comments": false,
     "strict_naming": true
+  },
+  "transfer": {
+    "server_url": "http://127.0.0.1:8000/api/v1",
+    "api_key": "",
+    "timeout_seconds": 30,
+    "max_retries": 3,
+    "chunk_size_kb": 1024
   },
   "logging": {
     "level": "INFO",

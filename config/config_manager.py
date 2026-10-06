@@ -28,7 +28,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "camera": {
         "default_adapter": "webcam",
         "preferred_index": 0,
-        "default_resolution": [1920, 1080],
+        "default_resolution": [5184, 3456],
+        "resolution_mode": "best_native",
         "fps": 30
     },
     "imaging": {

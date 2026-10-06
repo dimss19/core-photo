@@ -119,3 +119,34 @@ def test_camera_manager():
     assert "Camera:" in cm.get_status_summary()
 
     cm.disconnect_camera()
+
+
+def test_camera_resolution_configuration():
+    cm = CameraManager.get_instance()
+    cm.connect_camera("direct_usb", "0")
+
+    # Verify supported resolutions contains DSLR best native
+    supp = cm.get_supported_resolutions()
+    assert (5184, 3456) in supp  # 18MP Canon 60D
+    assert (6000, 4000) in supp  # 24MP Modern DSLR
+
+    # Test setting resolution
+    assert cm.set_resolution(5184, 3456, mode="best_native") is True
+    assert cm.get_current_resolution() == (5184, 3456)
+    assert cm.get_resolution_mode() == "best_native"
+
+    # Test setting custom resolution
+    assert cm.set_resolution(1920, 1080, mode="1080p") is True
+    assert cm.get_current_resolution() == (1920, 1080)
+
+    # Test custom manual dimensions
+    assert cm.set_resolution(3840, 2160, mode="custom") is True
+    assert cm.get_current_resolution() == (3840, 2160)
+    assert cm.get_resolution_mode() == "custom"
+
+    # Revert to best native
+    assert cm.set_resolution(5184, 3456, mode="best_native") is True
+    assert cm.get_current_resolution() == (5184, 3456)
+
+    cm.disconnect_camera()
+

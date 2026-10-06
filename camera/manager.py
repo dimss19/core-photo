@@ -2,7 +2,7 @@
 Orchestrates camera discovery, connection, lifecycle, and decoupling UI from SDKs.
 """
 
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 import numpy as np
 
 from core.logger import get_logger
@@ -114,6 +114,18 @@ class CameraManager:
         success = adapter.connect(device_id)
         if success:
             self._active_adapter = adapter
+            # Apply configured camera resolution
+            try:
+                from config.config_manager import get_config
+                cfg = get_config()
+                res = cfg.get("camera", "default_resolution", [5184, 3456])
+                res_mode = cfg.get("camera", "resolution_mode", "best_native")
+                if isinstance(res, (list, tuple)) and len(res) == 2:
+                    adapter.set_setting("resolution", (int(res[0]), int(res[1])))
+                adapter.set_setting("resolution_mode", res_mode)
+            except Exception as ex:
+                logger.debug("Could not apply initial resolution config: %s", ex)
+
             info = adapter.get_info()
             logger.info("Connected to camera: %s (State: %s)", info.model, adapter.get_state().value)
             return True
@@ -182,6 +194,63 @@ class CameraManager:
         if not self._active_adapter:
             raise RuntimeError("No camera connected. Cannot capture.")
         return self._active_adapter.capture()
+
+    def get_current_resolution(self) -> Tuple[int, int]:
+        """Returns the active resolution tuple (width, height)."""
+        if self._active_adapter:
+            res = self._active_adapter.get_setting("resolution")
+            if isinstance(res, (list, tuple)) and len(res) == 2:
+                return (int(res[0]), int(res[1]))
+        try:
+            from config.config_manager import get_config
+            cfg = get_config()
+            c_res = cfg.get("camera", "default_resolution", [5184, 3456])
+            return (int(c_res[0]), int(c_res[1]))
+        except Exception:
+            return (5184, 3456)
+
+    def get_resolution_mode(self) -> str:
+        """Returns active resolution mode (e.g. 'best_native', 'custom')."""
+        if self._active_adapter:
+            mode = self._active_adapter.get_setting("resolution_mode")
+            if mode:
+                return str(mode)
+        try:
+            from config.config_manager import get_config
+            return str(get_config().get("camera", "resolution_mode", "best_native"))
+        except Exception:
+            return "best_native"
+
+    def set_resolution(self, width: int, height: int, mode: str = "custom") -> bool:
+        """Configures capture resolution and persists to application settings."""
+        success = True
+        if self._active_adapter:
+            self._active_adapter.set_setting("resolution", (width, height))
+            self._active_adapter.set_setting("resolution_mode", mode)
+        try:
+            from config.config_manager import get_config
+            cfg = get_config()
+            cfg.set("camera", "default_resolution", [width, height])
+            cfg.set("camera", "resolution_mode", mode)
+            logger.info("Camera resolution configured: %dx%d (Mode: %s)", width, height, mode)
+        except Exception as e:
+            logger.error("Failed saving resolution config: %s", e)
+            success = False
+        return success
+
+    def get_supported_resolutions(self) -> List[Tuple[int, int]]:
+        """Returns list of supported resolutions for connected camera."""
+        caps = self.get_capabilities()
+        if caps and caps.supported_resolutions:
+            return caps.supported_resolutions
+        return [
+            (6000, 4000),
+            (5184, 3456),
+            (4000, 3000),
+            (3840, 2160),
+            (1920, 1080),
+            (1280, 720),
+        ]
 
 
 def get_camera_manager() -> CameraManager:

@@ -56,8 +56,16 @@ class WebcamAdapter(AbstractCameraAdapter):
             supports_aperture=False,
             supports_focus=False,
             supports_zoom=False,
-            supported_resolutions=[(1920, 1080), (1280, 720), (640, 480)],
+            supported_resolutions=[
+                (6000, 4000),  # 24MP Modern DSLR/Mirrorless
+                (5184, 3456),  # 18MP Canon EOS 60D Native Sensor Max
+                (4000, 3000),  # 12MP High Res
+                (3840, 2160),  # 4K UHD
+                (1920, 1080),  # Full HD 1080p
+                (1280, 720),   # HD 720p
+            ],
         )
+        self.resolution_mode = "best_native"
 
     def connect(self, device_id: Any = None) -> bool:
         if device_id is not None and str(device_id).lower() in ("sim", "simulator", "sample"):
@@ -226,6 +234,19 @@ class WebcamAdapter(AbstractCameraAdapter):
         )
 
     def set_setting(self, key: str, value: Any) -> bool:
+        if key in ("resolution", "target_resolution"):
+            if isinstance(value, (list, tuple)) and len(value) == 2:
+                w, h = int(value[0]), int(value[1])
+                self.preferred_resolution = (w, h)
+                if self._cap and OPENCV_AVAILABLE and not self._is_simulated:
+                    self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, w)
+                    self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, h)
+                logger.info("WebcamAdapter resolution set to %dx%d", w, h)
+                return True
+        elif key == "resolution_mode":
+            self.resolution_mode = str(value)
+            return True
+
         if not OPENCV_AVAILABLE or self._is_simulated or not self._cap:
             return False
         if key == "exposure":
@@ -233,6 +254,10 @@ class WebcamAdapter(AbstractCameraAdapter):
         return False
 
     def get_setting(self, key: str) -> Any:
+        if key in ("resolution", "target_resolution"):
+            return self.preferred_resolution
+        if key == "resolution_mode":
+            return getattr(self, "resolution_mode", "best_native")
         if not OPENCV_AVAILABLE or self._is_simulated or not self._cap:
             return None
         if key == "exposure":
