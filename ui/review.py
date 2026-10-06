@@ -92,7 +92,7 @@ class ReviewView(ctk.CTkFrame):
 
         ctk.CTkLabel(
             title_box,
-            text="REVIEW & PHOTO BROWSER",
+            text="REVIEW",
             font=get_font(14, "bold"),
             text_color=COLOR_CHARCOAL,
         ).pack(anchor="w")
