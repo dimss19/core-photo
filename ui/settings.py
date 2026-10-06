@@ -60,7 +60,7 @@ class SettingsView(ctk.CTkFrame):
 
         ctk.CTkLabel(
             title_box,
-            text="SETTINGS & DIAGNOSTICS",
+            text="SETTINGS",
             font=get_font(16, "bold"),
             text_color=COLOR_CHARCOAL,
         ).pack(anchor="w")
