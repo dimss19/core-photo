@@ -122,7 +122,11 @@ class ImageProcessor:
                 cy = (h - ch) // 2
                 crop_region = CropRegion(x=cx, y=cy, width=cw, height=ch)
 
-            cropped_img = crop_region.apply_to_pil(pil_img, target_size=(crop_w, crop_h))
+            # Preserve native high-resolution crop unless explicitly configured for smaller fixed size
+            target_size = (crop_w, crop_h) if (crop_w and crop_h and (crop_w > 500 or crop_h > 500)) else None
+            cropped_img = crop_region.apply_to_pil(pil_img, target_size=target_size)
+            photo.crop_w = cropped_img.width
+            photo.crop_h = cropped_img.height
 
             display_timestamp = now.strftime("%m/%d/%Y %I:%M:%S %p")
 

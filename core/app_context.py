@@ -313,6 +313,151 @@ class AppContext:
             return False, ["Validation runner not initialized"]
         return self.validation_runner.validate_photo(photo_id)
 
+    # Server Folder Transfer & Sync (PRD Section 17 & 21)
+    def get_server_folder(self) -> str:
+        """Returns the configured Target Server Folder."""
+        try:
+            cfg = self.config
+            return cfg.get("transfer", "server_folder", "") or cfg.get("storage", "server_folder", "")
+        except Exception:
+            return ""
+
+    def transfer_photo_to_server_folder(self, photo: PhotoModel, server_dir: Optional[str] = None) -> Tuple[bool, str]:
+        """Transfers single photo assets (JPG, RAW, Thumbnail) and CSV to Target Server Folder."""
+        target_dir_str = server_dir or self.get_server_folder()
+        if not target_dir_str:
+            return False, "Target Server Folder belum dikonfigurasi."
+
+        try:
+            import shutil
+            srv_path = Path(target_dir_str)
+            srv_path.mkdir(parents=True, exist_ok=True)
+
+            sess = self.active_session
+            sess_name = f"{sess.site}_{sess.date}" if sess else "Captures"
+            dest_sess = srv_path / sess_name
+            dest_jpg = dest_sess / "jpg"
+            dest_raw = dest_sess / "raw"
+            dest_thumbs = dest_sess / "thumbs"
+
+            dest_jpg.mkdir(parents=True, exist_ok=True)
+            dest_raw.mkdir(parents=True, exist_ok=True)
+            dest_thumbs.mkdir(parents=True, exist_ok=True)
+
+            if photo.jpg_path and Path(photo.jpg_path).exists():
+                shutil.copy2(photo.jpg_path, dest_jpg / Path(photo.jpg_path).name)
+
+            if photo.raw_path and Path(photo.raw_path).exists():
+                shutil.copy2(photo.raw_path, dest_raw / Path(photo.raw_path).name)
+
+            if photo.thumbnail_path and Path(photo.thumbnail_path).exists():
+                shutil.copy2(photo.thumbnail_path, dest_thumbs / Path(photo.thumbnail_path).name)
+
+            if self.session_paths and self.session_paths.session_dir.exists():
+                for csv_file in self.session_paths.session_dir.glob("*.csv"):
+                    shutil.copy2(csv_file, dest_sess / csv_file.name)
+
+            if self.transfer_repo and photo.id:
+                existing = self.transfer_repo.get_by_photo_id(photo.id)
+                if not existing:
+                    self.transfer_repo.create(TransferModel(
+                        photo_id=photo.id,
+                        server_url=target_dir_str,
+                        status=TransferStatus.SUCCESS.value,
+                    ))
+                else:
+                    self.transfer_repo.update_status(existing.id, TransferStatus.SUCCESS)
+
+            if self.event_repo and sess:
+                self.event_repo.log_event(
+                    session_id=sess.id,
+                    event_type="TRANSFER",
+                    description=f"Photo {photo.id} transferred to server folder: {dest_sess.name}"
+                )
+
+            logger.info("Transferred photo %s to server folder: %s", photo.filename_base, dest_sess)
+            return True, f"Foto berhasil ditransfer ke {dest_sess.name}"
+        except Exception as e:
+            logger.error("Failed transferring photo to server folder: %s", e)
+            return False, str(e)
+
+    def sync_session_to_server_folder(self, server_dir: Optional[str] = None) -> Tuple[bool, str, int]:
+        """Syncs all photos and CSV reports for the active session to the Target Server Folder."""
+        target_dir_str = server_dir or self.get_server_folder()
+        if not target_dir_str:
+            return False, "Target Server Folder belum dikonfigurasi.", 0
+
+        sess = self.active_session
+        if not sess:
+            return False, "Tidak ada sesi aktif untuk disinkronkan.", 0
+
+        sp = self.session_paths if self.session_paths else self.storage_manager.get_session_paths(f"{sess.site}_{sess.date}")
+        if not sp or not sp.session_dir.exists():
+            return False, "Folder sesi lokal tidak ditemukan.", 0
+
+        try:
+            import shutil
+            srv_path = Path(target_dir_str)
+            srv_path.mkdir(parents=True, exist_ok=True)
+
+            dest_sess = srv_path / sp.session_dir.name
+            dest_jpg = dest_sess / "jpg"
+            dest_raw = dest_sess / "raw"
+            dest_thumbs = dest_sess / "thumbs"
+
+            dest_jpg.mkdir(parents=True, exist_ok=True)
+            dest_raw.mkdir(parents=True, exist_ok=True)
+            dest_thumbs.mkdir(parents=True, exist_ok=True)
+
+            synced_count = 0
+            if sp.jpg_dir.exists():
+                for f in sp.jpg_dir.glob("*.jpg"):
+                    d = dest_jpg / f.name
+                    if not d.exists() or d.stat().st_size != f.stat().st_size:
+                        shutil.copy2(f, d)
+                        synced_count += 1
+
+            if sp.raw_dir.exists():
+                for f in sp.raw_dir.glob("*.*"):
+                    d = dest_raw / f.name
+                    if not d.exists() or d.stat().st_size != f.stat().st_size:
+                        shutil.copy2(f, d)
+
+            if sp.thumbnail_dir.exists():
+                for f in sp.thumbnail_dir.glob("*.jpg"):
+                    d = dest_thumbs / f.name
+                    if not d.exists() or d.stat().st_size != f.stat().st_size:
+                        shutil.copy2(f, d)
+
+            for f in sp.session_dir.glob("*.csv"):
+                shutil.copy2(f, dest_sess / f.name)
+
+            if self.transfer_repo and self.photo_repo:
+                photos = self.photo_repo.list_by_session(sess.id)
+                for photo in photos:
+                    if photo.id:
+                        existing = self.transfer_repo.get_by_photo_id(photo.id)
+                        if not existing:
+                            self.transfer_repo.create(TransferModel(
+                                photo_id=photo.id,
+                                server_url=target_dir_str,
+                                status=TransferStatus.SUCCESS.value,
+                            ))
+                        else:
+                            self.transfer_repo.update_status(existing.id, TransferStatus.SUCCESS)
+
+            if self.event_repo:
+                self.event_repo.log_event(
+                    session_id=sess.id,
+                    event_type="TRANSFER_SYNC",
+                    description=f"Session {sess.id} synced {synced_count} photo(s) to server folder"
+                )
+
+            return True, f"Berhasil menyinkronkan {synced_count} file ke {dest_sess.name}", synced_count
+        except Exception as e:
+            logger.error("Failed syncing session to server folder: %s", e)
+            return False, str(e), 0
+
     # Live View Distribution
     def subscribe_live_frames(self, callback: Callable[[np.ndarray], None]) -> None:
         if callback not in self._frame_subscribers:

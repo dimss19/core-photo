@@ -175,28 +175,38 @@ class DirectUsbAdapter(AbstractCameraAdapter):
             except Exception as e:
                 logger.warning("WIA trigger attempt failed: %s. Falling back to video stream capture.", e)
 
-        # 2. Try grabbing high-res frame from active live video stream
-        if self._cap_live and self._cap_live.isOpened():
-            ret, frame_bgr = self._cap_live.read()
-            if ret and frame_bgr is not None:
-                frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
-                h, w = frame_rgb.shape[:2]
+        # 2. Try grabbing frame from active live video stream or latest frame
+        frame_rgb = None
+        with self._lock:
+            if self._latest_frame is not None:
+                frame_rgb = self._latest_frame.copy()
+            elif self._cap_live and self._cap_live.isOpened():
+                ret, frame_bgr = self._cap_live.read()
+                if ret and frame_bgr is not None:
+                    frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+
+        if frame_rgb is not None:
+            h, w = frame_rgb.shape[:2]
+            if OPENCV_AVAILABLE:
+                frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
                 success, enc = cv2.imencode(".png", frame_bgr)
                 raw_bytes = enc.tobytes() if success else b""
-                self._state = CameraState.STREAMING if self._frame_callback else CameraState.READY
-                return CaptureResult(
-                    raw_bytes=raw_bytes,
-                    format="png",
-                    width=w,
-                    height=h,
-                    metadata={
-                        "camera_model": self._info.model,
-                        "camera_serial": self._info.serial_number,
-                        "adapter": "DirectUsbAdapter",
-                        "protocol": "DirectShow Stream",
-                    },
-                    preview_rgb=frame_rgb,
-                )
+            else:
+                raw_bytes = frame_rgb.tobytes()
+            self._state = CameraState.STREAMING if self._frame_callback else CameraState.READY
+            return CaptureResult(
+                raw_bytes=raw_bytes,
+                format="png",
+                width=w,
+                height=h,
+                metadata={
+                    "camera_model": self._info.model,
+                    "camera_serial": self._info.serial_number,
+                    "adapter": "DirectUsbAdapter",
+                    "protocol": "DirectShow Stream",
+                },
+                preview_rgb=frame_rgb,
+            )
 
         # 3. Clean fallback standby capture
         target_res = getattr(self, "target_resolution", (5184, 3456))

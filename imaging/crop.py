@@ -3,7 +3,7 @@ Handles standard 300x200 tray crop and coordinates transformation.
 """
 
 from dataclasses import dataclass
-from typing import Tuple
+from typing import Optional, Tuple
 import numpy as np
 from PIL import Image
 
@@ -35,10 +35,12 @@ class CropRegion:
         resized = pil_img.resize(target_size, Image.Resampling.LANCZOS)
         return np.array(resized)
 
-    def apply_to_pil(self, img: Image.Image, target_size: Tuple[int, int] = (300, 200)) -> Image.Image:
-        """Crops PIL Image and resizes to target standard output."""
+    def apply_to_pil(self, img: Image.Image, target_size: Optional[Tuple[int, int]] = None) -> Image.Image:
+        """Crops PIL Image and resizes to target standard output if specified."""
         w, h = img.size
         safe = self.validate_bounds(w, h)
         box = (safe.x, safe.y, safe.x + safe.width, safe.y + safe.height)
         cropped = img.crop(box)
-        return cropped.resize(target_size, Image.Resampling.LANCZOS)
+        if target_size is not None:
+            return cropped.resize(target_size, Image.Resampling.LANCZOS)
+        return cropped

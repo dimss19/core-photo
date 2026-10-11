@@ -250,11 +250,18 @@ class ReviewView(ctk.CTkFrame):
         btn_view_catalog.pack(side="right", padx=(4, 0))
 
         self.btn_open_folder = ctk.CTkButton(
-            footer_box, text="Open Folder", font=get_font(10, "bold"), height=26, width=90,
+            footer_box, text="Open Folder", font=get_font(10, "bold"), height=26, width=95,
             corner_radius=4, fg_color=COLOR_PANEL_ALT, text_color=COLOR_TEXT_PRIMARY, border_width=1, border_color=COLOR_BORDER,
             command=self._on_open_folder,
         )
         self.btn_open_folder.pack(side="right", padx=4)
+
+        self.btn_open_server = ctk.CTkButton(
+            footer_box, text="Server Folder ↗", font=get_font(10, "bold"), height=26, width=110,
+            corner_radius=4, fg_color=COLOR_PANEL_ALT, text_color=COLOR_TEXT_PRIMARY, border_width=1, border_color=COLOR_BORDER,
+            command=self._on_open_server_folder,
+        )
+        self.btn_open_server.pack(side="right", padx=4)
 
         self.tray_selector = ctk.CTkOptionMenu(
             footer_box, values=["No Trays"], command=self._on_tray_dropdown_selected,
@@ -379,16 +386,30 @@ class ReviewView(ctk.CTkFrame):
         )
         self.btn_save_next.pack(fill="x", padx=14, pady=(2, 2))
 
-        ctk.CTkLabel(right_panel, text="Approves this tray and moves to the next tray in the logging series.", font=get_font(9), text_color=COLOR_TEXT_HINT, wraplength=280, justify="left").pack(anchor="w", padx=14, pady=(0, 8))
+        ctk.CTkLabel(right_panel, text="Approves this tray, transfers files to Target Server Folder, and moves to next tray.", font=get_font(9), text_color=COLOR_TEXT_HINT, wraplength=280, justify="left").pack(anchor="w", padx=14, pady=(0, 6))
+
+        self.btn_sync_server = ctk.CTkButton(
+            right_panel, text="SYNC SESSION TO SERVER FOLDER", font=get_font(11, "bold"), height=32, corner_radius=4,
+            fg_color=COLOR_PANEL_ALT, hover_color=COLOR_BORDER, text_color=COLOR_CHARCOAL, border_width=1, border_color=COLOR_BORDER,
+            command=self._on_sync_server,
+        )
+        self.btn_sync_server.pack(fill="x", padx=14, pady=(2, 2))
+
+        ctk.CTkLabel(right_panel, text="Syncs all session photos and CSV report directly to the configured Server Folder.", font=get_font(9), text_color=COLOR_TEXT_HINT, wraplength=280, justify="left").pack(anchor="w", padx=14, pady=(0, 6))
 
         self.btn_retake = ctk.CTkButton(
-            right_panel, text="RETAKE THIS TRAY", font=get_font(11, "bold"), height=36, corner_radius=4,
+            right_panel, text="RETAKE THIS TRAY", font=get_font(11, "bold"), height=34, corner_radius=4,
             fg_color=COLOR_PANEL_ALT, hover_color=COLOR_BORDER, text_color=COLOR_ERROR, border_width=1, border_color=COLOR_ERROR,
             command=self._on_retake,
         )
         self.btn_retake.pack(fill="x", padx=14, pady=(2, 2))
 
-        ctk.CTkLabel(right_panel, text="Marks capture as superseded and loads parameters back into Live Capture.", font=get_font(9), text_color=COLOR_TEXT_HINT, wraplength=280, justify="left").pack(anchor="w", padx=14, pady=(0, 14))
+        ctk.CTkLabel(right_panel, text="Marks capture as superseded and loads parameters back into Live Capture.", font=get_font(9), text_color=COLOR_TEXT_HINT, wraplength=280, justify="left").pack(anchor="w", padx=14, pady=(0, 4))
+
+        self.lbl_decision_feedback = ctk.CTkLabel(
+            right_panel, text="", font=get_font(10, "bold"), text_color=COLOR_SUCCESS, wraplength=280, justify="left",
+        )
+        self.lbl_decision_feedback.pack(anchor="w", padx=14, pady=(0, 10))
 
     # =========================================================================
     # TAB 2: PHOTO CATALOG & GRID
@@ -595,6 +616,10 @@ class ReviewView(ctk.CTkFrame):
         self.audit_alert_box.pack_forget()
         self.btn_save_next.configure(state="disabled", fg_color=COLOR_BORDER_STRONG)
         self.btn_retake.configure(state="disabled", text_color=COLOR_TEXT_HINT, border_color=COLOR_BORDER_STRONG)
+        if hasattr(self, "btn_sync_server"):
+            self.btn_sync_server.configure(state="disabled", text_color=COLOR_TEXT_HINT)
+        if hasattr(self, "lbl_decision_feedback"):
+            self.lbl_decision_feedback.configure(text="")
 
     def _display_inspect_image(self, photo: PhotoModel) -> None:
         jpg_path = Path(photo.jpg_path)
@@ -898,6 +923,18 @@ class ReviewView(ctk.CTkFrame):
             self._render_current_photo()
 
     def _on_save_next(self) -> None:
+        """Approves the current tray, automatically copies/transfers the photo & CSV
+        to the Target Server Folder (PRD Section 17 & 21), and moves to next tray."""
+        if 0 <= self._current_index < len(self._photos):
+            photo = self._photos[self._current_index]
+            success, msg = self.ctx.transfer_photo_to_server_folder(photo)
+            if hasattr(self, "lbl_decision_feedback"):
+                col = COLOR_SUCCESS if success else COLOR_WARNING
+                self.lbl_decision_feedback.configure(
+                    text=f"✓ Approved Tray {photo.tray_number} ({msg})",
+                    text_color=col,
+                )
+
         if 0 <= self._current_index < len(self._photos) - 1:
             self._current_index += 1
             self._render_current_photo()
@@ -905,6 +942,13 @@ class ReviewView(ctk.CTkFrame):
             if self.advance_tray_fn:
                 self.advance_tray_fn()
             self.navigate_fn("capture")
+
+    def _on_sync_server(self) -> None:
+        """Manual trigger to sync the entire session to Target Server Folder."""
+        success, msg, count = self.ctx.sync_session_to_server_folder()
+        if hasattr(self, "lbl_decision_feedback"):
+            col = COLOR_SUCCESS if success else COLOR_WARNING
+            self.lbl_decision_feedback.configure(text=f"{'✓' if success else '!'} {msg}", text_color=col)
 
     def _on_retake(self) -> None:
         if not (0 <= self._current_index < len(self._photos)):
@@ -920,11 +964,66 @@ class ReviewView(ctk.CTkFrame):
         self.navigate_fn("capture")
 
     def _on_open_folder(self) -> None:
+        """Opens Target Server Folder if available, or falls back to local session folder."""
+        srv_folder = self.ctx.get_server_folder()
+        if srv_folder:
+            try:
+                srv_path = Path(srv_folder)
+                sess = self.ctx.active_session
+                sess_name = f"{sess.site}_{sess.date}" if sess else ""
+                dest = srv_path / sess_name if sess_name else srv_path
+                if dest.exists():
+                    os.startfile(str(dest))
+                    return
+                elif srv_path.exists():
+                    os.startfile(str(srv_path))
+                    return
+            except Exception as e:
+                logger.debug("Could not open server folder: %s", e)
+
+        # Fallback to local session folder
         if 0 <= self._current_index < len(self._photos):
             photo = self._photos[self._current_index]
-            if photo.jpg_path:
+            if photo.jpg_path and Path(photo.jpg_path).exists():
                 folder = str(Path(photo.jpg_path).parent)
                 try:
                     os.startfile(folder)
+                    return
                 except Exception as e:
                     logger.error("Failed opening folder %s: %s", folder, e)
+
+        if self.ctx.session_paths and self.ctx.session_paths.jpg_dir.exists():
+            try:
+                os.startfile(str(self.ctx.session_paths.jpg_dir))
+            except Exception:
+                pass
+
+    def _on_open_server_folder(self) -> None:
+        """Opens Target Server Folder directly in Windows Explorer."""
+        srv_folder = self.ctx.get_server_folder()
+        if not srv_folder:
+            if hasattr(self, "lbl_decision_feedback"):
+                self.lbl_decision_feedback.configure(
+                    text="Target Server Folder belum diatur di menu Settings / Capture.",
+                    text_color=COLOR_WARNING,
+                )
+            self._on_open_folder()
+            return
+
+        try:
+            srv_path = Path(srv_folder)
+            sess = self.ctx.active_session
+            sess_name = f"{sess.site}_{sess.date}" if sess else ""
+            dest = srv_path / sess_name if sess_name else srv_path
+            if dest.exists():
+                os.startfile(str(dest))
+            elif srv_path.exists():
+                os.startfile(str(srv_path))
+            else:
+                srv_path.mkdir(parents=True, exist_ok=True)
+                os.startfile(str(srv_path))
+        except Exception as e:
+            logger.error("Failed opening server folder: %s", e)
+            if hasattr(self, "lbl_decision_feedback"):
+                self.lbl_decision_feedback.configure(text=f"Gagal membuka Server Folder: {e}", text_color=COLOR_ERROR)
+            self._on_open_folder()

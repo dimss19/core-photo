@@ -201,7 +201,8 @@ class WebcamAdapter(AbstractCameraAdapter):
             if self._is_simulated or self._cap is None:
                 frame_rgb = self._generate_simulated_frame()
             else:
-                ret, frame_bgr = self._cap.read()
+                with self._lock:
+                    ret, frame_bgr = self._cap.read()
                 if ret and frame_bgr is not None:
                     frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
                 else:

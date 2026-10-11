@@ -59,8 +59,10 @@ class CaptureView(ctk.CTkFrame):
         self.is_live_view_active = True
         self.crop_region: Optional[CropRegion] = None
         self._current_photo_image: Optional[ImageTk.PhotoImage] = None
+        self._captured_photo_image: Optional[ImageTk.PhotoImage] = None
         self._pending_photo = None
         self._is_capturing = False
+        self._is_previewing_capture = False
 
         self._build_ui()
         self._setup_bindings()
@@ -142,8 +144,9 @@ class CaptureView(ctk.CTkFrame):
         self.btn_go_session.pack(anchor="w", padx=10, pady=(0, 6))
 
         # 1. Session Details:
-        box_session = ctk.CTkFrame(tray_scroll, fg_color=COLOR_PANEL_ALT, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
-        box_session.pack(fill="x", padx=6, pady=(4, 6))
+        self.box_session = ctk.CTkFrame(tray_scroll, fg_color=COLOR_PANEL_ALT, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
+        self.box_session.pack(fill="x", padx=6, pady=(4, 6))
+        box_session = self.box_session
 
         ctk.CTkLabel(box_session, text="Session Details:", font=get_font(11, "bold"), text_color=COLOR_CHARCOAL).pack(anchor="w", padx=8, pady=(6, 4))
         grid_sess = ctk.CTkFrame(box_session, fg_color="transparent")
@@ -253,6 +256,36 @@ class CaptureView(ctk.CTkFrame):
         self.btn_browse_folder = ctk.CTkButton(f_target, text="...", width=26, height=24, font=get_font(10, "bold"), fg_color=COLOR_BORDER, text_color=COLOR_CHARCOAL, hover_color=COLOR_BORDER_STRONG, command=self._on_browse_target)
         self.btn_browse_folder.grid(row=0, column=1, sticky="e", padx=(4, 0))
 
+        # Target Server Folder
+        ctk.CTkLabel(grid_series, text="Target Server Folder:", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).grid(row=3, column=0, sticky="w", pady=2)
+        f_server_target = ctk.CTkFrame(grid_series, fg_color="transparent")
+        f_server_target.grid(row=3, column=1, sticky="ew", padx=(8, 0), pady=2)
+        f_server_target.grid_columnconfigure(0, weight=1)
+        self.entry_server_folder = ctk.CTkEntry(
+            f_server_target,
+            height=24,
+            font=get_font(10),
+            fg_color=COLOR_PANEL,
+            border_color=COLOR_BORDER,
+            border_width=1,
+            placeholder_text="\\\\server\\share or folder path...",
+        )
+        self.entry_server_folder.grid(row=0, column=0, sticky="ew")
+        self.entry_server_folder.bind("<FocusOut>", self._on_server_folder_changed)
+        self.entry_server_folder.bind("<KeyRelease>", self._on_server_folder_changed)
+
+        self.btn_browse_server_folder = ctk.CTkButton(
+            f_server_target,
+            text="...",
+            width=26,
+            height=24,
+            font=get_font(10, "bold"),
+            fg_color=COLOR_BORDER,
+            text_color=COLOR_CHARCOAL,
+            hover_color=COLOR_BORDER_STRONG,
+            command=self._on_browse_server_target,
+        )
+        self.btn_browse_server_folder.grid(row=0, column=1, sticky="e", padx=(4, 0))
 
         self.btn_open_csv = ctk.CTkButton(
             box_series,
@@ -267,7 +300,22 @@ class CaptureView(ctk.CTkFrame):
             border_color=COLOR_BORDER,
             command=self._on_open_csv_report,
         )
-        self.btn_open_csv.pack(fill="x", padx=8, pady=(6, 8))
+        self.btn_open_csv.pack(fill="x", padx=8, pady=(6, 4))
+
+        self.btn_sync_server = ctk.CTkButton(
+            box_series,
+            text="Sync Session to Server Folder",
+            font=get_font(11, "bold"),
+            height=28,
+            corner_radius=4,
+            fg_color=COLOR_PANEL,
+            hover_color=COLOR_BORDER,
+            text_color=COLOR_CHARCOAL,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            command=self._on_sync_server_folder,
+        )
+        self.btn_sync_server.pack(fill="x", padx=8, pady=(0, 8))
 
         # ----------------- TAB 2: CAMERA SETTINGS (Image 1) -----------------
         cam_scroll = ctk.CTkScrollableFrame(tab_cam, fg_color="transparent")
@@ -277,15 +325,36 @@ class CaptureView(ctk.CTkFrame):
         dev_box = ctk.CTkFrame(cam_scroll, fg_color=COLOR_PANEL_ALT, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
         dev_box.pack(fill="x", padx=10, pady=(6, 8))
 
-        ctk.CTkLabel(dev_box, text="Device Information:", font=get_font(11, "bold"), text_color=COLOR_CHARCOAL).pack(anchor="w", padx=10, pady=(8, 2))
+        ctk.CTkLabel(dev_box, text="Device Information & Connection:", font=get_font(11, "bold"), text_color=COLOR_CHARCOAL).pack(anchor="w", padx=10, pady=(8, 2))
 
-        self.lbl_dev_model = ctk.CTkLabel(dev_box, text="Model: Canon EOS 60D", font=get_font(11), text_color=COLOR_TEXT_PRIMARY)
+        # Interface Selector Dropdown
+        ctk.CTkLabel(dev_box, text="Camera Interface:", font=get_font(10, "bold"), text_color=COLOR_TEXT_MUTED).pack(anchor="w", padx=14, pady=(4, 1))
+        self.opt_capture_interface = ctk.CTkOptionMenu(
+            dev_box,
+            values=[
+                "Wi-Fi DSLR Wireless Tethering",
+                "Direct USB DSLR (Cable)",
+                "Physical USB Webcam",
+            ],
+            height=26,
+            font=get_font(10),
+            fg_color=COLOR_PANEL,
+            text_color=COLOR_CHARCOAL,
+            button_color=COLOR_BORDER,
+            button_hover_color=COLOR_BORDER_STRONG,
+            dropdown_fg_color=COLOR_PANEL,
+            dropdown_text_color=COLOR_CHARCOAL,
+            command=self._on_capture_interface_changed,
+        )
+        self.opt_capture_interface.pack(fill="x", padx=12, pady=(0, 6))
+
+        self.lbl_dev_model = ctk.CTkLabel(dev_box, text="Model: Wi-Fi DSLR Tethering", font=get_font(11), text_color=COLOR_TEXT_PRIMARY)
         self.lbl_dev_model.pack(anchor="w", padx=16, pady=1)
 
-        self.lbl_dev_serial = ctk.CTkLabel(dev_box, text="Serial No: 3461404624", font=get_font(11), text_color=COLOR_TEXT_PRIMARY)
+        self.lbl_dev_serial = ctk.CTkLabel(dev_box, text="Status: Ready", font=get_font(11), text_color=COLOR_TEXT_PRIMARY)
         self.lbl_dev_serial.pack(anchor="w", padx=16, pady=1)
 
-        self.lbl_dev_fw = ctk.CTkLabel(dev_box, text="Firmware: 1.1.1", font=get_font(11), text_color=COLOR_TEXT_PRIMARY)
+        self.lbl_dev_fw = ctk.CTkLabel(dev_box, text="Firmware: Wi-Fi v2.0", font=get_font(11), text_color=COLOR_TEXT_PRIMARY)
         self.lbl_dev_fw.pack(anchor="w", padx=16, pady=(1, 8))
 
         # Settings:
@@ -706,6 +775,23 @@ class CaptureView(ctk.CTkFrame):
         )
         self.btn_capture.pack(fill="x", pady=(0, 4))
 
+        self.btn_retake = ctk.CTkButton(
+            right_ctrl,
+            text="Retake",
+            font=get_font(11, "bold"),
+            width=130,
+            height=28,
+            corner_radius=4,
+            fg_color=COLOR_PANEL,
+            hover_color=COLOR_BORDER,
+            text_color=COLOR_CHARCOAL,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            state="disabled",
+            command=self._on_retake_click,
+        )
+        self.btn_retake.pack(fill="x", pady=(0, 4))
+
         self.btn_save = ctk.CTkButton(
             right_ctrl,
             text="Save",
@@ -718,6 +804,7 @@ class CaptureView(ctk.CTkFrame):
             text_color=COLOR_CHARCOAL,
             border_width=1,
             border_color=COLOR_BORDER,
+            state="disabled",
             command=self._on_save_click,
         )
         self.btn_save.pack(fill="x", pady=(0, 4))
@@ -762,6 +849,114 @@ class CaptureView(ctk.CTkFrame):
             self.entry_target_folder.delete(0, "end")
             self.entry_target_folder.insert(0, folder)
 
+    def _on_browse_server_target(self) -> None:
+        from tkinter import filedialog
+        folder = filedialog.askdirectory(title="Select Target Server Folder")
+        if folder:
+            self.entry_server_folder.delete(0, "end")
+            self.entry_server_folder.insert(0, folder)
+            self._save_server_folder(folder)
+
+    def _on_server_folder_changed(self, event=None) -> None:
+        if hasattr(self, "entry_server_folder"):
+            val = self.entry_server_folder.get().strip()
+            self._save_server_folder(val)
+
+    def _save_server_folder(self, folder: str) -> None:
+        try:
+            from config.config_manager import get_config
+            cfg = getattr(self.ctx, "config", None) or get_config()
+            cfg.set("transfer", "server_folder", folder)
+            cfg.set("storage", "server_folder", folder)
+        except Exception as e:
+            logger.debug("Could not save server folder: %s", e)
+
+    def _on_sync_server_folder(self) -> None:
+        import shutil
+        from pathlib import Path
+
+        server_dir_str = self.entry_server_folder.get().strip() if hasattr(self, "entry_server_folder") else ""
+        if not server_dir_str:
+            self.lbl_capture_feedback.configure(
+                text="Target Server Folder is empty. Please select or enter a server folder.",
+                text_color=COLOR_WARNING,
+            )
+            return
+
+        server_path = Path(server_dir_str)
+        try:
+            server_path.mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            self.lbl_capture_feedback.configure(
+                text=f"Cannot access Server Folder: {e}",
+                text_color=COLOR_ERROR,
+            )
+            return
+
+        sess = self.ctx.active_session
+        if not sess:
+            self.lbl_capture_feedback.configure(
+                text="Active session required to sync.",
+                text_color=COLOR_WARNING,
+            )
+            return
+
+        sp = self.ctx.session_paths if self.ctx.session_paths else self.ctx.storage_manager.get_session_paths(f"{sess.site}_{sess.date}")
+        if not sp or not sp.session_dir.exists():
+            self.lbl_capture_feedback.configure(
+                text="No local session files found to sync.",
+                text_color=COLOR_WARNING,
+            )
+            return
+
+        dest_sess = server_path / sp.session_dir.name
+        dest_jpg = dest_sess / "jpg"
+        dest_raw = dest_sess / "raw"
+        dest_thumbs = dest_sess / "thumbs"
+
+        try:
+            dest_jpg.mkdir(parents=True, exist_ok=True)
+            dest_raw.mkdir(parents=True, exist_ok=True)
+            dest_thumbs.mkdir(parents=True, exist_ok=True)
+
+            synced_count = 0
+            if sp.jpg_dir.exists():
+                for f in sp.jpg_dir.glob("*.jpg"):
+                    d = dest_jpg / f.name
+                    if not d.exists() or d.stat().st_size != f.stat().st_size:
+                        shutil.copy2(f, d)
+                        synced_count += 1
+
+            for f in sp.session_dir.glob("*.csv"):
+                shutil.copy2(f, dest_sess / f.name)
+
+            if self.ctx.transfer_repo and self.ctx.photo_repo:
+                photos = self.ctx.photo_repo.list_by_session(sess.id)
+                from database.models import TransferModel, TransferStatus
+                for photo in photos:
+                    if photo.id:
+                        existing = self.ctx.transfer_repo.get_by_photo_id(photo.id)
+                        if not existing:
+                            self.ctx.transfer_repo.create(TransferModel(
+                                photo_id=photo.id,
+                                server_url=server_dir_str,
+                                status=TransferStatus.SUCCESS.value,
+                            ))
+                        else:
+                            self.ctx.transfer_repo.update_status(existing.id, TransferStatus.SUCCESS)
+
+            self.lbl_capture_feedback.configure(
+                text=f"✓ Synced {synced_count} photo(s) & report to Server Folder: {dest_sess.name}",
+                text_color=COLOR_SUCCESS,
+            )
+            logger.info("Session %s successfully synced to server folder: %s", dest_sess.name, dest_sess)
+        except Exception as e:
+            logger.error("Failed syncing to server folder: %s", e)
+            self.lbl_capture_feedback.configure(
+                text=f"Sync error: {e}",
+                text_color=COLOR_ERROR,
+            )
+
     def _on_open_csv_report(self) -> None:
         import os
         from pathlib import Path
@@ -792,6 +987,7 @@ class CaptureView(ctk.CTkFrame):
     def start_view(self) -> None:
         """Called when this view becomes active or live stream started."""
         logger.info("Starting CaptureView live view...")
+        self._is_previewing_capture = False
         self.is_live_view_active = True
         self.btn_live_view_toggle.configure(text="End Live View", fg_color=COLOR_PANEL, text_color=COLOR_CHARCOAL)
         self.ctx.subscribe_live_frames(self._handle_incoming_frame)
@@ -817,6 +1013,13 @@ class CaptureView(ctk.CTkFrame):
                 sp = self.ctx.session_paths if self.ctx.session_paths else self.ctx.storage_manager.get_session_paths(f"{sess.site}_{sess.date}")
                 self.entry_target_folder.delete(0, "end")
                 self.entry_target_folder.insert(0, str(sp.jpg_dir))
+        if hasattr(self, "entry_server_folder"):
+            from config.config_manager import get_config
+            cfg = getattr(self.ctx, "config", None) or get_config()
+            srv_dir = cfg.get("transfer", "server_folder", "") or cfg.get("storage", "server_folder", "")
+            if srv_dir and not self.entry_server_folder.get().strip():
+                self.entry_server_folder.delete(0, "end")
+                self.entry_server_folder.insert(0, str(srv_dir))
         if hasattr(self, "lbl_series_space"):
             free_mb = self.ctx.storage_manager.get_available_space_mb()
             self.lbl_series_space.configure(text=f"{free_mb:.0f} MB free")
@@ -873,18 +1076,57 @@ class CaptureView(ctk.CTkFrame):
             text_color=COLOR_SUCCESS,
         )
 
+    def _on_capture_interface_changed(self, choice: str) -> None:
+        """Allows switching camera connection directly from Capture Screen."""
+        if "Wi-Fi" in choice:
+            self.ctx.camera_manager.connect_camera("wifi_dslr", "wifi_dslr")
+        elif "Direct USB" in choice:
+            self.ctx.camera_manager.connect_camera("direct_usb", "0")
+        else:
+            self.ctx.camera_manager.connect_camera("webcam", "0")
+        self._refresh_cam_info()
+        self._evaluate_preflight()
+        self.lbl_capture_feedback.configure(
+            text=f"Camera interface changed: {choice}",
+            text_color=COLOR_TEXT_PRIMARY,
+        )
+
     def _refresh_cam_info(self) -> None:
         if not hasattr(self, "lbl_dev_model"):
             return
+        from pathlib import Path
         info = self.ctx.camera_manager.get_info()
-        if info and info.model != "Unknown Camera":
+        active_adapter = getattr(self.ctx.camera_manager, "_active_adapter", None)
+
+        from camera.adapters.wifi_dslr import WiFiDslrAdapter
+        from camera.adapters.direct_usb import DirectUsbAdapter
+
+        if isinstance(active_adapter, WiFiDslrAdapter):
+            if hasattr(self, "opt_capture_interface"):
+                self.opt_capture_interface.set("Wi-Fi DSLR Wireless Tethering")
+            self.lbl_dev_model.configure(text=f"Model: {info.model if info else 'Wi-Fi DSLR'}")
+            ip_desc = f"IP: {active_adapter.camera_ip}" if active_adapter.camera_ip else "Wireless Tether"
+            self.lbl_dev_serial.configure(text=f"Connection: {ip_desc}")
+            tether_name = Path(active_adapter.tether_dir).name if active_adapter.tether_dir else "WiFiTether"
+            self.lbl_dev_fw.configure(text=f"Tether Folder: {tether_name}")
+        elif isinstance(active_adapter, DirectUsbAdapter):
+            if hasattr(self, "opt_capture_interface"):
+                self.opt_capture_interface.set("Direct USB DSLR (Cable)")
+            self.lbl_dev_model.configure(text=f"Model: {info.model if info else 'Direct USB DSLR'}")
+            self.lbl_dev_serial.configure(text=f"Serial No: {info.serial_number if info else 'Cable'}")
+            self.lbl_dev_fw.configure(text="Protocol: Windows WIA / PTP")
+        elif info and info.model not in ("Unknown Camera", "None"):
+            if hasattr(self, "opt_capture_interface"):
+                self.opt_capture_interface.set("Physical USB Webcam")
             self.lbl_dev_model.configure(text=f"Model: {info.model}")
             self.lbl_dev_serial.configure(text=f"Serial No: {info.serial_number}")
             self.lbl_dev_fw.configure(text=f"Firmware: {info.firmware_version}")
         else:
-            self.lbl_dev_model.configure(text="Model: Canon EOS 60D")
-            self.lbl_dev_serial.configure(text="Serial No: 3461404624")
-            self.lbl_dev_fw.configure(text="Firmware: 1.1.1")
+            if hasattr(self, "opt_capture_interface"):
+                self.opt_capture_interface.set("Physical USB Webcam")
+            self.lbl_dev_model.configure(text="Model: Integrated USB Camera (Webcam)")
+            self.lbl_dev_serial.configure(text="Serial No: USB-VIDEO-01")
+            self.lbl_dev_fw.configure(text="Driver: DirectShow UVC")
 
         if hasattr(self, "opt_cam_resolution"):
             try:
@@ -917,6 +1159,16 @@ class CaptureView(ctk.CTkFrame):
 
     def _toggle_live_view(self) -> None:
         """Toggles camera live preview on or off."""
+        if self._is_previewing_capture:
+            self._is_previewing_capture = False
+            self.start_view()
+            self._evaluate_preflight()
+            self.lbl_capture_feedback.configure(
+                text="Live View resumed.",
+                text_color=COLOR_SUCCESS,
+            )
+            return
+
         if self.is_live_view_active:
             self.stop_view()
             self.stream_info_lbl.configure(text="LIVE CAMERA STREAM — PAUSED")
@@ -937,7 +1189,10 @@ class CaptureView(ctk.CTkFrame):
         if sess:
             self.session_guard_frame.pack_forget()
         else:
-            self.session_guard_frame.pack(fill="x", padx=14, pady=(0, 10), before=self.entry_hole)
+            if hasattr(self, "box_session") and self.box_session.winfo_manager() == "pack":
+                self.session_guard_frame.pack(fill="x", padx=14, pady=(0, 10), before=self.box_session)
+            else:
+                self.session_guard_frame.pack(fill="x", padx=14, pady=(0, 10))
 
     def _handle_incoming_frame(self, frame_rgb: np.ndarray) -> None:
         """Receives RGB frame from background camera thread."""
@@ -947,7 +1202,7 @@ class CaptureView(ctk.CTkFrame):
             logger.debug("Failed to schedule frame render: %s", e)
 
     def _render_frame(self, frame_rgb: np.ndarray) -> None:
-        if not self.is_live_view_active:
+        if not self.is_live_view_active or self._is_previewing_capture:
             return
 
         canvas_w = self.canvas.winfo_width()
@@ -1177,6 +1432,13 @@ class CaptureView(ctk.CTkFrame):
                 text_color=COLOR_ERROR,
             )
             self.btn_capture.configure(state="disabled", fg_color=COLOR_BORDER_STRONG)
+        elif self._is_previewing_capture:
+            self.preflight_banner.configure(fg_color=COLOR_SUCCESS_BG, border_color=COLOR_SUCCESS_BORDER)
+            self.lbl_preflight_verdict.configure(
+                text="PHOTO CAPTURED — PREVIEW MODE (RETAKE OR SAVE)",
+                text_color=COLOR_SUCCESS,
+            )
+            self.btn_capture.configure(state="disabled", fg_color=COLOR_BORDER_STRONG)
         elif res.is_ready:
             self.preflight_banner.configure(fg_color=COLOR_SUCCESS_BG, border_color=COLOR_SUCCESS_BORDER)
             self.lbl_preflight_verdict.configure(
@@ -1193,13 +1455,96 @@ class CaptureView(ctk.CTkFrame):
             )
             self.btn_capture.configure(state="disabled", fg_color=COLOR_BORDER_STRONG)
 
+    def _trigger_shutter_flash(self) -> None:
+        """Renders an instant tactile/visual shutter flash on the canvas."""
+        try:
+            cw = self.canvas.winfo_width()
+            ch = self.canvas.winfo_height()
+            if cw > 10 and ch > 10:
+                rect = self.canvas.create_rectangle(0, 0, cw, ch, fill="#FFFFFF", width=0)
+                self.after(90, lambda: self.canvas.delete(rect))
+            self.bell()
+        except Exception:
+            pass
+
+    def _display_still_photo_on_canvas(self, photo) -> None:
+        """Renders the captured still image onto the canvas in frozen preview mode (PRD Section 14)."""
+        canvas_w = self.canvas.winfo_width()
+        canvas_h = self.canvas.winfo_height()
+        if canvas_w < 50 or canvas_h < 50:
+            return
+
+        pil_img = None
+        try:
+            from pathlib import Path
+            if getattr(photo, "jpg_path", None) and Path(photo.jpg_path).exists():
+                pil_img = Image.open(photo.jpg_path)
+            elif getattr(photo, "raw_path", None) and Path(photo.raw_path).exists():
+                from imaging.raw import RawHandler
+                rgb = RawHandler.decode_raw_to_rgb(Path(photo.raw_path))
+                pil_img = Image.fromarray(rgb)
+        except Exception as e:
+            logger.warning("Could not open captured photo for preview display: %s", e)
+
+        if pil_img is None:
+            self.canvas.delete("all")
+            self.canvas.create_text(
+                canvas_w // 2,
+                canvas_h // 2,
+                text="[ CAPTURED STILL PHOTO READY ]",
+                fill=COLOR_SUCCESS,
+                font=(FONT_FAMILY, 14, "bold"),
+            )
+            return
+
+        img_w, img_h = pil_img.size
+        scale = min(canvas_w / img_w, canvas_h / img_h)
+        disp_w = max(1, int(img_w * scale))
+        disp_h = max(1, int(img_h * scale))
+
+        offset_x = (canvas_w - disp_w) // 2
+        offset_y = (canvas_h - disp_h) // 2
+
+        resized = pil_img.resize((disp_w, disp_h), Image.Resampling.BILINEAR)
+        self._captured_photo_image = ImageTk.PhotoImage(resized)
+
+        self.canvas.delete("all")
+        self.canvas.create_image(offset_x, offset_y, anchor="nw", image=self._captured_photo_image)
+
+        # Draw a prominent badge at the top indicating frozen preview mode
+        self.canvas.create_rectangle(
+            offset_x + 8,
+            offset_y + 8,
+            offset_x + disp_w - 8,
+            offset_y + 36,
+            fill="#090D16",
+            outline=COLOR_SUCCESS,
+            width=1,
+        )
+        self.canvas.create_text(
+            offset_x + disp_w // 2,
+            offset_y + 22,
+            text="● CAPTURED STILL PHOTO (FROZEN PREVIEW) — KLIK 'SAVE' ATAU 'RETAKE'",
+            fill=COLOR_SUCCESS,
+            font=(FONT_FAMILY, 10, "bold"),
+        )
+
     def _on_capture_click(self) -> None:
         if self._is_capturing or not self.ctx.active_session:
             return
 
+        self._trigger_shutter_flash()
         self._is_capturing = True
         self.btn_capture.configure(text="Capturing...", state="disabled", fg_color=COLOR_BORDER_STRONG)
-        self.lbl_capture_feedback.configure(text="Acquiring high-resolution core photo...", text_color=COLOR_ACCENT)
+        active_adapter = getattr(self.ctx.camera_manager, "_active_adapter", None)
+        from camera.adapters.wifi_dslr import WiFiDslrAdapter
+        if isinstance(active_adapter, WiFiDslrAdapter):
+            self.lbl_capture_feedback.configure(
+                text="Wi-Fi DSLR: Mengirim trigger remote / menunggu transmisi foto nirkabel...",
+                text_color=COLOR_ACCENT,
+            )
+        else:
+            self.lbl_capture_feedback.configure(text="Acquiring high-resolution core photo...", text_color=COLOR_ACCENT)
 
         # Update Capture Details Card to acquiring
         self.lbl_cap_dims.configure(text="acquiring...", text_color=COLOR_TEXT_HINT)
@@ -1237,15 +1582,15 @@ class CaptureView(ctk.CTkFrame):
     def _on_capture_success(self, photo) -> None:
         self._is_capturing = False
         self._pending_photo = photo
-        self.btn_capture.configure(text="Capture", state="normal", fg_color=COLOR_ACCENT)
+        self._is_previewing_capture = True
+        self.is_live_view_active = False
+
+        self.btn_capture.configure(text="Capture", state="disabled", fg_color=COLOR_BORDER_STRONG)
+        self.btn_retake.configure(state="normal", fg_color=COLOR_WARNING, hover_color="#D97706", text_color="#FFFFFF")
         self.btn_save.configure(state="normal", fg_color=COLOR_SUCCESS, hover_color="#15803D", text_color="#FFFFFF")
         self.btn_finish.configure(state="normal", fg_color=COLOR_CHARCOAL, hover_color="#27272A", text_color="#FFFFFF")
-        self.lbl_capture_feedback.configure(
-            text=f"✓ Photo captured: {photo.filename_base}.jpg (Validated). Click 'Save' or 'Finish'.",
-            text_color=COLOR_SUCCESS,
-        )
+        self.btn_live_view_toggle.configure(text="Resume Live View", fg_color=COLOR_PANEL, text_color=COLOR_CHARCOAL)
 
-        # Update Capture Details Card (Image 2)
         fw = getattr(photo, "crop_w", 0)
         fh = getattr(photo, "crop_h", 0)
         if fw <= 0 or fh <= 0:
@@ -1264,6 +1609,7 @@ class CaptureView(ctk.CTkFrame):
 
         self.lbl_cap_status.configure(text="Success (Validated)", text_color=COLOR_SUCCESS)
 
+        from pathlib import Path
         dest_name = Path(photo.jpg_path).name if getattr(photo, "jpg_path", None) else f"{photo.filename_base}.jpg"
         self.lbl_cap_dest.configure(text=dest_name, text_color=COLOR_TEXT_PRIMARY)
 
@@ -1272,14 +1618,51 @@ class CaptureView(ctk.CTkFrame):
             cnt = len(self.ctx.photo_repo.list_by_session(self.ctx.active_session.id))
             self.lbl_series_count.configure(text=str(cnt))
 
+        self.stream_info_lbl.configure(text=f"CAPTURED PHOTO PREVIEW — {fw}x{fh}  |  Review & Retake / Save")
+        self.lbl_capture_feedback.configure(
+            text=f"✓ Captured: {photo.filename_base}.jpg (Frozen Preview). Klik 'Save' untuk simpan atau 'Retake' untuk foto ulang.",
+            text_color=COLOR_SUCCESS,
+        )
+
+        # Refresh camera info dynamically from newly arrived image EXIF
+        self._refresh_cam_info()
+
+        # Freeze screen & display captured photo
+        self._display_still_photo_on_canvas(photo)
+
     def _on_capture_error(self, err_msg: str) -> None:
         self._is_capturing = False
+        self._is_previewing_capture = False
         self.btn_capture.configure(text="Capture", state="normal", fg_color=COLOR_ACCENT)
+        self.btn_retake.configure(state="disabled", fg_color=COLOR_PANEL, text_color=COLOR_CHARCOAL)
+        self.btn_save.configure(state="disabled", fg_color=COLOR_PANEL, text_color=COLOR_CHARCOAL)
         self.lbl_capture_feedback.configure(
             text=f"Capture Error: {err_msg}",
             text_color=COLOR_ERROR,
         )
         self.lbl_cap_status.configure(text="Error", text_color=COLOR_ERROR)
+        self.start_view()
+
+    def _on_retake_click(self) -> None:
+        """Marks current photo as superseded and resumes Live View (PRD Section 14)."""
+        logger.info("Operator triggered Retake on current photo.")
+        self.ctx.retake_current()
+
+        self._pending_photo = None
+        self._is_previewing_capture = False
+
+        self.btn_retake.configure(state="disabled", fg_color=COLOR_PANEL, text_color=COLOR_CHARCOAL)
+        self.btn_save.configure(state="disabled", fg_color=COLOR_PANEL, text_color=COLOR_CHARCOAL)
+        self.btn_capture.configure(text="Capture", state="normal", fg_color=COLOR_ACCENT)
+
+        self.lbl_cap_status.configure(text="Retake (Superseded)", text_color=COLOR_WARNING)
+        self.lbl_capture_feedback.configure(
+            text="Retake: Foto sebelumnya ditandai Superseded. Live View aktif kembali untuk capture ulang.",
+            text_color=COLOR_WARNING,
+        )
+
+        self.start_view()
+        self._evaluate_preflight()
 
     def _on_save_click(self) -> None:
         """Commits the current photo capture to disk and session."""
@@ -1290,11 +1673,41 @@ class CaptureView(ctk.CTkFrame):
             )
             return
 
+        server_dir_str = self.entry_server_folder.get().strip() if hasattr(self, "entry_server_folder") else ""
+        server_copy_msg = ""
+        if server_dir_str and getattr(self._pending_photo, "jpg_path", None):
+            try:
+                import shutil
+                from pathlib import Path
+                srv_path = Path(server_dir_str)
+                if srv_path.exists():
+                    sess = self.ctx.active_session
+                    sess_name = f"{sess.site}_{sess.date}" if sess else "Captures"
+                    srv_jpg = srv_path / sess_name / "jpg"
+                    srv_jpg.mkdir(parents=True, exist_ok=True)
+                    src_jpg = Path(self._pending_photo.jpg_path)
+                    if src_jpg.exists():
+                        shutil.copy2(src_jpg, srv_jpg / src_jpg.name)
+                        server_copy_msg = " & disalin ke Server Folder"
+            except Exception as e:
+                logger.debug("Failed auto-copy to server folder on save: %s", e)
+
+        saved_name = self._pending_photo.filename_base
         self.lbl_capture_feedback.configure(
-            text=f"✓ Photo {self._pending_photo.filename_base}.jpg saved and recorded in database.",
+            text=f"✓ Foto {saved_name}.jpg berhasil disimpan{server_copy_msg}. Siap untuk tray berikutnya.",
             text_color=COLOR_SUCCESS,
         )
-        self.btn_save.configure(fg_color=COLOR_PANEL, text_color=COLOR_CHARCOAL, hover_color=COLOR_BORDER)
+
+        self._pending_photo = None
+        self._is_previewing_capture = False
+
+        self.btn_save.configure(state="disabled", fg_color=COLOR_PANEL, text_color=COLOR_CHARCOAL, hover_color=COLOR_BORDER)
+        self.btn_retake.configure(state="disabled", fg_color=COLOR_PANEL, text_color=COLOR_CHARCOAL, hover_color=COLOR_BORDER)
+        self.btn_capture.configure(state="normal", fg_color=COLOR_ACCENT)
+
+        # Advance to next tray automatically and resume live view
+        self.advance_to_next_tray()
+        self.start_view()
 
     def _on_finish_click(self) -> None:
         """Completes the current tray and advances workflow."""

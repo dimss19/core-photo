@@ -23,10 +23,15 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "base_dir": "CorePhotoData",
         "backup_dir": "CorePhotoData/Backup",
         "logs_dir": "CorePhotoData/Logs",
-        "sessions_dir": "CorePhotoData/Sessions"
+        "sessions_dir": "CorePhotoData/Sessions",
+        "server_folder": ""
     },
     "camera": {
-        "default_adapter": "webcam",
+        "default_adapter": "wifi_dslr",
+        "connection_type": "wifi_dslr",
+        "wifi_ip": "",
+        "wifi_port": 15740,
+        "tether_folder": "",
         "preferred_index": 0,
         "default_resolution": [5184, 3456],
         "resolution_mode": "best_native",
@@ -46,6 +51,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     },
     "transfer": {
         "server_url": "http://127.0.0.1:8000/api/v1",
+        "server_folder": "",
         "api_key": "",
         "timeout_seconds": 30,
         "max_retries": 3,

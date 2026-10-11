@@ -9,6 +9,7 @@ from core.logger import get_logger
 from .adapters.webcam import WebcamAdapter
 from .adapters.hot_folder import HotFolderAdapter
 from .adapters.direct_usb import DirectUsbAdapter
+from .adapters.wifi_dslr import WiFiDslrAdapter
 from .capabilities import CameraCapabilities
 from .interface import (
     AbstractCameraAdapter,
@@ -34,6 +35,10 @@ class CameraManager:
             "direct_usb": DirectUsbAdapter,
             "direct": DirectUsbAdapter,
             "ptp": DirectUsbAdapter,
+            "wifi_dslr": WiFiDslrAdapter,
+            "wifi": WiFiDslrAdapter,
+            "dslr_wifi": WiFiDslrAdapter,
+            "tether": WiFiDslrAdapter,
         }
 
     @classmethod
@@ -47,29 +52,42 @@ class CameraManager:
         self._registered_adapters[name.lower()] = adapter_cls
         logger.info("Registered camera adapter plugin: %s", name)
 
+    def test_wifi_connection(self, ip: str, port: int = 15740) -> Tuple[bool, str]:
+        """Tests whether camera is reachable over Wi-Fi network."""
+        return WiFiDslrAdapter.test_ip_reachability(ip, port)
+
     def detect_cameras(self) -> List[Dict[str, Any]]:
         """Scans system for available camera devices (PRD Section 8)."""
         available: List[Dict[str, Any]] = []
 
-        # 1. Direct USB Camera (Native Windows WIA & PTP - 0 DLLs, 0 Software)
+        # 1. Wi-Fi DSLR Camera (Canon / Nikon / Sony / Fuji Tethering & IP Remote)
+        available.append({
+            "id": "wifi_dslr",
+            "name": "Wi-Fi DSLR Wireless Tethering (Canon / Nikon / Sony / Fuji)",
+            "adapter": "wifi_dslr",
+            "supported": True,
+            "status": "Ready"
+        })
+
+        # 2. Direct USB Camera (Native Windows WIA & PTP - 0 DLLs, 0 Software)
         available.append({
             "id": "direct_usb",
-            "name": "Direct USB DSLR (Canon / Nikon / Sony — No Software Needed)",
+            "name": "Direct USB DSLR (Canon / Nikon / Sony — Cable)",
             "adapter": "direct_usb",
             "supported": True,
             "status": "Ready"
         })
 
-        # 2. Universal Hot-Folder Ingest (Supports all DSLRs: Canon, Nikon, Sony, Fuji, etc.)
+        # 3. Universal Hot-Folder Ingest
         available.append({
             "id": "hot_folder",
-            "name": "Universal Hot-Folder Ingest (Tethered / Wi-Fi)",
+            "name": "Universal Hot-Folder Ingest",
             "adapter": "hot_folder",
             "supported": True,
             "status": "Ready"
         })
 
-        # 2. Check default webcam / UVC DirectShow adapter indices
+        # 4. Check default webcam / UVC DirectShow adapter indices
         try:
             import cv2
             for idx in range(3):
@@ -86,7 +104,7 @@ class CameraManager:
         except Exception as e:
             logger.debug("Hardware camera scan exception: %s", e)
 
-        # 3. Always include technical simulation feed
+        # 5. Technical simulation feed
         available.append({
             "id": "sim",
             "name": "Core Tray Sample Feed (Canon EOS 60D)",
@@ -104,7 +122,9 @@ class CameraManager:
 
         norm_name = str(adapter_name).lower()
         norm_dev = str(device_id).lower()
-        if norm_name in ("hot_folder", "hotfolder") or norm_dev in ("hot_folder", "hotfolder"):
+        if norm_name in ("wifi_dslr", "wifi", "dslr_wifi", "tether") or norm_dev in ("wifi_dslr", "wifi", "dslr_wifi", "tether"):
+            adapter_name = "wifi_dslr"
+        elif norm_name in ("hot_folder", "hotfolder") or norm_dev in ("hot_folder", "hotfolder"):
             adapter_name = "hot_folder"
         elif norm_name in ("direct_usb", "direct", "ptp") or norm_dev in ("direct_usb", "direct", "ptp"):
             adapter_name = "direct_usb"

@@ -112,6 +112,7 @@ class SettingsView(ctk.CTkFrame):
         self.opt_adapter_mode = ctk.CTkOptionMenu(
             cam_btns,
             values=[
+                "Wi-Fi DSLR Wireless Tethering (Canon / Nikon / Sony)",
                 "Direct USB DSLR (Canon/Nikon/Sony)",
                 "Universal Hot-Folder (All DSLRs)",
                 "Physical USB / Webcam",
@@ -119,7 +120,7 @@ class SettingsView(ctk.CTkFrame):
             ],
             command=self._on_adapter_mode_changed,
             height=32,
-            width=240,
+            width=280,
             font=get_font(10),
             fg_color=COLOR_PANEL,
             text_color=COLOR_CHARCOAL,
@@ -155,6 +156,117 @@ class SettingsView(ctk.CTkFrame):
             command=self._on_reconnect_camera,
         )
         btn_reconnect.pack(side="left")
+
+        # Wi-Fi DSLR Tethering Configuration Card
+        wifi_box = ctk.CTkFrame(cam_box, fg_color=COLOR_PANEL_ALT, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
+        wifi_box.pack(fill="x", padx=16, pady=(0, 8))
+        wifi_box.grid_columnconfigure(1, weight=1)
+
+        ctk.CTkLabel(wifi_box, text="Wi-Fi DSLR Wireless Settings (Canon / Nikon / Sony):", font=get_font(11, "bold"), text_color=COLOR_CHARCOAL).grid(row=0, column=0, columnspan=3, sticky="w", padx=14, pady=(10, 6))
+
+        # Camera IP row
+        ctk.CTkLabel(wifi_box, text="Camera IP Address:", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).grid(row=1, column=0, sticky="w", padx=(14, 8), pady=3)
+        f_ip = ctk.CTkFrame(wifi_box, fg_color="transparent")
+        f_ip.grid(row=1, column=1, columnspan=2, sticky="ew", padx=(0, 14), pady=3)
+        f_ip.grid_columnconfigure(0, weight=1)
+
+        self.entry_cam_wifi_ip = ctk.CTkEntry(
+            f_ip,
+            height=28,
+            font=get_font(10),
+            placeholder_text="e.g. 192.168.1.100 (IP kamera di jaringan Wi-Fi)",
+            fg_color=COLOR_PANEL,
+            border_color=COLOR_BORDER,
+            border_width=1,
+        )
+        self.entry_cam_wifi_ip.grid(row=0, column=0, sticky="ew", padx=(0, 6))
+
+        self.btn_cam_test_wifi = ctk.CTkButton(
+            f_ip,
+            text="Ping / Test Wi-Fi",
+            font=get_font(10, "bold"),
+            height=28,
+            width=120,
+            corner_radius=4,
+            fg_color=COLOR_PANEL,
+            hover_color=COLOR_BORDER,
+            text_color=COLOR_CHARCOAL,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            command=self._on_test_wifi_ip,
+        )
+        self.btn_cam_test_wifi.grid(row=0, column=1, sticky="e")
+
+        # Tether Folder row
+        ctk.CTkLabel(wifi_box, text="Wi-Fi Tether Folder:", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).grid(row=2, column=0, sticky="w", padx=(14, 8), pady=3)
+        f_tether = ctk.CTkFrame(wifi_box, fg_color="transparent")
+        f_tether.grid(row=2, column=1, columnspan=2, sticky="ew", padx=(0, 14), pady=3)
+        f_tether.grid_columnconfigure(0, weight=1)
+
+        self.entry_cam_tether_folder = ctk.CTkEntry(
+            f_tether,
+            height=28,
+            font=get_font(10),
+            placeholder_text="Folder Canon EOS Utility / Sony Remote...",
+            fg_color=COLOR_PANEL,
+            border_color=COLOR_BORDER,
+            border_width=1,
+        )
+        self.entry_cam_tether_folder.grid(row=0, column=0, sticky="ew", padx=(0, 6))
+
+        self.btn_browse_cam_tether = ctk.CTkButton(
+            f_tether,
+            text="...",
+            width=28,
+            height=28,
+            font=get_font(10, "bold"),
+            fg_color=COLOR_BORDER,
+            text_color=COLOR_CHARCOAL,
+            hover_color=COLOR_BORDER_STRONG,
+            command=self._on_browse_cam_tether,
+        )
+        self.btn_browse_cam_tether.grid(row=0, column=1, padx=(0, 6))
+
+        self.btn_auto_detect_tether = ctk.CTkButton(
+            f_tether,
+            text="Auto-Detect",
+            height=28,
+            font=get_font(10, "bold"),
+            fg_color=COLOR_PANEL,
+            hover_color=COLOR_BORDER,
+            text_color=COLOR_CHARCOAL,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            command=self._on_auto_detect_tether,
+        )
+        self.btn_auto_detect_tether.grid(row=0, column=2)
+
+        # Wi-Fi Actions / Feedback row
+        f_wifi_actions = ctk.CTkFrame(wifi_box, fg_color="transparent")
+        f_wifi_actions.grid(row=3, column=0, columnspan=3, sticky="ew", padx=14, pady=(4, 10))
+        f_wifi_actions.grid_columnconfigure(0, weight=1)
+
+        self.lbl_wifi_feedback = ctk.CTkLabel(
+            f_wifi_actions,
+            text="Kamera Wi-Fi dapat mengirim foto secara nirkabel via EOS Utility / Sony Remote atau CCAPI socket.",
+            font=get_font(10),
+            text_color=COLOR_TEXT_MUTED,
+            anchor="w",
+        )
+        self.lbl_wifi_feedback.grid(row=0, column=0, sticky="w")
+
+        self.btn_save_wifi_cfg = ctk.CTkButton(
+            f_wifi_actions,
+            text="Save Wi-Fi Setup",
+            font=get_font(10, "bold"),
+            height=26,
+            corner_radius=4,
+            fg_color=COLOR_ACCENT,
+            hover_color=COLOR_ACCENT_HOVER,
+            text_color="#FFFFFF",
+            command=self._on_save_wifi_settings,
+        )
+        self.btn_save_wifi_cfg.grid(row=0, column=1, sticky="e")
 
         # Resolution Controls & Quality Panel
         res_content = ctk.CTkFrame(cam_box, fg_color=COLOR_PANEL_ALT, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
@@ -332,6 +444,149 @@ class SettingsView(ctk.CTkFrame):
         )
         self.log_textbox.grid(row=1, column=0, sticky="nsew", padx=16, pady=(4, 16))
 
+        # =====================================================================
+        # 3. STORAGE & SERVER CONFIGURATION (Row 2, Full Width)
+        # =====================================================================
+        srv_box = ctk.CTkFrame(scroll_body, fg_color=COLOR_PANEL, corner_radius=6, border_width=1, border_color=COLOR_BORDER)
+        srv_box.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(0, 16))
+
+        srv_head = ctk.CTkFrame(srv_box, fg_color="transparent")
+        srv_head.pack(fill="x", padx=16, pady=(14, 6))
+
+        ctk.CTkLabel(srv_head, text="STORAGE & SERVER REPOSITORY CONFIGURATION", font=get_font(12, "bold"), text_color=COLOR_CHARCOAL).pack(anchor="w")
+        ctk.CTkLabel(srv_head, text="Local file directory sandbox and remote network target server folder for centralized archiving.", font=get_font(10), text_color=COLOR_TEXT_MUTED).pack(anchor="w", pady=(1, 0))
+
+        srv_content = ctk.CTkFrame(srv_box, fg_color=COLOR_PANEL_ALT, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
+        srv_content.pack(fill="x", padx=16, pady=(0, 14))
+        srv_content.grid_columnconfigure(1, weight=1)
+
+        # 1. Target Server Folder
+        ctk.CTkLabel(srv_content, text="Target Server Folder:", font=get_font(11, "bold"), text_color=COLOR_TEXT_PRIMARY).grid(row=0, column=0, sticky="w", padx=14, pady=(12, 4))
+        f_srv_input = ctk.CTkFrame(srv_content, fg_color="transparent")
+        f_srv_input.grid(row=0, column=1, sticky="ew", padx=14, pady=(12, 4))
+        f_srv_input.grid_columnconfigure(0, weight=1)
+
+        self.entry_settings_server_folder = ctk.CTkEntry(
+            f_srv_input,
+            height=30,
+            font=get_font(11),
+            fg_color=COLOR_PANEL,
+            border_color=COLOR_BORDER,
+            placeholder_text="\\\\192.168.x.x\\Share or Z:\\CorePhotoServer",
+        )
+        self.entry_settings_server_folder.grid(row=0, column=0, sticky="ew")
+
+        btn_browse_srv = ctk.CTkButton(
+            f_srv_input,
+            text="Browse...",
+            font=get_font(10, "bold"),
+            height=30,
+            width=75,
+            fg_color=COLOR_PANEL,
+            hover_color=COLOR_BORDER,
+            text_color=COLOR_CHARCOAL,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            command=self._on_settings_browse_server,
+        )
+        btn_browse_srv.grid(row=0, column=1, padx=(6, 0))
+
+        btn_open_srv = ctk.CTkButton(
+            f_srv_input,
+            text="Open Folder",
+            font=get_font(10),
+            height=30,
+            width=85,
+            fg_color=COLOR_PANEL,
+            hover_color=COLOR_BORDER,
+            text_color=COLOR_CHARCOAL,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            command=self._on_settings_open_server,
+        )
+        btn_open_srv.grid(row=0, column=2, padx=(4, 0))
+
+        # 2. Local Base Storage Directory
+        ctk.CTkLabel(srv_content, text="Local Base Directory:", font=get_font(11, "bold"), text_color=COLOR_TEXT_PRIMARY).grid(row=1, column=0, sticky="w", padx=14, pady=(4, 4))
+        f_loc_input = ctk.CTkFrame(srv_content, fg_color="transparent")
+        f_loc_input.grid(row=1, column=1, sticky="ew", padx=14, pady=(4, 4))
+        f_loc_input.grid_columnconfigure(0, weight=1)
+
+        self.entry_settings_local_folder = ctk.CTkEntry(
+            f_loc_input,
+            height=30,
+            font=get_font(11),
+            fg_color=COLOR_PANEL,
+            border_color=COLOR_BORDER,
+        )
+        self.entry_settings_local_folder.grid(row=0, column=0, sticky="ew")
+
+        btn_open_loc = ctk.CTkButton(
+            f_loc_input,
+            text="Open in Explorer",
+            font=get_font(10),
+            height=30,
+            width=110,
+            fg_color=COLOR_PANEL,
+            hover_color=COLOR_BORDER,
+            text_color=COLOR_CHARCOAL,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            command=self._on_settings_open_local,
+        )
+        btn_open_loc.grid(row=0, column=1, padx=(6, 0))
+
+        # 3. Server API URL
+        ctk.CTkLabel(srv_content, text="Server API URL:", font=get_font(11, "bold"), text_color=COLOR_TEXT_PRIMARY).grid(row=2, column=0, sticky="w", padx=14, pady=(4, 12))
+        f_api_input = ctk.CTkFrame(srv_content, fg_color="transparent")
+        f_api_input.grid(row=2, column=1, sticky="ew", padx=14, pady=(4, 12))
+        f_api_input.grid_columnconfigure(0, weight=1)
+
+        self.entry_settings_server_url = ctk.CTkEntry(
+            f_api_input,
+            height=30,
+            font=get_font(11),
+            fg_color=COLOR_PANEL,
+            border_color=COLOR_BORDER,
+            placeholder_text="http://127.0.0.1:8000/api/v1",
+        )
+        self.entry_settings_server_url.grid(row=0, column=0, sticky="ew")
+
+        # Action Buttons & Status feedback
+        srv_actions = ctk.CTkFrame(srv_box, fg_color="transparent")
+        srv_actions.pack(fill="x", padx=16, pady=(0, 14))
+
+        self.lbl_settings_server_status = ctk.CTkLabel(srv_actions, text="", font=get_font(10, "bold"), text_color=COLOR_SUCCESS)
+        self.lbl_settings_server_status.pack(side="left")
+
+        btn_test_srv = ctk.CTkButton(
+            srv_actions,
+            text="Check Server Access",
+            font=get_font(11),
+            height=32,
+            corner_radius=4,
+            fg_color=COLOR_PANEL,
+            hover_color=COLOR_BORDER,
+            text_color=COLOR_CHARCOAL,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            command=self._on_settings_test_server,
+        )
+        btn_test_srv.pack(side="right", padx=(6, 0))
+
+        btn_save_srv = ctk.CTkButton(
+            srv_actions,
+            text="Save Storage & Server Settings",
+            font=get_font(11, "bold"),
+            height=32,
+            corner_radius=4,
+            fg_color=COLOR_ACCENT,
+            hover_color=COLOR_ACCENT_HOVER,
+            text_color="#FFFFFF",
+            command=self._on_settings_save_server,
+        )
+        btn_save_srv.pack(side="right")
+
     def select_tab(self, tab_name: str = "") -> None:
         """Compatibility method for external callers navigating to settings."""
         pass
@@ -379,12 +634,88 @@ class SettingsView(ctk.CTkFrame):
         except Exception as e:
             logger.debug("Resolution UI sync exception: %s", e)
 
+        # Update Wi-Fi fields if empty
+        if hasattr(self, "entry_cam_wifi_ip"):
+            from config.config_manager import get_config
+            cfg = getattr(self.ctx, "config", None) or get_config()
+            cfg_ip = cfg.get("camera", "wifi_ip", "")
+            if not self.entry_cam_wifi_ip.get().strip() and cfg_ip:
+                self.entry_cam_wifi_ip.delete(0, "end")
+                self.entry_cam_wifi_ip.insert(0, str(cfg_ip))
+
+            cfg_tether = cfg.get("camera", "tether_folder", "")
+            if hasattr(self, "entry_cam_tether_folder") and not self.entry_cam_tether_folder.get().strip():
+                if cfg_tether:
+                    self.entry_cam_tether_folder.delete(0, "end")
+                    self.entry_cam_tether_folder.insert(0, str(cfg_tether))
+                else:
+                    from camera.adapters.wifi_dslr import WiFiDslrAdapter
+                    discovered = WiFiDslrAdapter._discover_default_tether_dir()
+                    self.entry_cam_tether_folder.delete(0, "end")
+                    self.entry_cam_tether_folder.insert(0, str(discovered))
+
+        # Synchronize adapter dropdown with active adapter
+        active_adapter = getattr(self.ctx.camera_manager, "_active_adapter", None)
+        if hasattr(self, "opt_adapter_mode") and active_adapter:
+            from camera.adapters.wifi_dslr import WiFiDslrAdapter
+            from camera.adapters.direct_usb import DirectUsbAdapter
+            from camera.adapters.hot_folder import HotFolderAdapter
+            if isinstance(active_adapter, WiFiDslrAdapter):
+                self.opt_adapter_mode.set("Wi-Fi DSLR Wireless Tethering (Canon / Nikon / Sony)")
+            elif isinstance(active_adapter, DirectUsbAdapter):
+                self.opt_adapter_mode.set("Direct USB DSLR (Canon/Nikon/Sony)")
+            elif isinstance(active_adapter, HotFolderAdapter):
+                self.opt_adapter_mode.set("Universal Hot-Folder (All DSLRs)")
+
+        # Update Storage & Server Configuration fields
+        if hasattr(self, "entry_settings_server_folder"):
+            from config.config_manager import get_config
+            cfg = getattr(self.ctx, "config", None) or get_config()
+            srv_f = cfg.get("transfer", "server_folder", "") or cfg.get("storage", "server_folder", "")
+            self.entry_settings_server_folder.delete(0, "end")
+            self.entry_settings_server_folder.insert(0, str(srv_f))
+
+            loc_f = self.ctx.storage_manager.base_dir
+            self.entry_settings_local_folder.delete(0, "end")
+            self.entry_settings_local_folder.insert(0, str(loc_f))
+
+            srv_u = cfg.get("transfer", "server_url", "http://127.0.0.1:8000/api/v1")
+            self.entry_settings_server_url.delete(0, "end")
+            self.entry_settings_server_url.insert(0, str(srv_u))
+
         self._refresh_logs()
         self._check_recovery()
 
     def _on_adapter_mode_changed(self, mode: str) -> None:
-        """Switches active camera adapter between Direct USB, Hot-Folder, USB, and Standby."""
-        if "Direct USB" in mode:
+        """Switches active camera adapter between Wi-Fi DSLR, Direct USB, Hot-Folder, USB, and Standby."""
+        from config.config_manager import get_config
+        cfg = getattr(self.ctx, "config", None) or get_config()
+
+        if "Wi-Fi" in mode or "Wireless" in mode:
+            cfg.set("camera", "default_adapter", "wifi_dslr")
+            tether_folder = self.entry_cam_tether_folder.get().strip() if hasattr(self, "entry_cam_tether_folder") else ""
+            ip = self.entry_cam_wifi_ip.get().strip() if hasattr(self, "entry_cam_wifi_ip") else ""
+            if ip:
+                cfg.set("camera", "wifi_ip", ip)
+            if tether_folder:
+                cfg.set("camera", "tether_folder", tether_folder)
+            cfg.save()
+
+            self.ctx.camera_manager.connect_camera("wifi_dslr", tether_folder or "wifi_dslr")
+            if self.ctx.camera_manager.is_ready():
+                info = self.ctx.camera_manager.get_info()
+                self.lbl_cam_feedback.configure(
+                    text=f"✓ Wi-Fi DSLR Active: {info.model if info else 'Connected'}",
+                    text_color=COLOR_SUCCESS,
+                )
+            else:
+                self.lbl_cam_feedback.configure(
+                    text="✓ Wi-Fi DSLR Active: Menunggu koneksi kamera Wi-Fi...",
+                    text_color=COLOR_TEXT_PRIMARY,
+                )
+        elif "Direct USB" in mode:
+            cfg.set("camera", "default_adapter", "direct_usb")
+            cfg.save()
             self.ctx.camera_manager.connect_camera("direct_usb", "0")
             if self.ctx.camera_manager.is_ready():
                 info = self.ctx.camera_manager.get_info()
@@ -398,6 +729,8 @@ class SettingsView(ctk.CTkFrame):
                     text_color=COLOR_TEXT_PRIMARY,
                 )
         elif "Hot-Folder" in mode:
+            cfg.set("camera", "default_adapter", "hot_folder")
+            cfg.save()
             hot_dir = self.ctx.storage_manager.base_dir / "HotFolder"
             self.ctx.camera_manager.connect_camera("hot_folder", str(hot_dir))
             self.lbl_cam_feedback.configure(
@@ -411,12 +744,75 @@ class SettingsView(ctk.CTkFrame):
                 text_color=COLOR_TEXT_MUTED,
             )
         else:
+            cfg.set("camera", "default_adapter", "webcam")
+            cfg.save()
             self.ctx.camera_manager.connect_camera("webcam", "0")
             if self.ctx.camera_manager.is_ready():
                 self.lbl_cam_feedback.configure(text="✓ Physical USB Camera connected.", text_color=COLOR_SUCCESS)
             else:
                 self.lbl_cam_feedback.configure(text="✕ No physical video camera detected on USB index 0.", text_color=COLOR_ERROR)
         self.refresh()
+
+    def _on_test_wifi_ip(self) -> None:
+        """Tests Wi-Fi connectivity to camera IP."""
+        ip = self.entry_cam_wifi_ip.get().strip() if hasattr(self, "entry_cam_wifi_ip") else ""
+        if not ip:
+            self.lbl_wifi_feedback.configure(
+                text="Masukkan IP address kamera terlebih dahulu (misal: 192.168.1.100).",
+                text_color=COLOR_WARNING,
+            )
+            return
+
+        self.lbl_wifi_feedback.configure(text=f"Menguji koneksi ke {ip}...", text_color=COLOR_ACCENT)
+        self.update_idletasks()
+
+        reachable, msg = self.ctx.camera_manager.test_wifi_connection(ip)
+        if reachable:
+            self.lbl_wifi_feedback.configure(
+                text=f"✓ Kamera Terhubung di jaringan: {msg}",
+                text_color=COLOR_SUCCESS,
+            )
+        else:
+            self.lbl_wifi_feedback.configure(
+                text=f"✕ Tidak dapat menjangkau {ip} ({msg}). Pastikan kamera & PC di Wi-Fi yang sama.",
+                text_color=COLOR_ERROR,
+            )
+
+    def _on_browse_cam_tether(self) -> None:
+        """Browses for tether directory."""
+        from tkinter import filedialog
+        chosen = filedialog.askdirectory(title="Pilih Folder Tethering Wi-Fi DSLR")
+        if chosen and hasattr(self, "entry_cam_tether_folder"):
+            self.entry_cam_tether_folder.delete(0, "end")
+            self.entry_cam_tether_folder.insert(0, chosen)
+            self._on_save_wifi_settings()
+
+    def _on_auto_detect_tether(self) -> None:
+        """Auto-detects vendor tether folder (Canon EOS Utility, Sony, Nikon)."""
+        from camera.adapters.wifi_dslr import WiFiDslrAdapter
+        discovered = WiFiDslrAdapter._discover_default_tether_dir()
+        if hasattr(self, "entry_cam_tether_folder"):
+            self.entry_cam_tether_folder.delete(0, "end")
+            self.entry_cam_tether_folder.insert(0, str(discovered))
+            self._on_save_wifi_settings()
+            self.lbl_wifi_feedback.configure(
+                text=f"✓ Folder tether ditemukan: {discovered.name}",
+                text_color=COLOR_SUCCESS,
+            )
+
+    def _on_save_wifi_settings(self) -> None:
+        """Saves Wi-Fi IP and tether folder configuration."""
+        from config.config_manager import get_config
+        cfg = getattr(self.ctx, "config", None) or get_config()
+        ip = self.entry_cam_wifi_ip.get().strip() if hasattr(self, "entry_cam_wifi_ip") else ""
+        tether_f = self.entry_cam_tether_folder.get().strip() if hasattr(self, "entry_cam_tether_folder") else ""
+        cfg.set("camera", "wifi_ip", ip)
+        cfg.set("camera", "tether_folder", tether_f)
+        cfg.save()
+        self.lbl_wifi_feedback.configure(
+            text="✓ Pengaturan Wi-Fi DSLR berhasil disimpan.",
+            text_color=COLOR_SUCCESS,
+        )
 
     def _on_detect_camera(self) -> None:
         cur_mode = self.opt_adapter_mode.get() if hasattr(self, "opt_adapter_mode") else "Physical USB / Webcam"
@@ -507,4 +903,65 @@ class SettingsView(ctk.CTkFrame):
             self.refresh()
         except Exception as e:
             logger.error("Failed applying custom resolution: %s", e)
+
+    def _on_settings_browse_server(self) -> None:
+        """Opens folder dialog to pick a remote or network server target directory."""
+        from tkinter import filedialog
+        folder = filedialog.askdirectory(title="Select Target Server Folder")
+        if folder:
+            self.entry_settings_server_folder.delete(0, "end")
+            self.entry_settings_server_folder.insert(0, folder)
+            self._on_settings_save_server()
+
+    def _on_settings_open_server(self) -> None:
+        """Opens configured server folder in Windows File Explorer if accessible."""
+        import os
+        from pathlib import Path
+        path_str = self.entry_settings_server_folder.get().strip()
+        if path_str and Path(path_str).exists():
+            try:
+                os.startfile(str(Path(path_str)))
+            except Exception as e:
+                self.lbl_settings_server_status.configure(text=f"Failed opening folder: {e}", text_color=COLOR_ERROR)
+        else:
+            self.lbl_settings_server_status.configure(text="Server folder path does not exist or is unreachable.", text_color=COLOR_WARNING)
+
+    def _on_settings_open_local(self) -> None:
+        """Opens local storage base directory in Windows File Explorer."""
+        import os
+        loc = self.ctx.storage_manager.base_dir
+        if loc.exists():
+            try:
+                os.startfile(str(loc))
+            except Exception as e:
+                logger.error("Failed opening local folder: %s", e)
+
+    def _on_settings_save_server(self) -> None:
+        """Persists storage and server folder configuration."""
+        srv_folder = self.entry_settings_server_folder.get().strip()
+        srv_url = self.entry_settings_server_url.get().strip()
+        from config.config_manager import get_config
+        cfg = getattr(self.ctx, "config", None) or get_config()
+        cfg.set("transfer", "server_folder", srv_folder)
+        cfg.set("storage", "server_folder", srv_folder)
+        if srv_url:
+            cfg.set("transfer", "server_url", srv_url)
+        self.lbl_settings_server_status.configure(text="✓ Storage & Server settings saved successfully.", text_color=COLOR_SUCCESS)
+
+    def _on_settings_test_server(self) -> None:
+        """Verifies if the specified target server directory is accessible."""
+        from pathlib import Path
+        srv_folder = self.entry_settings_server_folder.get().strip()
+        if not srv_folder:
+            self.lbl_settings_server_status.configure(text="Server folder is not configured.", text_color=COLOR_WARNING)
+            return
+        try:
+            p = Path(srv_folder)
+            if p.exists():
+                self.lbl_settings_server_status.configure(text=f"✓ Target Server Folder accessible: {p}", text_color=COLOR_SUCCESS)
+            else:
+                self.lbl_settings_server_status.configure(text="! Folder does not exist yet. Will be created upon sync.", text_color=COLOR_WARNING)
+        except Exception as e:
+            self.lbl_settings_server_status.configure(text=f"✕ Error checking server folder: {e}", text_color=COLOR_ERROR)
+
 

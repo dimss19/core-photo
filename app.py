@@ -390,7 +390,15 @@ class CorePhotoApp(ctk.CTk):
             )
 
         cam_ready = self.ctx.camera_manager.is_ready()
-        if cam_ready:
+        info = self.ctx.camera_manager.get_info()
+        if cam_ready and info and info.model:
+            # Show concise model name if not too long
+            short_model = info.model if len(info.model) <= 24 else info.model[:22] + "..."
+            self.top_cam_indicator.configure(
+                text=f"● {short_model}",
+                text_color=COLOR_SUCCESS,
+            )
+        elif cam_ready:
             self.top_cam_indicator.configure(
                 text="● Connected",
                 text_color=COLOR_SUCCESS,
@@ -410,11 +418,22 @@ class CorePhotoApp(ctk.CTk):
     def _startup_camera_init(self) -> None:
         """Initializes camera connection on app start."""
         logger.info("Initializing camera on startup...")
-        backend = self.ctx.config.get("camera", "backend", "webcam")
-        device_id = self.ctx.config.get("camera", "device_id", "sim")
+        backend = self.ctx.config.get("camera", "default_adapter", "wifi_dslr")
+        pref_idx = self.ctx.config.get("camera", "preferred_index", 0)
+        device_id = str(self.ctx.config.get("camera", "device_id", pref_idx))
+        if backend == "wifi_dslr":
+            device_id = "wifi_dslr"
+
         success = self.ctx.camera_manager.connect_camera(backend, device_id)
-        if not success and device_id != "sim":
-            self.ctx.camera_manager.connect_camera("webcam", "sim")
+        if not success:
+            if backend != "wifi_dslr":
+                success = self.ctx.camera_manager.connect_camera("wifi_dslr", "wifi_dslr")
+            if not success and backend != "direct_usb":
+                success = self.ctx.camera_manager.connect_camera("direct_usb", "0")
+            if not success and device_id != "0":
+                success = self.ctx.camera_manager.connect_camera("webcam", "0")
+            if not success:
+                self.ctx.camera_manager.connect_camera("webcam", "sim")
         self._update_top_header()
         if self.current_view_name in self.views and hasattr(self.views[self.current_view_name], "refresh"):
             self.views[self.current_view_name].refresh()
