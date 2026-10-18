@@ -14,7 +14,9 @@ from PIL import Image, ImageTk
 
 from core.app_context import get_app_context
 from core.logger import get_logger
+from diagnostics.diagnostics import get_diagnostics
 from imaging.crop import CropRegion
+from ui.date_picker import DatePickerModal
 from ui.theme import (
     COLOR_ACCENT,
     COLOR_ACCENT_HOVER,
@@ -51,6 +53,7 @@ class CaptureView(ctk.CTkFrame):
         super().__init__(master, fg_color=COLOR_BG, **kwargs)
         self.navigate_fn = navigate_fn
         self.ctx = get_app_context()
+        self.diag = get_diagnostics()
 
         # Framing / Crop / Zoom / Live View state
         self.grid_enabled = True
@@ -68,7 +71,7 @@ class CaptureView(ctk.CTkFrame):
         self._setup_bindings()
 
     def _build_ui(self) -> None:
-        self.grid_columnconfigure(0, weight=0, minsize=320)  # Left: Tray Data Form
+        self.grid_columnconfigure(0, weight=0, minsize=350)  # Left: Tray Data Form & Camera Settings
         self.grid_columnconfigure(1, weight=1)               # Center: Dominant Live View & Action
         self.grid_rowconfigure(0, weight=1)
 
@@ -77,7 +80,7 @@ class CaptureView(ctk.CTkFrame):
         # =========================================================================
         self.left_tabs = ctk.CTkTabview(
             self,
-            width=340,
+            width=350,
             fg_color=COLOR_PANEL,
             segmented_button_fg_color=COLOR_BORDER,
             segmented_button_selected_color=COLOR_ACCENT,
@@ -154,8 +157,29 @@ class CaptureView(ctk.CTkFrame):
         grid_sess.grid_columnconfigure(1, weight=1)
 
         ctk.CTkLabel(grid_sess, text="Date:", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).grid(row=0, column=0, sticky="w", pady=2)
-        self.entry_sess_date = ctk.CTkEntry(grid_sess, height=26, font=get_font(10), fg_color=COLOR_PANEL, border_color=COLOR_BORDER, border_width=1)
-        self.entry_sess_date.grid(row=0, column=1, sticky="ew", padx=(8, 0), pady=2)
+        f_date = ctk.CTkFrame(grid_sess, fg_color="transparent")
+        f_date.grid(row=0, column=1, sticky="ew", padx=(8, 0), pady=2)
+        f_date.grid_columnconfigure(0, weight=1)
+
+        self.entry_sess_date = ctk.CTkEntry(f_date, height=26, font=get_font(10), fg_color=COLOR_PANEL, border_color=COLOR_BORDER, border_width=1)
+        self.entry_sess_date.grid(row=0, column=0, sticky="ew")
+        self.entry_sess_date.bind("<FocusOut>", self._on_sess_date_entry_changed)
+        self.entry_sess_date.bind("<Return>", self._on_sess_date_entry_changed)
+
+        self.btn_pick_date = ctk.CTkButton(
+            f_date,
+            text="📅",
+            width=28,
+            height=26,
+            font=get_font(11),
+            fg_color=COLOR_PANEL,
+            hover_color=COLOR_BORDER,
+            text_color=COLOR_CHARCOAL,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            command=self._on_pick_sess_date,
+        )
+        self.btn_pick_date.grid(row=0, column=1, padx=(4, 0))
 
         ctk.CTkLabel(grid_sess, text="Name:", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).grid(row=1, column=0, sticky="w", pady=2)
         self.entry_sess_name = ctk.CTkEntry(grid_sess, height=26, font=get_font(10), fg_color=COLOR_PANEL, border_color=COLOR_BORDER, border_width=1)
@@ -401,7 +425,39 @@ class CaptureView(ctk.CTkFrame):
         self.lbl_dev_serial.pack(anchor="w", padx=16, pady=1)
 
         self.lbl_dev_fw = ctk.CTkLabel(dev_box, text="Firmware: Wi-Fi v2.0", font=get_font(11), text_color=COLOR_TEXT_PRIMARY)
-        self.lbl_dev_fw.pack(anchor="w", padx=16, pady=(1, 8))
+        self.lbl_dev_fw.pack(anchor="w", padx=16, pady=(1, 4))
+
+        dev_btn_row = ctk.CTkFrame(dev_box, fg_color="transparent")
+        dev_btn_row.pack(fill="x", padx=12, pady=(2, 8))
+        dev_btn_row.grid_columnconfigure((0, 1), weight=1)
+
+        self.btn_dev_detect = ctk.CTkButton(
+            dev_btn_row,
+            text="Detect Camera",
+            font=get_font(10, "bold"),
+            height=26,
+            corner_radius=4,
+            fg_color=COLOR_ACCENT,
+            hover_color=COLOR_ACCENT_HOVER,
+            text_color="#FFFFFF",
+            command=self._on_detect_cam,
+        )
+        self.btn_dev_detect.grid(row=0, column=0, sticky="ew", padx=(0, 4))
+
+        self.btn_dev_reconnect = ctk.CTkButton(
+            dev_btn_row,
+            text="Reconnect",
+            font=get_font(10),
+            height=26,
+            corner_radius=4,
+            fg_color=COLOR_PANEL,
+            hover_color=COLOR_BORDER,
+            text_color=COLOR_CHARCOAL,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            command=self._on_reconnect_cam,
+        )
+        self.btn_dev_reconnect.grid(row=0, column=1, sticky="ew", padx=(4, 0))
 
         # Settings:
         set_box = ctk.CTkFrame(cam_scroll, fg_color=COLOR_PANEL_ALT, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
@@ -560,6 +616,444 @@ class CaptureView(ctk.CTkFrame):
         )
         self.opt_cam_resolution.set("Auto (Best Native DSLR — 18MP/24MP+)")
         self.opt_cam_resolution.grid(row=7, column=1, sticky="ew", padx=(8, 0), pady=3)
+
+        # 9. Max Photo Size (MB)
+        ctk.CTkLabel(set_grid, text="Max Size (MB):", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).grid(row=8, column=0, sticky="w", pady=3)
+        size_frame = ctk.CTkFrame(set_grid, fg_color="transparent")
+        size_frame.grid(row=8, column=1, sticky="ew", padx=(8, 0), pady=3)
+        size_frame.grid_columnconfigure(0, weight=1)
+
+        cur_max_size = str(self.ctx.config.get("imaging", "max_photo_size_mb", 10.0))
+        self.entry_max_size = ctk.CTkEntry(
+            size_frame,
+            height=26,
+            font=get_font(11),
+            fg_color=COLOR_PANEL,
+            border_color=COLOR_BORDER,
+            border_width=1,
+            text_color=COLOR_CHARCOAL,
+        )
+        self.entry_max_size.insert(0, cur_max_size)
+        self.entry_max_size.grid(row=0, column=0, sticky="ew", padx=(0, 4))
+
+        self.btn_save_max_size = ctk.CTkButton(
+            size_frame,
+            text="Set",
+            font=get_font(10, "bold"),
+            height=26,
+            width=36,
+            corner_radius=4,
+            fg_color=COLOR_ACCENT,
+            hover_color=COLOR_ACCENT_HOVER,
+            text_color="#FFFFFF",
+            command=self._on_save_max_size,
+        )
+        self.btn_save_max_size.grid(row=0, column=1)
+
+        # Custom Resolution W x H
+        f_custom_res = ctk.CTkFrame(set_box, fg_color="transparent")
+        f_custom_res.pack(fill="x", padx=10, pady=(0, 8))
+        f_custom_res.grid_columnconfigure(0, weight=1)
+
+        self.lbl_res_active = ctk.CTkLabel(
+            f_custom_res,
+            text="Active: Best Native DSLR",
+            font=get_font(10),
+            text_color=COLOR_TEXT_MUTED,
+        )
+        self.lbl_res_active.grid(row=0, column=0, sticky="w")
+
+        res_inputs = ctk.CTkFrame(f_custom_res, fg_color="transparent")
+        res_inputs.grid(row=0, column=1, sticky="e")
+        self.entry_res_w = ctk.CTkEntry(res_inputs, placeholder_text="W", width=42, height=24, font=get_font(10))
+        self.entry_res_w.pack(side="left", padx=2)
+        ctk.CTkLabel(res_inputs, text="×", font=get_font(10, "bold"), text_color=COLOR_TEXT_MUTED).pack(side="left", padx=1)
+        self.entry_res_h = ctk.CTkEntry(res_inputs, placeholder_text="H", width=42, height=24, font=get_font(10))
+        self.entry_res_h.pack(side="left", padx=2)
+        self.btn_apply_custom_res = ctk.CTkButton(
+            res_inputs,
+            text="Set",
+            font=get_font(10, "bold"),
+            height=24,
+            width=36,
+            corner_radius=4,
+            fg_color=COLOR_ACCENT,
+            hover_color=COLOR_ACCENT_HOVER,
+            text_color="#FFFFFF",
+            command=self._on_apply_custom_resolution,
+        )
+        self.btn_apply_custom_res.pack(side="left", padx=(3, 0))
+
+        # 3. Wi-Fi DSLR Wireless Settings Card
+        wifi_box = ctk.CTkFrame(cam_scroll, fg_color=COLOR_PANEL_ALT, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
+        wifi_box.pack(fill="x", padx=10, pady=(0, 10))
+
+        ctk.CTkLabel(wifi_box, text="Wi-Fi DSLR Wireless Settings:", font=get_font(11, "bold"), text_color=COLOR_CHARCOAL).pack(anchor="w", padx=10, pady=(8, 2))
+        ctk.CTkLabel(wifi_box, text="Canon / Nikon / Sony Wi-Fi Tethering & IP connection.", font=get_font(9), text_color=COLOR_TEXT_MUTED).pack(anchor="w", padx=10, pady=(0, 4))
+
+        # Camera IP
+        ctk.CTkLabel(wifi_box, text="Camera IP Address:", font=get_font(10, "bold"), text_color=COLOR_TEXT_PRIMARY).pack(anchor="w", padx=10, pady=(2, 1))
+        f_ip = ctk.CTkFrame(wifi_box, fg_color="transparent")
+        f_ip.pack(fill="x", padx=10, pady=(0, 4))
+        f_ip.grid_columnconfigure(0, weight=1)
+
+        self.entry_cam_wifi_ip = ctk.CTkEntry(
+            f_ip,
+            height=26,
+            font=get_font(10),
+            placeholder_text="e.g. 192.168.1.100",
+            fg_color=COLOR_PANEL,
+            border_color=COLOR_BORDER,
+            border_width=1,
+        )
+        self.entry_cam_wifi_ip.grid(row=0, column=0, sticky="ew", padx=(0, 4))
+
+        self.btn_cam_test_wifi = ctk.CTkButton(
+            f_ip,
+            text="Ping / Test",
+            font=get_font(10, "bold"),
+            height=26,
+            width=80,
+            corner_radius=4,
+            fg_color=COLOR_PANEL,
+            hover_color=COLOR_BORDER,
+            text_color=COLOR_CHARCOAL,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            command=self._on_test_wifi_ip,
+        )
+        self.btn_cam_test_wifi.grid(row=0, column=1, sticky="e")
+
+        # Tether Folder
+        ctk.CTkLabel(wifi_box, text="Wi-Fi Tether Folder:", font=get_font(10, "bold"), text_color=COLOR_TEXT_PRIMARY).pack(anchor="w", padx=10, pady=(2, 1))
+        f_tether = ctk.CTkFrame(wifi_box, fg_color="transparent")
+        f_tether.pack(fill="x", padx=10, pady=(0, 4))
+        f_tether.grid_columnconfigure(0, weight=1)
+
+        self.entry_cam_tether_folder = ctk.CTkEntry(
+            f_tether,
+            height=26,
+            font=get_font(10),
+            placeholder_text="EOS Utility / Sony Remote folder...",
+            fg_color=COLOR_PANEL,
+            border_color=COLOR_BORDER,
+            border_width=1,
+        )
+        self.entry_cam_tether_folder.grid(row=0, column=0, sticky="ew", padx=(0, 4))
+
+        self.btn_browse_cam_tether = ctk.CTkButton(
+            f_tether,
+            text="...",
+            width=26,
+            height=26,
+            font=get_font(10, "bold"),
+            fg_color=COLOR_BORDER,
+            text_color=COLOR_CHARCOAL,
+            hover_color=COLOR_BORDER_STRONG,
+            command=self._on_browse_cam_tether,
+        )
+        self.btn_browse_cam_tether.grid(row=0, column=1, padx=(0, 4))
+
+        self.btn_auto_detect_tether = ctk.CTkButton(
+            f_tether,
+            text="Auto",
+            width=48,
+            height=26,
+            font=get_font(10, "bold"),
+            fg_color=COLOR_PANEL,
+            hover_color=COLOR_BORDER,
+            text_color=COLOR_CHARCOAL,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            command=self._on_auto_detect_tether,
+        )
+        self.btn_auto_detect_tether.grid(row=0, column=2)
+
+        # Wi-Fi Save & Feedback
+        f_wifi_save = ctk.CTkFrame(wifi_box, fg_color="transparent")
+        f_wifi_save.pack(fill="x", padx=10, pady=(2, 8))
+        f_wifi_save.grid_columnconfigure(0, weight=1)
+
+        self.lbl_wifi_feedback = ctk.CTkLabel(
+            f_wifi_save,
+            text="",
+            font=get_font(9),
+            text_color=COLOR_TEXT_MUTED,
+            wraplength=200,
+            justify="left",
+            anchor="w",
+        )
+        self.lbl_wifi_feedback.grid(row=0, column=0, sticky="w")
+
+        self.btn_save_wifi_cfg = ctk.CTkButton(
+            f_wifi_save,
+            text="Save Wi-Fi",
+            font=get_font(10, "bold"),
+            height=26,
+            width=80,
+            corner_radius=4,
+            fg_color=COLOR_ACCENT,
+            hover_color=COLOR_ACCENT_HOVER,
+            text_color="#FFFFFF",
+            command=self._on_save_wifi_settings,
+        )
+        self.btn_save_wifi_cfg.grid(row=0, column=1, sticky="e")
+
+        # 4. Storage & Server Repository Configuration Card
+        srv_box = ctk.CTkFrame(cam_scroll, fg_color=COLOR_PANEL_ALT, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
+        srv_box.pack(fill="x", padx=10, pady=(0, 10))
+
+        ctk.CTkLabel(srv_box, text="Storage & Server Configuration:", font=get_font(11, "bold"), text_color=COLOR_CHARCOAL).pack(anchor="w", padx=10, pady=(8, 2))
+        ctk.CTkLabel(srv_box, text="Local archive directories and central server target.", font=get_font(9), text_color=COLOR_TEXT_MUTED).pack(anchor="w", padx=10, pady=(0, 4))
+
+        # Target Server Folder
+        ctk.CTkLabel(srv_box, text="Target Server Folder:", font=get_font(10, "bold"), text_color=COLOR_TEXT_PRIMARY).pack(anchor="w", padx=10, pady=(2, 1))
+        f_srv_folder = ctk.CTkFrame(srv_box, fg_color="transparent")
+        f_srv_folder.pack(fill="x", padx=10, pady=(0, 4))
+        f_srv_folder.grid_columnconfigure(0, weight=1)
+
+        self.entry_settings_server_folder = ctk.CTkEntry(
+            f_srv_folder,
+            height=26,
+            font=get_font(10),
+            placeholder_text="\\\\server\\share or folder path...",
+            fg_color=COLOR_PANEL,
+            border_color=COLOR_BORDER,
+            border_width=1,
+        )
+        self.entry_settings_server_folder.grid(row=0, column=0, sticky="ew", padx=(0, 4))
+
+        self.btn_settings_browse_server = ctk.CTkButton(
+            f_srv_folder,
+            text="...",
+            width=26,
+            height=26,
+            font=get_font(10, "bold"),
+            fg_color=COLOR_BORDER,
+            text_color=COLOR_CHARCOAL,
+            hover_color=COLOR_BORDER_STRONG,
+            command=self._on_settings_browse_server,
+        )
+        self.btn_settings_browse_server.grid(row=0, column=1, padx=(0, 4))
+
+        self.btn_settings_open_server = ctk.CTkButton(
+            f_srv_folder,
+            text="Open",
+            width=48,
+            height=26,
+            font=get_font(10),
+            fg_color=COLOR_PANEL,
+            hover_color=COLOR_BORDER,
+            text_color=COLOR_CHARCOAL,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            command=self._on_settings_open_server,
+        )
+        self.btn_settings_open_server.grid(row=0, column=2)
+
+        # Local Base Directory
+        ctk.CTkLabel(srv_box, text="Local Base Directory:", font=get_font(10, "bold"), text_color=COLOR_TEXT_PRIMARY).pack(anchor="w", padx=10, pady=(2, 1))
+        f_loc = ctk.CTkFrame(srv_box, fg_color="transparent")
+        f_loc.pack(fill="x", padx=10, pady=(0, 4))
+        f_loc.grid_columnconfigure(0, weight=1)
+
+        self.entry_settings_local_folder = ctk.CTkEntry(
+            f_loc,
+            height=26,
+            font=get_font(10),
+            fg_color=COLOR_PANEL,
+            border_color=COLOR_BORDER,
+            border_width=1,
+        )
+        self.entry_settings_local_folder.grid(row=0, column=0, sticky="ew", padx=(0, 4))
+
+        self.btn_settings_open_local = ctk.CTkButton(
+            f_loc,
+            text="Explorer",
+            width=64,
+            height=26,
+            font=get_font(10),
+            fg_color=COLOR_PANEL,
+            hover_color=COLOR_BORDER,
+            text_color=COLOR_CHARCOAL,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            command=self._on_settings_open_local,
+        )
+        self.btn_settings_open_local.grid(row=0, column=1)
+
+        # Server API URL
+        ctk.CTkLabel(srv_box, text="Server API URL:", font=get_font(10, "bold"), text_color=COLOR_TEXT_PRIMARY).pack(anchor="w", padx=10, pady=(2, 1))
+        self.entry_settings_server_url = ctk.CTkEntry(
+            srv_box,
+            height=26,
+            font=get_font(10),
+            placeholder_text="http://127.0.0.1:8000/api/v1",
+            fg_color=COLOR_PANEL,
+            border_color=COLOR_BORDER,
+            border_width=1,
+        )
+        self.entry_settings_server_url.pack(fill="x", padx=10, pady=(0, 4))
+
+        # Storage Save & Test Actions
+        f_srv_actions = ctk.CTkFrame(srv_box, fg_color="transparent")
+        f_srv_actions.pack(fill="x", padx=10, pady=(2, 8))
+        f_srv_actions.grid_columnconfigure(0, weight=1)
+
+        self.lbl_settings_server_status = ctk.CTkLabel(
+            f_srv_actions,
+            text="",
+            font=get_font(9),
+            text_color=COLOR_SUCCESS,
+            wraplength=180,
+            justify="left",
+            anchor="w",
+        )
+        self.lbl_settings_server_status.grid(row=0, column=0, sticky="w")
+
+        f_srv_btns = ctk.CTkFrame(f_srv_actions, fg_color="transparent")
+        f_srv_btns.grid(row=0, column=1, sticky="e")
+
+        self.btn_test_srv = ctk.CTkButton(
+            f_srv_btns,
+            text="Test",
+            font=get_font(10),
+            height=26,
+            width=50,
+            corner_radius=4,
+            fg_color=COLOR_PANEL,
+            hover_color=COLOR_BORDER,
+            text_color=COLOR_CHARCOAL,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            command=self._on_settings_test_server,
+        )
+        self.btn_test_srv.pack(side="left", padx=(0, 4))
+
+        self.btn_save_srv = ctk.CTkButton(
+            f_srv_btns,
+            text="Save Storage",
+            font=get_font(10, "bold"),
+            height=26,
+            width=88,
+            corner_radius=4,
+            fg_color=COLOR_ACCENT,
+            hover_color=COLOR_ACCENT_HOVER,
+            text_color="#FFFFFF",
+            command=self._on_settings_save_server,
+        )
+        self.btn_save_srv.pack(side="left")
+
+        # 5. Technical Diagnostics & Recovery Card
+        diag_box = ctk.CTkFrame(cam_scroll, fg_color=COLOR_PANEL_ALT, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
+        diag_box.pack(fill="x", padx=10, pady=(0, 10))
+
+        ctk.CTkLabel(diag_box, text="Technical Diagnostics & Recovery:", font=get_font(11, "bold"), text_color=COLOR_CHARCOAL).pack(anchor="w", padx=10, pady=(8, 2))
+
+        f_diag_btns = ctk.CTkFrame(diag_box, fg_color="transparent")
+        f_diag_btns.pack(fill="x", padx=10, pady=(2, 4))
+        f_diag_btns.grid_columnconfigure((0, 1), weight=1)
+
+        self.btn_run_diag = ctk.CTkButton(
+            f_diag_btns,
+            text="Run Diagnostics",
+            font=get_font(10, "bold"),
+            height=26,
+            corner_radius=4,
+            fg_color=COLOR_ACCENT,
+            hover_color=COLOR_ACCENT_HOVER,
+            text_color="#FFFFFF",
+            command=self._on_run_diagnostics,
+        )
+        self.btn_run_diag.grid(row=0, column=0, sticky="ew", padx=(0, 4))
+
+        self.btn_export_diag = ctk.CTkButton(
+            f_diag_btns,
+            text="Export JSON",
+            font=get_font(10),
+            height=26,
+            corner_radius=4,
+            fg_color=COLOR_PANEL,
+            hover_color=COLOR_BORDER,
+            text_color=COLOR_CHARCOAL,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            command=self._on_export_report,
+        )
+        self.btn_export_diag.grid(row=0, column=1, sticky="ew", padx=(4, 0))
+
+        self.diag_result_box = ctk.CTkTextbox(
+            diag_box,
+            height=90,
+            font=ctk.CTkFont(family="Consolas", size=9),
+            fg_color=COLOR_PANEL,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            text_color=COLOR_TEXT_PRIMARY,
+        )
+        self.diag_result_box.pack(fill="x", padx=10, pady=(2, 6))
+
+        # Crash Recovery
+        self.recovery_card = ctk.CTkFrame(diag_box, fg_color=COLOR_PANEL, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
+        self.recovery_card.pack(fill="x", padx=10, pady=(0, 8))
+
+        self.recovery_lbl = ctk.CTkLabel(
+            self.recovery_card,
+            text="Checking crash status...",
+            font=get_font(9),
+            text_color=COLOR_TEXT_MUTED,
+            wraplength=280,
+            justify="left",
+        )
+        self.recovery_lbl.pack(anchor="w", padx=8, pady=(6, 3))
+
+        self.btn_resume = ctk.CTkButton(
+            self.recovery_card,
+            text="Resume Incomplete Captures",
+            font=get_font(10, "bold"),
+            height=24,
+            corner_radius=4,
+            fg_color=COLOR_CHARCOAL,
+            hover_color="#27272A",
+            text_color="#FFFFFF",
+            command=self._on_resume_captures,
+        )
+        self.btn_resume.pack(fill="x", padx=8, pady=(0, 6))
+
+        # 6. Live System Logs Card
+        log_box = ctk.CTkFrame(cam_scroll, fg_color=COLOR_PANEL_ALT, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
+        log_box.pack(fill="x", padx=10, pady=(0, 10))
+
+        f_log_head = ctk.CTkFrame(log_box, fg_color="transparent")
+        f_log_head.pack(fill="x", padx=10, pady=(8, 2))
+        ctk.CTkLabel(f_log_head, text="Live System Logs:", font=get_font(11, "bold"), text_color=COLOR_CHARCOAL).pack(side="left")
+
+        self.btn_ref_log = ctk.CTkButton(
+            f_log_head,
+            text="Refresh Logs",
+            font=get_font(9),
+            width=75,
+            height=22,
+            corner_radius=4,
+            fg_color=COLOR_PANEL,
+            hover_color=COLOR_BORDER,
+            text_color=COLOR_CHARCOAL,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            command=self._refresh_logs,
+        )
+        self.btn_ref_log.pack(side="right")
+
+        self.log_textbox = ctk.CTkTextbox(
+            log_box,
+            height=110,
+            font=ctk.CTkFont(family="Consolas", size=9),
+            fg_color=COLOR_PANEL,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            text_color=COLOR_TEXT_PRIMARY,
+        )
+        self.log_textbox.pack(fill="x", padx=10, pady=(2, 8))
 
         self._update_left_tab_styles()
 
@@ -1129,6 +1623,27 @@ class CaptureView(ctk.CTkFrame):
             text=f"Resolution configured: {w}x{h} ({mp:.1f} MP)",
             text_color=COLOR_SUCCESS,
         )
+
+    def _on_save_max_size(self) -> None:
+        """Saves configured maximum photo size limit in MB."""
+        if not hasattr(self, "entry_max_size"):
+            return
+        val_str = self.entry_max_size.get().strip()
+        try:
+            val = float(val_str)
+            if val <= 0:
+                raise ValueError("Batas ukuran foto harus lebih dari 0 MB.")
+            self.ctx.config.set("imaging", "max_photo_size_mb", val)
+            self.ctx.config.save()
+            self.lbl_capture_feedback.configure(
+                text=f"✓ Batas maksimal foto berhasil disimpan: {val:.1f} MB",
+                text_color=COLOR_SUCCESS,
+            )
+        except Exception as e:
+            self.lbl_capture_feedback.configure(
+                text="Error: Batas ukuran foto harus berupa angka positif (MB).",
+                text_color=COLOR_ERROR,
+            )
 
     def _parse_webcam_index(self, choice: str) -> str:
         """Parses webcam OptionMenu display string back to device id ('0'..'N' or 'sim')."""
@@ -1952,11 +2467,13 @@ class CaptureView(ctk.CTkFrame):
 
         try:
             from pathlib import Path
+            max_mb = float(self.ctx.config.get("imaging", "max_photo_size_mb", 10.0))
             if getattr(photo, "jpg_path", None) and Path(photo.jpg_path).exists():
                 sz_mb = Path(photo.jpg_path).stat().st_size / (1024 * 1024)
-                self.lbl_cap_filesize.configure(text=f"{sz_mb:.2f} MB", text_color=COLOR_TEXT_PRIMARY)
+                color = COLOR_TEXT_PRIMARY if sz_mb <= (max_mb + 0.05) else COLOR_ERROR
+                self.lbl_cap_filesize.configure(text=f"{sz_mb:.2f} MB (Max {max_mb:.0f} MB)", text_color=color)
             else:
-                self.lbl_cap_filesize.configure(text="1.45 MB", text_color=COLOR_TEXT_PRIMARY)
+                self.lbl_cap_filesize.configure(text=f"< {max_mb:.0f} MB", text_color=COLOR_TEXT_PRIMARY)
         except Exception:
             self.lbl_cap_filesize.configure(text="1.45 MB", text_color=COLOR_TEXT_PRIMARY)
 
@@ -2071,7 +2588,6 @@ class CaptureView(ctk.CTkFrame):
                 text="Tray finished! Ready for next core tray.",
                 text_color=COLOR_SUCCESS,
             )
-        self.navigate_fn("review")
 
     def advance_to_next_tray(self) -> None:
         """Auto-increments tray number and updates intervals."""
@@ -2111,3 +2627,305 @@ class CaptureView(ctk.CTkFrame):
             self.lbl_series_count.configure(text=str(cnt))
 
         self._evaluate_preflight()
+
+    def _on_pick_sess_date(self) -> None:
+        """Opens popup date picker for session date."""
+        cur_val = self.entry_sess_date.get().strip() if hasattr(self, "entry_sess_date") else ""
+        def on_chosen(dt_str: str) -> None:
+            if hasattr(self, "entry_sess_date"):
+                self.entry_sess_date.delete(0, "end")
+                self.entry_sess_date.insert(0, dt_str)
+            self._sync_sess_date(dt_str)
+        DatePickerModal(self, initial_date=cur_val, on_select=on_chosen)
+
+    def _on_sess_date_entry_changed(self, event=None) -> None:
+        """Syncs date entered manually in entry_sess_date."""
+        if hasattr(self, "entry_sess_date"):
+            dt_str = self.entry_sess_date.get().strip()
+            self._sync_sess_date(dt_str)
+
+    def _sync_sess_date(self, dt_str: str) -> None:
+        if not dt_str:
+            return
+        sess = self.ctx.active_session
+        if sess:
+            sess.date = dt_str
+            self.ctx.active_session = sess
+            try:
+                self.ctx.session_paths = self.ctx.storage_manager.get_session_paths(f"{sess.site}_{sess.date}")
+            except Exception:
+                pass
+            top_win = self.winfo_toplevel()
+            if hasattr(top_win, "_update_top_header"):
+                top_win._update_top_header()
+
+    def _on_detect_cam(self) -> None:
+        cur_mode = self.opt_capture_interface.get() if hasattr(self, "opt_capture_interface") else "Physical USB Webcam"
+        self._on_capture_interface_changed(cur_mode)
+
+    def _on_reconnect_cam(self) -> None:
+        self._on_detect_cam()
+
+    def _on_test_wifi_ip(self) -> None:
+        ip = self.entry_cam_wifi_ip.get().strip() if hasattr(self, "entry_cam_wifi_ip") else ""
+        if not ip:
+            if hasattr(self, "lbl_wifi_feedback"):
+                self.lbl_wifi_feedback.configure(
+                    text="Masukkan IP address kamera terlebih dahulu.",
+                    text_color=COLOR_WARNING,
+                )
+            return
+
+        if hasattr(self, "lbl_wifi_feedback"):
+            self.lbl_wifi_feedback.configure(text=f"Menguji koneksi ke {ip}...", text_color=COLOR_ACCENT)
+        self.update_idletasks()
+
+        reachable, msg = self.ctx.camera_manager.test_wifi_connection(ip)
+        if hasattr(self, "lbl_wifi_feedback"):
+            if reachable:
+                self.lbl_wifi_feedback.configure(
+                    text=f"✓ Kamera Terhubung di jaringan: {msg}",
+                    text_color=COLOR_SUCCESS,
+                )
+            else:
+                self.lbl_wifi_feedback.configure(
+                    text=f"✕ Tidak dapat menjangkau {ip} ({msg}).",
+                    text_color=COLOR_ERROR,
+                )
+
+    def _on_browse_cam_tether(self) -> None:
+        from tkinter import filedialog
+        chosen = filedialog.askdirectory(title="Pilih Folder Tethering Wi-Fi DSLR")
+        if chosen and hasattr(self, "entry_cam_tether_folder"):
+            self.entry_cam_tether_folder.delete(0, "end")
+            self.entry_cam_tether_folder.insert(0, chosen)
+            self._on_save_wifi_settings()
+
+    def _on_auto_detect_tether(self) -> None:
+        from camera.adapters.wifi_dslr import WiFiDslrAdapter
+        discovered = WiFiDslrAdapter._discover_default_tether_dir()
+        if hasattr(self, "entry_cam_tether_folder"):
+            self.entry_cam_tether_folder.delete(0, "end")
+            self.entry_cam_tether_folder.insert(0, str(discovered))
+            self._on_save_wifi_settings()
+            if hasattr(self, "lbl_wifi_feedback"):
+                self.lbl_wifi_feedback.configure(
+                    text=f"✓ Folder tether ditemukan: {discovered.name}",
+                    text_color=COLOR_SUCCESS,
+                )
+
+    def _on_save_wifi_settings(self) -> None:
+        from config.config_manager import get_config
+        cfg = getattr(self.ctx, "config", None) or get_config()
+        ip = self.entry_cam_wifi_ip.get().strip() if hasattr(self, "entry_cam_wifi_ip") else ""
+        tether_f = self.entry_cam_tether_folder.get().strip() if hasattr(self, "entry_cam_tether_folder") else ""
+        if ip:
+            cfg.set("camera", "wifi_ip", ip)
+        if tether_f:
+            cfg.set("camera", "tether_folder", tether_f)
+        cfg.save()
+        if hasattr(self, "lbl_wifi_feedback"):
+            self.lbl_wifi_feedback.configure(
+                text="✓ Pengaturan Wi-Fi DSLR berhasil disimpan.",
+                text_color=COLOR_SUCCESS,
+            )
+
+    def _on_apply_custom_resolution(self) -> None:
+        try:
+            w = int(self.entry_res_w.get().strip())
+            h = int(self.entry_res_h.get().strip())
+            if w < 320 or h < 240:
+                raise ValueError("Dimensi resolusi minimal 320x240.")
+            self.ctx.camera_manager.set_resolution(w, h, mode="custom")
+            if hasattr(self, "lbl_res_active"):
+                self.lbl_res_active.configure(text=f"Active: {w} x {h} (Custom)")
+            self.lbl_capture_feedback.configure(
+                text=f"Resolusi kustom diterapkan: {w}x{h}",
+                text_color=COLOR_SUCCESS,
+            )
+        except Exception as e:
+            self.lbl_capture_feedback.configure(
+                text=f"Resolusi tidak valid: {e}",
+                text_color=COLOR_ERROR,
+            )
+
+    def _on_settings_browse_server(self) -> None:
+        from tkinter import filedialog
+        folder = filedialog.askdirectory(title="Select Target Server Repository Folder")
+        if folder and hasattr(self, "entry_settings_server_folder"):
+            self.entry_settings_server_folder.delete(0, "end")
+            self.entry_settings_server_folder.insert(0, folder)
+            if hasattr(self, "entry_server_folder"):
+                self.entry_server_folder.delete(0, "end")
+                self.entry_server_folder.insert(0, folder)
+            self._on_settings_save_server()
+
+    def _on_settings_open_server(self) -> None:
+        folder = self.entry_settings_server_folder.get().strip() if hasattr(self, "entry_settings_server_folder") else ""
+        if not folder:
+            return
+        from pathlib import Path
+        p = Path(folder)
+        if p.exists():
+            import subprocess
+            subprocess.Popen(["explorer", str(p)])
+        elif hasattr(self, "lbl_settings_server_status"):
+            self.lbl_settings_server_status.configure(text="✕ Folder tidak ditemukan.", text_color=COLOR_ERROR)
+
+    def _on_settings_open_local(self) -> None:
+        import subprocess
+        subprocess.Popen(["explorer", str(self.ctx.storage_manager.base_dir)])
+
+    def _on_settings_save_server(self) -> None:
+        from config.config_manager import get_config
+        cfg = getattr(self.ctx, "config", None) or get_config()
+        srv_f = self.entry_settings_server_folder.get().strip() if hasattr(self, "entry_settings_server_folder") else ""
+        srv_u = self.entry_settings_server_url.get().strip() if hasattr(self, "entry_settings_server_url") else ""
+
+        cfg.set("transfer", "server_folder", srv_f)
+        cfg.set("storage", "server_folder", srv_f)
+        if srv_u:
+            cfg.set("transfer", "server_url", srv_u)
+        cfg.save()
+
+        if hasattr(self, "entry_server_folder") and srv_f:
+            self.entry_server_folder.delete(0, "end")
+            self.entry_server_folder.insert(0, srv_f)
+
+        if hasattr(self, "lbl_settings_server_status"):
+            self.lbl_settings_server_status.configure(text="✓ Pengaturan penyimpanan disimpan.", text_color=COLOR_SUCCESS)
+
+    def _on_settings_test_server(self) -> None:
+        folder = self.entry_settings_server_folder.get().strip() if hasattr(self, "entry_settings_server_folder") else ""
+        if not folder:
+            if hasattr(self, "lbl_settings_server_status"):
+                self.lbl_settings_server_status.configure(text="Isi path folder server.", text_color=COLOR_WARNING)
+            return
+        from pathlib import Path
+        p = Path(folder)
+        try:
+            if p.exists():
+                if hasattr(self, "lbl_settings_server_status"):
+                    self.lbl_settings_server_status.configure(text="✓ Server folder aktif & dapat diakses.", text_color=COLOR_SUCCESS)
+            else:
+                if hasattr(self, "lbl_settings_server_status"):
+                    self.lbl_settings_server_status.configure(text="✕ Server folder belum dapat diakses.", text_color=COLOR_ERROR)
+        except Exception as e:
+            if hasattr(self, "lbl_settings_server_status"):
+                self.lbl_settings_server_status.configure(text=f"✕ Akses gagal: {e}", text_color=COLOR_ERROR)
+
+    def _on_run_diagnostics(self) -> None:
+        if not hasattr(self, "diag_result_box"):
+            return
+        self.diag_result_box.delete("1.0", "end")
+        self.diag_result_box.insert("end", "Running system diagnostics...\n")
+        self.update_idletasks()
+
+        res = self.diag.run_all_checks()
+        text = self.diag.format_report_text(res)
+        self.diag_result_box.delete("1.0", "end")
+        self.diag_result_box.insert("end", text)
+        self._check_recovery()
+
+    def _on_export_report(self) -> None:
+        from tkinter import filedialog
+        path = filedialog.asksaveasfilename(
+            defaultextension=".json",
+            filetypes=[("JSON Files", "*.json")],
+            initialfile="corephoto_diagnostics.json",
+        )
+        if path:
+            res = self.diag.run_all_checks()
+            import json
+            from pathlib import Path
+            Path(path).write_text(json.dumps(res, indent=2), encoding="utf-8")
+            self.lbl_capture_feedback.configure(
+                text=f"✓ Diagnostic report exported: {Path(path).name}",
+                text_color=COLOR_SUCCESS,
+            )
+
+    def _on_resume_captures(self) -> None:
+        recovered = self.diag.resume_incomplete_captures()
+        if recovered > 0:
+            self._check_recovery()
+            self.lbl_capture_feedback.configure(
+                text=f"✓ Berhasil memulihkan {recovered} foto belum selesai.",
+                text_color=COLOR_SUCCESS,
+            )
+        else:
+            self.lbl_capture_feedback.configure(
+                text="Tidak ada foto tertunda yang dapat dipulihkan.",
+                text_color=COLOR_TEXT_MUTED,
+            )
+
+    def _refresh_logs(self) -> None:
+        if hasattr(self, "log_textbox"):
+            text = self.diag.read_recent_logs(max_lines=150)
+            self.log_textbox.delete("1.0", "end")
+            self.log_textbox.insert("end", text)
+            self.log_textbox.see("end")
+
+    def _check_recovery(self) -> None:
+        if not hasattr(self, "recovery_card"):
+            return
+        rec_data = self.diag._check_crash_recovery()
+        count = rec_data.get("incomplete_captures_found", 0)
+        if count > 0:
+            self.recovery_card.configure(fg_color=COLOR_WARNING_BG, border_color=COLOR_WARNING_BORDER)
+            self.recovery_lbl.configure(
+                text=f"! Ditemukan {count} file raw belum selesai.",
+                text_color=COLOR_WARNING,
+            )
+            self.btn_resume.configure(state="normal", fg_color=COLOR_ACCENT)
+        else:
+            self.recovery_card.configure(fg_color=COLOR_PANEL_ALT, border_color=COLOR_BORDER)
+            self.recovery_lbl.configure(
+                text="✓ Semua foto konsisten. Tidak ada raw tersangkut.",
+                text_color=COLOR_SUCCESS,
+            )
+            self.btn_resume.configure(state="disabled", fg_color=COLOR_BORDER_STRONG)
+
+    def select_tab(self, tab_name: str) -> None:
+        """Allows switching left tabs externally (e.g. from app.navigate_to)."""
+        if hasattr(self, "left_tabs") and tab_name:
+            t_lower = tab_name.lower()
+            if any(k in t_lower for k in ("cam", "setting")):
+                self.left_tabs.set("Camera Settings")
+            elif any(k in t_lower for k in ("tray", "data")):
+                self.left_tabs.set("Tray Data")
+            self._update_left_tab_styles()
+
+    def refresh(self) -> None:
+        """Refreshes CaptureView status, settings values, and camera information."""
+        self.start_view()
+        # Sync Wi-Fi & Storage fields in Camera Settings tab
+        from config.config_manager import get_config
+        cfg = getattr(self.ctx, "config", None) or get_config()
+        if hasattr(self, "entry_cam_wifi_ip") and not self.entry_cam_wifi_ip.get().strip():
+            cfg_ip = cfg.get("camera", "wifi_ip", "")
+            if cfg_ip:
+                self.entry_cam_wifi_ip.delete(0, "end")
+                self.entry_cam_wifi_ip.insert(0, str(cfg_ip))
+        if hasattr(self, "entry_cam_tether_folder") and not self.entry_cam_tether_folder.get().strip():
+            cfg_tether = cfg.get("camera", "tether_folder", "")
+            if cfg_tether:
+                self.entry_cam_tether_folder.delete(0, "end")
+                self.entry_cam_tether_folder.insert(0, str(cfg_tether))
+            else:
+                from camera.adapters.wifi_dslr import WiFiDslrAdapter
+                disc = WiFiDslrAdapter._discover_default_tether_dir()
+                self.entry_cam_tether_folder.delete(0, "end")
+                self.entry_cam_tether_folder.insert(0, str(disc))
+        if hasattr(self, "entry_settings_server_folder"):
+            srv_f = cfg.get("transfer", "server_folder", "") or cfg.get("storage", "server_folder", "")
+            self.entry_settings_server_folder.delete(0, "end")
+            self.entry_settings_server_folder.insert(0, str(srv_f))
+        if hasattr(self, "entry_settings_local_folder"):
+            self.entry_settings_local_folder.delete(0, "end")
+            self.entry_settings_local_folder.insert(0, str(self.ctx.storage_manager.base_dir))
+        if hasattr(self, "entry_settings_server_url"):
+            srv_u = cfg.get("transfer", "server_url", "http://127.0.0.1:8000/api/v1")
+            self.entry_settings_server_url.delete(0, "end")
+            self.entry_settings_server_url.insert(0, str(srv_u))
+        self._refresh_logs()
+        self._check_recovery()

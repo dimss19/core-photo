@@ -5,6 +5,7 @@ Re-runnable verification of files on disk, MD5 hashes, DB consistency, and metad
 from pathlib import Path
 from typing import List, Tuple
 
+from config.config_manager import get_config
 from core.logger import get_logger
 from database.models import PhotoModel, PhotoStatus, ValidationResultModel
 from database.repositories import PhotoRepository, ValidationRepository
@@ -21,10 +22,12 @@ class ValidationRunner:
     def __init__(
         self,
         photo_repo: PhotoRepository,
-        validation_repo: ValidationRepository
+        validation_repo: ValidationRepository,
+        config=None,
     ):
         self.photo_repo = photo_repo
         self.validation_repo = validation_repo
+        self.config = config or get_config()
 
     def validate_photo(self, photo_id: int) -> Tuple[bool, List[str]]:
         """Performs rigorous validation on captured photo record."""
@@ -72,6 +75,18 @@ class ValidationRunner:
             calc_md5 = RawHandler.calculate_md5(jpg_path)
             md5_match = (calc_md5 == photo.md5_jpg) if photo.md5_jpg else True
             record_check("JPG_MD5_INTEGRITY", md5_match, "MD5 JPG cocok." if md5_match else "Integritas JPG rusak (MD5 mismatch).")
+
+            # 4b. Max file size validation (PRD / Configured limit, default 10MB)
+            max_mb = float(self.config.get("imaging", "max_photo_size_mb", 10.0))
+            actual_mb = jpg_path.stat().st_size / (1024 * 1024)
+            size_valid = actual_mb <= (max_mb + 0.05)
+            record_check(
+                "MAX_FILE_SIZE",
+                size_valid,
+                f"Ukuran JPG {actual_mb:.2f} MB sesuai batas maksimum ({max_mb:.1f} MB)."
+                if size_valid else
+                f"Ukuran JPG {actual_mb:.2f} MB melebihi batas maksimum {max_mb:.1f} MB."
+            )
 
         # 5. Thumbnail existence
         thumb_path = Path(photo.thumbnail_path) if photo.thumbnail_path else None

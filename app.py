@@ -91,7 +91,7 @@ class CorePhotoApp(ctk.CTk):
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
     def _build_layout(self) -> None:
-        self.grid_columnconfigure(1, weight=1)
+        self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=1)
 
         # =========================================================================
@@ -105,7 +105,7 @@ class CorePhotoApp(ctk.CTk):
             border_width=1,
             border_color=COLOR_BORDER,
         )
-        self.top_bar.grid(row=0, column=0, columnspan=2, sticky="ew")
+        self.top_bar.grid(row=0, column=0, sticky="ew")
         self.top_bar.grid_columnconfigure(1, weight=1)
 
         # Brand / Logo Section (Left)
@@ -134,6 +134,19 @@ class CorePhotoApp(ctk.CTk):
         status_frame = ctk.CTkFrame(self.top_bar, fg_color="transparent")
         status_frame.grid(row=0, column=1, sticky="e", padx=16, pady=6)
 
+        # Back to Camera Capture button (only shown when in Session view)
+        self.top_back_btn = ctk.CTkButton(
+            status_frame,
+            text="← Camera Capture",
+            font=get_font(11, "bold"),
+            height=28,
+            corner_radius=4,
+            fg_color=COLOR_ACCENT,
+            hover_color=COLOR_ACCENT_HOVER,
+            text_color="#FFFFFF",
+            command=lambda: self.navigate_to("capture"),
+        )
+
         # Session status (Interactive button linking to Session Manager & Archive)
         self.top_session_btn = ctk.CTkButton(
             status_frame,
@@ -148,11 +161,11 @@ class CorePhotoApp(ctk.CTk):
             border_color=COLOR_BORDER,
             command=lambda: self.navigate_to("data"),
         )
-        self.top_session_btn.pack(side="left", padx=(0, 16))
+        self.top_session_btn.pack(side="left", padx=(0, 14))
         self.top_session_lbl = self.top_session_btn
 
         # Divider
-        ctk.CTkLabel(status_frame, text="|", font=get_font(11), text_color=COLOR_BORDER_STRONG).pack(side="left", padx=(0, 16))
+        ctk.CTkLabel(status_frame, text="|", font=get_font(11), text_color=COLOR_BORDER_STRONG).pack(side="left", padx=(0, 14))
 
         # Camera status
         self.top_cam_indicator = ctk.CTkLabel(
@@ -161,10 +174,10 @@ class CorePhotoApp(ctk.CTk):
             font=get_font(11, "bold"),
             text_color=COLOR_ERROR,
         )
-        self.top_cam_indicator.pack(side="left", padx=(0, 16))
+        self.top_cam_indicator.pack(side="left", padx=(0, 14))
 
         # Divider
-        ctk.CTkLabel(status_frame, text="|", font=get_font(11), text_color=COLOR_BORDER_STRONG).pack(side="left", padx=(0, 16))
+        ctk.CTkLabel(status_frame, text="|", font=get_font(11), text_color=COLOR_BORDER_STRONG).pack(side="left", padx=(0, 14))
 
         # Storage status
         self.top_storage_lbl = ctk.CTkLabel(
@@ -173,77 +186,37 @@ class CorePhotoApp(ctk.CTk):
             font=get_font(11),
             text_color=COLOR_TEXT_MUTED,
         )
-        self.top_storage_lbl.pack(side="left")
+        self.top_storage_lbl.pack(side="left", padx=(0, 14))
 
-        # =========================================================================
-        # 2. LEFT SIDEBAR (Direct Primary Navigation)
-        # =========================================================================
-        self.sidebar = ctk.CTkFrame(
-            self,
-            width=210,
-            corner_radius=0,
-            fg_color=COLOR_PANEL,
+        # Divider
+        ctk.CTkLabel(status_frame, text="|", font=get_font(11), text_color=COLOR_BORDER_STRONG).pack(side="left", padx=(0, 14))
+
+        # Camera Settings shortcut button
+        self.top_settings_btn = ctk.CTkButton(
+            status_frame,
+            text="⚙ Camera Settings",
+            font=get_font(11, "bold"),
+            height=28,
+            corner_radius=4,
+            fg_color="transparent",
+            hover_color=COLOR_PANEL_ALT,
+            text_color=COLOR_CHARCOAL,
             border_width=1,
             border_color=COLOR_BORDER,
+            command=lambda: self.navigate_to("capture", tab="Camera Settings"),
         )
-        self.sidebar.grid(row=1, column=0, sticky="nsew")
-        self.sidebar.grid_propagate(False)
-        self.sidebar.grid_rowconfigure(1, weight=1)
-        self.sidebar.grid_columnconfigure(0, weight=1)
-
-        # Primary navigation buttons container (clean flat layout, no unnecessary scrollbars)
-        self.sidebar_nav_frame = ctk.CTkFrame(
-            self.sidebar,
-            fg_color="transparent",
-        )
-        self.sidebar_nav_frame.grid(row=0, column=0, sticky="new", padx=10, pady=16)
-        self.sidebar_nav_frame.grid_columnconfigure(0, weight=1)
-
-        nav_items = [
-            ("capture", "Capture"),
-            ("review", "Review"),
-            ("settings", "Settings"),
-        ]
-
-        for route_key, label in nav_items:
-            btn = ctk.CTkButton(
-                self.sidebar_nav_frame,
-                text=label,
-                anchor="w",
-                font=get_font(12, "normal"),
-                height=38,
-                corner_radius=6,
-                fg_color="transparent",
-                text_color=COLOR_TEXT_PRIMARY,
-                hover_color=COLOR_PANEL_ALT,
-                command=lambda r=route_key: self.navigate_to(r),
-            )
-            btn.pack(fill="x", pady=2)
-            self.nav_buttons[route_key] = btn
-
-        # Sidebar footer
-        side_footer = ctk.CTkFrame(self.sidebar, fg_color="transparent")
-        side_footer.grid(row=2, column=0, padx=12, pady=12, sticky="s")
-
-        lbl_version = ctk.CTkLabel(
-            side_footer,
-            text="Core Photo v1.0.0\nIndustrial Edition",
-            font=get_font(10),
-            text_color=COLOR_TEXT_HINT,
-            justify="center",
-        )
-        lbl_version.pack()
+        self.top_settings_btn.pack(side="left")
 
         # =========================================================================
-        # 3. MAIN CONTENT CONTAINER (Off-white industrial canvas)
+        # 2. MAIN CONTENT CONTAINER (Full Width, Off-white industrial canvas)
         # =========================================================================
         self.content_area = ctk.CTkFrame(self, corner_radius=0, fg_color=COLOR_BG)
-        self.content_area.grid(row=1, column=1, sticky="nsew")
+        self.content_area.grid(row=1, column=0, sticky="nsew")
         self.content_area.grid_rowconfigure(0, weight=1)
         self.content_area.grid_columnconfigure(0, weight=1)
 
         # =========================================================================
-        # 4. BOTTOM STATUS BAR (Industrial status & operational metadata)
+        # 3. BOTTOM STATUS BAR (Industrial status & operational metadata)
         # =========================================================================
         self.bottom_bar = ctk.CTkFrame(
             self,
@@ -253,7 +226,7 @@ class CorePhotoApp(ctk.CTk):
             border_width=1,
             border_color=COLOR_BORDER,
         )
-        self.bottom_bar.grid(row=2, column=0, columnspan=2, sticky="ew")
+        self.bottom_bar.grid(row=2, column=0, sticky="ew")
         self.bottom_bar.grid_columnconfigure(1, weight=1)
 
         self.bottom_status_lbl = ctk.CTkLabel(
@@ -321,7 +294,6 @@ class CorePhotoApp(ctk.CTk):
         else:
             effective_route = route
 
-
         # Handle view lifecycle transitions
         if self.current_view_name == "capture" and effective_route != "capture":
             self.views["capture"].stop_view()
@@ -365,6 +337,25 @@ class CorePhotoApp(ctk.CTk):
         """Refreshes status in top bar and bottom status bar."""
         sess = self.ctx.active_session
         is_on_session = (self.current_view_name == "data")
+
+        if hasattr(self, "top_back_btn"):
+            if is_on_session:
+                self.top_back_btn.pack(side="left", padx=(0, 14), before=self.top_session_btn)
+            else:
+                self.top_back_btn.pack_forget()
+
+        if hasattr(self, "top_settings_btn"):
+            is_on_settings = (
+                self.current_view_name == "capture"
+                and hasattr(self.views.get("capture"), "left_tabs")
+                and self.views["capture"].left_tabs.get() == "Camera Settings"
+            )
+            self.top_settings_btn.configure(
+                text_color=COLOR_ACCENT if is_on_settings else COLOR_CHARCOAL,
+                fg_color=COLOR_ACCENT_LIGHT if is_on_settings else "transparent",
+                border_color=COLOR_ACCENT if is_on_settings else COLOR_BORDER,
+            )
+
         if sess:
             self.top_session_btn.configure(
                 text=f"Session: {sess.site}",

@@ -16,6 +16,7 @@ from core.logger import get_logger
 from database.db import DatabaseManager
 from database.models import PhotoModel, SessionModel
 from database.repositories import SessionRepository
+from ui.date_picker import DatePickerModal
 from ui.theme import (
     COLOR_ACCENT,
     COLOR_ACCENT_HOVER,
@@ -225,6 +226,19 @@ class DataHubView(ctk.CTkFrame):
         act_right = ctk.CTkFrame(active_inner, fg_color="transparent")
         act_right.pack(side="right", anchor="e")
 
+        self.btn_back_capture = ctk.CTkButton(
+            act_right,
+            text="← Back to Camera Capture",
+            font=get_font(10, "bold"),
+            height=30,
+            corner_radius=4,
+            fg_color=COLOR_ACCENT,
+            hover_color=COLOR_ACCENT_HOVER,
+            text_color="#FFFFFF",
+            command=lambda: self.navigate_fn("capture"),
+        )
+        self.btn_back_capture.pack(side="left", padx=4)
+
         self.btn_edit_active = ctk.CTkButton(
             act_right,
             text="Edit Session",
@@ -285,9 +299,28 @@ class DataHubView(ctk.CTkFrame):
         self.entry_operator.pack(fill="x", padx=16, pady=(0, 6))
 
         ctk.CTkLabel(new_card, text="Date (YYYYMMDD) *", font=get_font(10, "bold"), text_color=COLOR_TEXT_PRIMARY).pack(anchor="w", padx=16, pady=(2, 1))
-        self.entry_date = ctk.CTkEntry(new_card, height=32, font=get_font(11))
+        f_hub_date = ctk.CTkFrame(new_card, fg_color="transparent")
+        f_hub_date.pack(fill="x", padx=16, pady=(0, 12))
+        f_hub_date.grid_columnconfigure(0, weight=1)
+
+        self.entry_date = ctk.CTkEntry(f_hub_date, height=32, font=get_font(11))
         self.entry_date.insert(0, datetime.now().strftime("%Y%m%d"))
-        self.entry_date.pack(fill="x", padx=16, pady=(0, 12))
+        self.entry_date.grid(row=0, column=0, sticky="ew")
+
+        btn_hub_pick_date = ctk.CTkButton(
+            f_hub_date,
+            text="📅",
+            width=32,
+            height=32,
+            font=get_font(12),
+            fg_color=COLOR_PANEL_ALT,
+            hover_color=COLOR_BORDER,
+            text_color=COLOR_CHARCOAL,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            command=self._on_pick_new_session_date,
+        )
+        btn_hub_pick_date.grid(row=0, column=1, padx=(6, 0))
 
         self.btn_create_session = ctk.CTkButton(
             new_card,
@@ -648,3 +681,13 @@ class DataHubView(ctk.CTkFrame):
                 os.startfile(str(out_path))
             except Exception:
                 pass
+
+    def _on_pick_new_session_date(self) -> None:
+        """Opens popup calendar for new session date."""
+        cur = self.entry_date.get().strip() if hasattr(self, "entry_date") else ""
+        def on_chosen(dt_str: str) -> None:
+            if hasattr(self, "entry_date"):
+                self.entry_date.delete(0, "end")
+                self.entry_date.insert(0, dt_str)
+        DatePickerModal(self, initial_date=cur, on_select=on_chosen)
+

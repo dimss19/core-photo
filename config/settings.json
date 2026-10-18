@@ -11,7 +11,7 @@
     "backup_dir": "CorePhotoData/Backup",
     "logs_dir": "CorePhotoData/Logs",
     "sessions_dir": "CorePhotoData/Sessions",
-    "server_folder": "C:\\Users\\User\\AppData\\Local\\Temp\\pytest-of-User\\pytest-10\\test_settings_view_server_fold0\\UpdatedSettingsServer"
+    "server_folder": ""
   },
   "camera": {
     "default_adapter": "webcam",
@@ -32,6 +32,7 @@
     "crop_width": 300,
     "crop_height": 200,
     "jpg_quality": 95,
+    "max_photo_size_mb": 10.0,
     "thumbnail_size": [
       150,
       100
@@ -45,7 +46,7 @@
   },
   "transfer": {
     "server_url": "http://127.0.0.1:8000/api/v1",
-    "server_folder": "C:\\Users\\User\\AppData\\Local\\Temp\\pytest-of-User\\pytest-10\\test_settings_view_server_fold0\\UpdatedSettingsServer",
+    "server_folder": "",
     "api_key": "",
     "timeout_seconds": 30,
     "max_retries": 3,

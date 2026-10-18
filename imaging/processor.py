@@ -141,16 +141,46 @@ class ImageProcessor:
                 timestamp_str=display_timestamp,
             )
 
-            # 5. Save JPG
+            # 5. Save JPG with max photo size enforcement (PRD & User Config: default 10MB)
             jpg_file = session_paths.jpg_dir / f"{filename_base}.jpg"
-            jpg_quality = self.config.get("imaging", "jpg_quality", 95)
-            slated_img.save(str(jpg_file), "JPEG", quality=jpg_quality, optimize=True)
+            initial_quality = int(self.config.get("imaging", "jpg_quality", 95))
+            max_size_mb = float(self.config.get("imaging", "max_photo_size_mb", 10.0))
+            max_bytes = int(max_size_mb * 1024 * 1024)
+
+            current_quality = initial_quality
+            current_img = slated_img
+            current_img.save(str(jpg_file), "JPEG", quality=current_quality, optimize=True)
+
+            # Progressive compression if size exceeds configured maximum
+            if max_bytes > 0 and jpg_file.stat().st_size > max_bytes:
+                # Step 1: reduce JPEG quality down to 35
+                while jpg_file.stat().st_size > max_bytes and current_quality > 35:
+                    current_quality -= 5
+                    current_img.save(str(jpg_file), "JPEG", quality=current_quality, optimize=True)
+                    logger.debug(
+                        "Compressing %s to fit max size (%.2f MB): quality=%d, size=%.2f MB",
+                        jpg_file.name, max_size_mb, current_quality, jpg_file.stat().st_size / (1024 * 1024)
+                    )
+
+                # Step 2: if still exceeding max_bytes, downscale dimensions gradually
+                while jpg_file.stat().st_size > max_bytes and current_img.width > 600:
+                    nw = int(current_img.width * 0.9)
+                    nh = int(current_img.height * 0.9)
+                    current_img = current_img.resize((nw, nh), Image.Resampling.LANCZOS)
+                    current_img.save(str(jpg_file), "JPEG", quality=current_quality, optimize=True)
+                    logger.debug(
+                        "Downscaling %s to fit max size (%.2f MB): %dx%d, size=%.2f MB",
+                        jpg_file.name, max_size_mb, nw, nh, jpg_file.stat().st_size / (1024 * 1024)
+                    )
+
+            photo.crop_w = current_img.width
+            photo.crop_h = current_img.height
             md5_jpg = RawHandler.calculate_md5(jpg_file)
 
             # 6. Generate Thumbnail
             thumb_file = session_paths.thumbnail_dir / f"{filename_base}_thumb.jpg"
             thumb_size = tuple(self.config.get("imaging", "thumbnail_size", [150, 100]))
-            ThumbnailGenerator.generate(slated_img, thumb_file, size=thumb_size)
+            ThumbnailGenerator.generate(current_img, thumb_file, size=thumb_size)
 
             # 7. Write complete metadata sidecar (PRD Section 16)
             metadata = {
@@ -181,6 +211,8 @@ class ImageProcessor:
                 },
                 "camera_model": photo.camera_model,
                 "camera_serial": photo.camera_serial,
+                "max_size_mb": max_size_mb,
+                "file_size_bytes": jpg_file.stat().st_size,
                 "processing_version": "1.0",
                 "application_version": self.config.get("app", "version", "1.0.0"),
             }

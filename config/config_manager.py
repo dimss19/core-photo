@@ -53,6 +53,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "crop_width": 300,
         "crop_height": 200,
         "jpg_quality": 95,
+        "max_photo_size_mb": 10.0,
         "thumbnail_size": [150, 100],
         "preserve_raw": True
     },
