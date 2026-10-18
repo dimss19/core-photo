@@ -157,6 +157,51 @@ class SettingsView(ctk.CTkFrame):
         )
         btn_reconnect.pack(side="left")
 
+        # Physical Webcam Device Selector (Internal vs External USB)
+        webcam_box = ctk.CTkFrame(cam_box, fg_color=COLOR_PANEL_ALT, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
+        webcam_box.pack(fill="x", padx=16, pady=(0, 8))
+        webcam_box.grid_columnconfigure(1, weight=1)
+        ctk.CTkLabel(webcam_box, text="Physical Webcam Device (Internal / External USB):", font=get_font(11, "bold"), text_color=COLOR_CHARCOAL).grid(row=0, column=0, columnspan=3, sticky="w", padx=14, pady=(10, 2))
+        ctk.CTkLabel(webcam_box, text="Pilih webcam internal laptop atau external USB. Berlaku untuk mode Physical USB / Webcam.", font=get_font(10), text_color=COLOR_TEXT_MUTED).grid(row=1, column=0, columnspan=3, sticky="w", padx=14, pady=(0, 4))
+        ctk.CTkLabel(webcam_box, text="Webcam Device:", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).grid(row=2, column=0, sticky="w", padx=(14, 8), pady=3)
+        f_webcam = ctk.CTkFrame(webcam_box, fg_color="transparent")
+        f_webcam.grid(row=2, column=1, columnspan=2, sticky="ew", padx=(0, 14), pady=3)
+        f_webcam.grid_columnconfigure(0, weight=1)
+        self._webcam_display_to_index = {}
+        self.opt_settings_webcam = ctk.CTkOptionMenu(
+            f_webcam,
+            values=["Scanning webcams..."],
+            command=self._on_settings_webcam_changed,
+            height=28,
+            font=get_font(10),
+            fg_color=COLOR_PANEL,
+            text_color=COLOR_CHARCOAL,
+            button_color=COLOR_BORDER,
+            button_hover_color=COLOR_BORDER_STRONG,
+        )
+        self.opt_settings_webcam.grid(row=0, column=0, sticky="ew", padx=(0, 6))
+        self.btn_settings_webcam_refresh = ctk.CTkButton(
+            f_webcam,
+            text="Refresh",
+            width=80,
+            height=28,
+            font=get_font(10, "bold"),
+            fg_color=COLOR_PANEL,
+            hover_color=COLOR_BORDER,
+            text_color=COLOR_CHARCOAL,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            command=self._on_refresh_settings_webcam,
+        )
+        self.btn_settings_webcam_refresh.grid(row=0, column=1, sticky="e")
+        self.lbl_settings_webcam_hint = ctk.CTkLabel(
+            webcam_box,
+            text="",
+            font=get_font(10),
+            text_color=COLOR_TEXT_MUTED,
+        )
+        self.lbl_settings_webcam_hint.grid(row=3, column=0, columnspan=3, sticky="w", padx=14, pady=(0, 8))
+
         # Wi-Fi DSLR Tethering Configuration Card
         wifi_box = ctk.CTkFrame(cam_box, fg_color=COLOR_PANEL_ALT, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
         wifi_box.pack(fill="x", padx=16, pady=(0, 8))
@@ -654,18 +699,28 @@ class SettingsView(ctk.CTkFrame):
                     self.entry_cam_tether_folder.delete(0, "end")
                     self.entry_cam_tether_folder.insert(0, str(discovered))
 
-        # Synchronize adapter dropdown with active adapter
+        # Synchronize adapter dropdown with active adapter + webcam list
+        try:
+            self._refresh_settings_webcam_list()
+        except Exception:
+            pass
         active_adapter = getattr(self.ctx.camera_manager, "_active_adapter", None)
         if hasattr(self, "opt_adapter_mode") and active_adapter:
             from camera.adapters.wifi_dslr import WiFiDslrAdapter
             from camera.adapters.direct_usb import DirectUsbAdapter
             from camera.adapters.hot_folder import HotFolderAdapter
+            from camera.adapters.webcam import WebcamAdapter
             if isinstance(active_adapter, WiFiDslrAdapter):
                 self.opt_adapter_mode.set("Wi-Fi DSLR Wireless Tethering (Canon / Nikon / Sony)")
             elif isinstance(active_adapter, DirectUsbAdapter):
                 self.opt_adapter_mode.set("Direct USB DSLR (Canon/Nikon/Sony)")
             elif isinstance(active_adapter, HotFolderAdapter):
                 self.opt_adapter_mode.set("Universal Hot-Folder (All DSLRs)")
+            elif isinstance(active_adapter, WebcamAdapter):
+                if getattr(active_adapter, "_is_simulated", False):
+                    self.opt_adapter_mode.set("Standby / Simulator")
+                else:
+                    self.opt_adapter_mode.set("Physical USB / Webcam")
 
         # Update Storage & Server Configuration fields
         if hasattr(self, "entry_settings_server_folder"):
@@ -746,12 +801,110 @@ class SettingsView(ctk.CTkFrame):
         else:
             cfg.set("camera", "default_adapter", "webcam")
             cfg.save()
-            self.ctx.camera_manager.connect_camera("webcam", "0")
+            device_id = self._parse_settings_webcam_index(
+                self.opt_settings_webcam.get() if hasattr(self, "opt_settings_webcam") else None
+            )
+            self.ctx.camera_manager.connect_camera("webcam", device_id)
             if self.ctx.camera_manager.is_ready():
-                self.lbl_cam_feedback.configure(text="✓ Physical USB Camera connected.", text_color=COLOR_SUCCESS)
+                info = self.ctx.camera_manager.get_info()
+                self.lbl_cam_feedback.configure(
+                    text=f"✓ Physical USB Camera connected: {info.model if info else device_id}.",
+                    text_color=COLOR_SUCCESS,
+                )
             else:
-                self.lbl_cam_feedback.configure(text="✕ No physical video camera detected on USB index 0.", text_color=COLOR_ERROR)
+                self.lbl_cam_feedback.configure(text=f"✕ No physical video camera detected on USB index {device_id}.", text_color=COLOR_ERROR)
         self.refresh()
+
+    def _parse_settings_webcam_index(self, choice=None) -> str:
+        """Parses Settings webcam selector back to device id."""
+        if choice:
+            mapped = getattr(self, "_webcam_display_to_index", {}).get(choice)
+            if mapped is not None:
+                return str(mapped)
+            import re
+            m = re.search(r"Index\s+(\d+)", choice)
+            if m:
+                return m.group(1)
+        try:
+            return str(self.ctx.camera_manager.get_preferred_webcam_index())
+        except Exception:
+            return "0"
+
+    def _refresh_settings_webcam_list(self) -> None:
+        """Enumerates webcams for Settings selector (no auto-connect)."""
+        if not hasattr(self, "opt_settings_webcam"):
+            return
+        try:
+            devices = self.ctx.camera_manager.list_webcam_devices()
+        except Exception:
+            devices = []
+        self._webcam_display_to_index = {}
+        values: list = []
+        for dev in devices:
+            label = dev.get("name") or f"Webcam Index {dev.get('index')}"
+            values.append(label)
+            self._webcam_display_to_index[label] = dev.get("index")
+        values.append("Simulator (Standby)")
+        self._webcam_display_to_index["Simulator (Standby)"] = "sim"
+        try:
+            self.opt_settings_webcam.configure(values=values)
+        except Exception:
+            pass
+        try:
+            active = getattr(self.ctx.camera_manager, "_active_adapter", None)
+            cur = None
+            if active is not None and active.__class__.__name__ == "WebcamAdapter" \
+                    and not getattr(active, "_is_simulated", False):
+                cur = getattr(active, "device_index", None)
+            else:
+                cur = self.ctx.camera_manager.get_preferred_webcam_index()
+            selected = None
+            for label, idx in self._webcam_display_to_index.items():
+                if str(idx) == str(cur):
+                    selected = label
+                    break
+            if selected is None and values:
+                selected = values[0]
+            if selected:
+                self.opt_settings_webcam.set(selected)
+        except Exception:
+            pass
+        if hasattr(self, "lbl_settings_webcam_hint"):
+            if devices:
+                self.lbl_settings_webcam_hint.configure(
+                    text=f"{len(devices)} webcam terdeteksi — pilih lalu klik Detect Camera."
+                )
+            else:
+                self.lbl_settings_webcam_hint.configure(
+                    text="Tidak ada webcam fisik terdeteksi."
+                )
+
+    def _on_refresh_settings_webcam(self) -> None:
+        self._refresh_settings_webcam_list()
+        self.lbl_cam_feedback.configure(
+            text="Daftar webcam diperbarui.",
+            text_color=COLOR_TEXT_MUTED,
+        )
+
+    def _on_settings_webcam_changed(self, choice: str) -> None:
+        """User picked webcam in Settings: switch immediately if in webcam mode."""
+        try:
+            cur_mode = self.opt_adapter_mode.get() if hasattr(self, "opt_adapter_mode") else "Physical USB / Webcam"
+        except Exception:
+            cur_mode = "Physical USB / Webcam"
+        if "Physical" in cur_mode or "Webcam" in cur_mode:
+            self._on_adapter_mode_changed(cur_mode)
+        else:
+            # Just persist preference for next time
+            try:
+                from config.config_manager import get_config
+                cfg = getattr(self.ctx, "config", None) or get_config()
+                device_id = self._parse_settings_webcam_index(choice)
+                if device_id != "sim":
+                    cfg.set("camera", "preferred_index", int(device_id))
+                    cfg.set("camera", "device_id", str(device_id))
+            except Exception:
+                pass
 
     def _on_test_wifi_ip(self) -> None:
         """Tests Wi-Fi connectivity to camera IP."""

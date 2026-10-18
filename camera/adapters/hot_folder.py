@@ -166,7 +166,31 @@ class HotFolderAdapter(AbstractCameraAdapter):
 
     def connect(self, device_id: Any = None) -> bool:
         if device_id and str(device_id).strip():
-            self.watch_dir = Path(str(device_id).strip())
+            dev = str(device_id).strip()
+            low = dev.lower()
+            # FIX: ignore generic aliases / numeric webcam indices mistakenly
+            # passed as folder (e.g. "2", "0", "hot_folder"). Otherwise a stray
+            # relative folder like "./2" would be created and watched.
+            _generic = {
+                "hot_folder", "hotfolder", "hot-folder",
+                "default", "none", "auto",
+                "wifi_dslr", "wifi", "dslr_wifi", "tether",
+                "direct_usb", "direct", "ptp",
+                "webcam", "sim", "simulator", "sample",
+            }
+            if low not in _generic and not dev.isdigit():
+                # Only treat as folder when it looks like a real path to
+                # avoid creating stray single-char folders.
+                looks_like_path = (
+                    Path(dev).is_absolute()
+                    or ("/" in dev)
+                    or ("\\" in dev)
+                    or (len(dev) > 1 and dev[1] == ":")
+                    or Path(dev).exists()
+                    or (len(dev) > 3)
+                )
+                if looks_like_path:
+                    self.watch_dir = Path(dev)
 
         self._state = CameraState.CONNECTING
         logger.info("Connecting Universal Hot-Folder Adapter at: %s", self.watch_dir)

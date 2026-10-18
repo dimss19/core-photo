@@ -126,7 +126,9 @@ class WebcamAdapter(AbstractCameraAdapter):
             self._cap = cap
             self._is_simulated = False
             self._state = CameraState.READY
-            self._info.model = f"USB Video Device (Index {self.device_index})"
+            kind = "Integrated Webcam" if self.device_index == 0 else "External USB Webcam"
+            self._info.model = f"{kind} (Index {self.device_index}, {actual_w}x{actual_h})"
+            self._info.serial_number = f"USB-VIDEO-{self.device_index}"
             return True
         except Exception as e:
             logger.error("Failed to connect to webcam: %s. Enabling simulation mode.", e)

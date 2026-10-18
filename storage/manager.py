@@ -6,6 +6,7 @@ Includes security checks against path traversal and disk space verification.
 import os
 import re
 import shutil
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
@@ -29,6 +30,19 @@ class SessionPaths:
         return self.session_dir.exists()
 
 
+def _resolve_base(cfg_base: str) -> Path:
+    """Resolves the storage base dir.
+
+    Anchored relative to the executable when running as a frozen exe so the
+    portable build keeps its data next to itself regardless of the working
+    directory the app is launched from.
+    """
+    path = Path(cfg_base)
+    if not path.is_absolute() and getattr(sys, "frozen", False):
+        return (Path(sys.executable).resolve().parent / path).resolve()
+    return path.resolve()
+
+
 class StorageManager:
     """Central manager for disk paths, session directories, and disk capacity checks."""
 
@@ -36,7 +50,7 @@ class StorageManager:
         if base_dir is None:
             config = get_config()
             cfg_base = config.get("storage", "base_dir", "CorePhotoData")
-            self.base_dir = Path(cfg_base).resolve()
+            self.base_dir = _resolve_base(cfg_base)
         else:
             self.base_dir = Path(base_dir).resolve()
 

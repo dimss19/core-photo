@@ -56,6 +56,127 @@ class CameraManager:
         """Tests whether camera is reachable over Wi-Fi network."""
         return WiFiDslrAdapter.test_ip_reachability(ip, port)
 
+    _windows_camera_names_cache: Optional[List[str]] = None
+
+    @classmethod
+    def get_windows_camera_friendly_names(cls) -> List[str]:
+        """Returns Windows PnP friendly names for Camera class (best-effort).
+
+        Example: ['USB2.0 HD UVC WebCam', 'EOS Webcam Utility'].
+        Cached per-process; never raises.
+        """
+        if cls._windows_camera_names_cache is not None:
+            return cls._windows_camera_names_cache
+        names: List[str] = []
+        try:
+            import subprocess
+            ps = (
+                "Get-PnpDevice -Class Camera -Status OK "
+                "| Select-Object -ExpandProperty FriendlyName"
+            )
+            out = subprocess.run(
+                ["powershell", "-NoProfile", "-Command", ps],
+                capture_output=True, text=True, timeout=6,
+            )
+            if out.returncode == 0 and out.stdout:
+                for line in out.stdout.splitlines():
+                    s = line.strip()
+                    if s and s.lower() != "friendlyname":
+                        names.append(s)
+        except Exception as e:
+            logger.debug("Windows camera friendly-name query failed: %s", e)
+        cls._windows_camera_names_cache = names
+        return names
+
+    def list_webcam_devices(self, max_index: int = 8) -> List[Dict[str, Any]]:
+        """Enumerates physical UVC/DirectShow webcams with real resolution.
+
+        Returns list of dicts: index, id, name, adapter='webcam',
+        width, height, fps, backend, supported, status.
+        Index 0 is labelled Integrated/Primary, index >= 1 External USB.
+        Never raises; returns [] when OpenCV is missing.
+        """
+        devices: List[Dict[str, Any]] = []
+        try:
+            import cv2
+        except ImportError as e:
+            logger.debug("OpenCV missing, cannot enumerate webcams: %s", e)
+            return devices
+
+        friendly = self.get_windows_camera_friendly_names()
+        consecutive_miss = 0
+        for idx in range(max(1, max_index)):
+            try:
+                cap = cv2.VideoCapture(idx, cv2.CAP_DSHOW)
+            except Exception as e:
+                logger.debug("Webcam index %d open exception: %s", idx, e)
+                consecutive_miss += 1
+                if consecutive_miss >= 2:
+                    break
+                continue
+            try:
+                if not cap.isOpened():
+                    consecutive_miss += 1
+                    if consecutive_miss >= 2:
+                        break
+                    continue
+                consecutive_miss = 0
+                w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 0)
+                h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0)
+                fps = float(cap.get(cv2.CAP_PROP_FPS) or 0.0)
+                try:
+                    ret, frame = cap.read()
+                    if ret and frame is not None and len(frame.shape) >= 2:
+                        fh, fw = int(frame.shape[0]), int(frame.shape[1])
+                        if fw > 0 and fh > 0:
+                            w, h = fw, fh
+                except Exception:
+                    pass
+                if w <= 0:
+                    w = 640
+                if h <= 0:
+                    h = 480
+                try:
+                    backend = str(cap.getBackendName())
+                except Exception:
+                    backend = "DSHOW"
+                kind = "Integrated / Primary" if idx == 0 else "External USB"
+                base = f"{kind} Webcam — Index {idx} ({w}x{h})"
+                # Attach Windows friendly name when count matches, else as hint
+                extra = ""
+                if friendly:
+                    if len(friendly) > idx:
+                        extra = f" [{friendly[idx]}]"
+                    elif idx == 0:
+                        extra = f" [{friendly[0]}]"
+                devices.append({
+                    "index": idx,
+                    "id": str(idx),
+                    "name": base + extra,
+                    "adapter": "webcam",
+                    "width": w,
+                    "height": h,
+                    "fps": fps,
+                    "backend": backend,
+                    "supported": True,
+                    "status": "Ready",
+                })
+            finally:
+                try:
+                    cap.release()
+                except Exception:
+                    pass
+        return devices
+
+    def get_preferred_webcam_index(self) -> int:
+        """Returns configured preferred webcam index (default 0)."""
+        try:
+            from config.config_manager import get_config
+            cfg = get_config()
+            return int(cfg.get("camera", "preferred_index", 0))
+        except Exception:
+            return 0
+
     def detect_cameras(self) -> List[Dict[str, Any]]:
         """Scans system for available camera devices (PRD Section 8)."""
         available: List[Dict[str, Any]] = []
@@ -87,20 +208,18 @@ class CameraManager:
             "status": "Ready"
         })
 
-        # 4. Check default webcam / UVC DirectShow adapter indices
+        # 4. Physical UVC / DirectShow webcams (integrated + external USB)
         try:
-            import cv2
-            for idx in range(3):
-                cap = cv2.VideoCapture(idx, cv2.CAP_DSHOW)
-                if cap.isOpened():
-                    available.append({
-                        "id": str(idx),
-                        "name": f"USB Video Camera {idx}",
-                        "adapter": "webcam",
-                        "supported": True,
-                        "status": "Ready"
-                    })
-                    cap.release()
+            for dev in self.list_webcam_devices():
+                available.append({
+                    "id": dev["id"],
+                    "name": dev["name"],
+                    "adapter": "webcam",
+                    "supported": True,
+                    "status": "Ready",
+                    "width": dev.get("width"),
+                    "height": dev.get("height"),
+                })
         except Exception as e:
             logger.debug("Hardware camera scan exception: %s", e)
 
@@ -130,11 +249,82 @@ class CameraManager:
             adapter_name = "direct_usb"
 
         adapter_cls = self._registered_adapters.get(adapter_name.lower(), WebcamAdapter)
+
+        # FIX: jangan teruskan index numerik basi (mis. "2") sebagai folder
+        # Hot-Folder. Biarkan adapter memakai watch_dir default / terkonfigurasi.
+        if adapter_cls is HotFolderAdapter:
+            dev_s = str(device_id).strip() if device_id is not None else ""
+            low_s = dev_s.lower()
+            if not dev_s or low_s in ("hot_folder", "hotfolder", "default", "none", "auto") or dev_s.isdigit():
+                try:
+                    from config.config_manager import get_config as _get_cfg
+                    _cfg = _get_cfg()
+                    _t = str(_cfg.get("camera", "tether_folder", "") or "").strip()
+                    # tether_folder milik mode Wi-Fi; hanya pakai bila berupa path valid
+                    if _t and ("/" in _t or "\\" in _t or (_t[1:2] == ":" if len(_t) > 1 else False)):
+                        from pathlib import Path as _P
+                        if _P(_t).exists() or len(_t) > 3:
+                            device_id = _t
+                        else:
+                            device_id = None
+                    else:
+                        # Coba folder HotFolder standar di bawah storage base
+                        try:
+                            from pathlib import Path as _P2
+                            _base = str(_cfg.get("storage", "base_dir", "CorePhotoData") or "CorePhotoData")
+                            device_id = str(_P2(_base) / "HotFolder")
+                        except Exception:
+                            device_id = None
+                except Exception:
+                    device_id = None
+
         adapter = adapter_cls()
         success = adapter.connect(device_id)
+        # FIX: fallback webcam bila index basi (mis. external index 2 sudah
+        # dicabut tapi config masih menunjuk ke sana). Cari index fisik lain
+        # yang benar-benar bisa dibuka sebelum menyerah ke standby.
+        if success and adapter_cls is WebcamAdapter:
+            try:
+                _req = str(device_id).lower() if device_id is not None else "0"
+                _is_sim_req = _req in ("sim", "simulator", "sample")
+                if not _is_sim_req and getattr(adapter, "_is_simulated", False):
+                    _alternatives: list = []
+                    try:
+                        for _dev in self.list_webcam_devices():
+                            _idx = str(_dev.get("index", _dev.get("id")))
+                            if _idx != str(device_id):
+                                _alternatives.append(_idx)
+                    except Exception:
+                        pass
+                    if str(device_id) != "0" and "0" not in _alternatives:
+                        _alternatives.append("0")
+                    for _fid in _alternatives:
+                        try:
+                            _alt = WebcamAdapter()
+                            if _alt.connect(_fid):
+                                if not getattr(_alt, "_is_simulated", False):
+                                    try:
+                                        adapter.disconnect()
+                                    except Exception:
+                                        pass
+                                    adapter = _alt
+                                    device_id = _fid
+                                    logger.info(
+                                        "Webcam index %s unavailable, auto-fallback to working index %s",
+                                        _req, _fid,
+                                    )
+                                    break
+                                try:
+                                    _alt.disconnect()
+                                except Exception:
+                                    pass
+                        except Exception:
+                            continue
+            except Exception as _fb_e:
+                logger.debug("Webcam auto-fallback exception: %s", _fb_e)
         if success:
             self._active_adapter = adapter
-            # Apply configured camera resolution
+            # Apply configured camera resolution + persist webcam selection
             try:
                 from config.config_manager import get_config
                 cfg = get_config()
@@ -143,6 +333,15 @@ class CameraManager:
                 if isinstance(res, (list, tuple)) and len(res) == 2:
                     adapter.set_setting("resolution", (int(res[0]), int(res[1])))
                 adapter.set_setting("resolution_mode", res_mode)
+                if adapter_cls is WebcamAdapter:
+                    try:
+                        idx = int(str(device_id))
+                        cfg.set("camera", "preferred_index", idx)
+                        cfg.set("camera", "device_id", str(device_id))
+                        cfg.set("camera", "default_adapter", "webcam")
+                    except (ValueError, TypeError):
+                        # 'sim' simulator or non-numeric id: don't overwrite index
+                        pass
             except Exception as ex:
                 logger.debug("Could not apply initial resolution config: %s", ex)
 

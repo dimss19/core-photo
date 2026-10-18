@@ -11,10 +11,10 @@
     "backup_dir": "CorePhotoData/Backup",
     "logs_dir": "CorePhotoData/Logs",
     "sessions_dir": "CorePhotoData/Sessions",
-    "server_folder": "C:\\Users\\acer\\AppData\\Local\\Temp\\pytest-of-acer\\pytest-5\\test_settings_view_server_fold0\\UpdatedSettingsServer"
+    "server_folder": "C:\\Users\\User\\AppData\\Local\\Temp\\pytest-of-User\\pytest-10\\test_settings_view_server_fold0\\UpdatedSettingsServer"
   },
   "camera": {
-    "default_adapter": "wifi_dslr",
+    "default_adapter": "webcam",
     "connection_type": "wifi_dslr",
     "wifi_ip": "192.168.1.120",
     "wifi_port": 15740,
@@ -25,7 +25,8 @@
       3456
     ],
     "resolution_mode": "best_native",
-    "fps": 30
+    "fps": 30,
+    "device_id": "0"
   },
   "imaging": {
     "crop_width": 300,
@@ -44,7 +45,7 @@
   },
   "transfer": {
     "server_url": "http://127.0.0.1:8000/api/v1",
-    "server_folder": "C:\\Users\\acer\\AppData\\Local\\Temp\\pytest-of-acer\\pytest-5\\test_settings_view_server_fold0\\UpdatedSettingsServer",
+    "server_folder": "C:\\Users\\User\\AppData\\Local\\Temp\\pytest-of-User\\pytest-10\\test_settings_view_server_fold0\\UpdatedSettingsServer",
     "api_key": "",
     "timeout_seconds": 30,
     "max_retries": 3,

@@ -334,7 +334,9 @@ class CaptureView(ctk.CTkFrame):
             values=[
                 "Wi-Fi DSLR Wireless Tethering",
                 "Direct USB DSLR (Cable)",
+                "Universal Hot-Folder Ingest",
                 "Physical USB Webcam",
+                "Standby / Simulator",
             ],
             height=26,
             font=get_font(10),
@@ -347,6 +349,50 @@ class CaptureView(ctk.CTkFrame):
             command=self._on_capture_interface_changed,
         )
         self.opt_capture_interface.pack(fill="x", padx=12, pady=(0, 6))
+
+        # Webcam Device Selector (Internal vs External USB)
+        ctk.CTkLabel(dev_box, text="Webcam Device (Internal / External):", font=get_font(10, "bold"), text_color=COLOR_TEXT_MUTED).pack(anchor="w", padx=14, pady=(2, 1))
+        webcam_row = ctk.CTkFrame(dev_box, fg_color="transparent")
+        webcam_row.pack(fill="x", padx=12, pady=(0, 2))
+        webcam_row.grid_columnconfigure(0, weight=1)
+        self._webcam_display_to_index: dict = {}
+        self.opt_webcam_device = ctk.CTkOptionMenu(
+            webcam_row,
+            values=["Scanning webcams..."],
+            height=26,
+            font=get_font(10),
+            fg_color=COLOR_PANEL,
+            text_color=COLOR_CHARCOAL,
+            button_color=COLOR_BORDER,
+            button_hover_color=COLOR_BORDER_STRONG,
+            dropdown_fg_color=COLOR_PANEL,
+            dropdown_text_color=COLOR_CHARCOAL,
+            command=self._on_webcam_device_changed,
+        )
+        self.opt_webcam_device.grid(row=0, column=0, sticky="ew", padx=(0, 6))
+        self.btn_webcam_refresh = ctk.CTkButton(
+            webcam_row,
+            text="Refresh",
+            width=70,
+            height=26,
+            font=get_font(10, "bold"),
+            fg_color=COLOR_PANEL,
+            hover_color=COLOR_BORDER,
+            text_color=COLOR_CHARCOAL,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            command=self._on_refresh_webcam_list,
+        )
+        self.btn_webcam_refresh.grid(row=0, column=1, sticky="e")
+        self.lbl_webcam_hint = ctk.CTkLabel(
+            dev_box,
+            text="Pilih webcam internal atau external, lalu live view mengikuti otomatis.",
+            font=get_font(9),
+            text_color=COLOR_TEXT_MUTED,
+            wraplength=280,
+            justify="left",
+        )
+        self.lbl_webcam_hint.pack(anchor="w", padx=14, pady=(0, 6))
 
         self.lbl_dev_model = ctk.CTkLabel(dev_box, text="Model: Wi-Fi DSLR Tethering", font=get_font(11), text_color=COLOR_TEXT_PRIMARY)
         self.lbl_dev_model.pack(anchor="w", padx=16, pady=1)
@@ -1025,9 +1071,17 @@ class CaptureView(ctk.CTkFrame):
             self.lbl_series_space.configure(text=f"{free_mb:.0f} MB free")
 
         self._evaluate_preflight()
+        try:
+            self._refresh_webcam_list()
+        except Exception:
+            pass
         self._refresh_cam_info()
         self._update_left_tab_styles()
-        self.ctx.camera_manager.start_live_view()
+        # NOTE (fix koneksi): jangan panggil start_live_view() lagi di sini.
+        # subscribe_live_frames() di atas sudah memulai distribusi live dengan
+        # callback ctx._on_live_frame. Panggilan ekstra tanpa callback akan
+        # menimpa callback menjadi None pada HotFolder/Direct/WiFi sehingga
+        # live view membeku (terlihat tidak connect).
 
     def _on_left_tab_changed(self) -> None:
         self._update_left_tab_styles()
@@ -1076,14 +1130,186 @@ class CaptureView(ctk.CTkFrame):
             text_color=COLOR_SUCCESS,
         )
 
+    def _parse_webcam_index(self, choice: str) -> str:
+        """Parses webcam OptionMenu display string back to device id ('0'..'N' or 'sim')."""
+        if not choice:
+            return str(self.ctx.camera_manager.get_preferred_webcam_index())
+        if "Simulator" in choice or "Standby" in choice or "Sample Feed" in choice:
+            return "sim"
+        mapped = getattr(self, "_webcam_display_to_index", {}).get(choice)
+        if mapped is not None:
+            return str(mapped)
+        import re
+        m = re.search(r"Index\s+(\d+)", choice)
+        if m:
+            return m.group(1)
+        m2 = re.search(r"^\s*(\d+)\s*$", choice)
+        if m2:
+            return m2.group(1)
+        return str(self.ctx.camera_manager.get_preferred_webcam_index())
+
+    def _refresh_webcam_list(self) -> None:
+        """Re-enumerates physical webcams and repopulates the device selector."""
+        if not hasattr(self, "opt_webcam_device"):
+            return
+        try:
+            devices = self.ctx.camera_manager.list_webcam_devices()
+        except Exception as e:
+            logger.debug("Webcam enumeration failed: %s", e)
+            devices = []
+        self._webcam_display_to_index = {}
+        values: list = []
+        for dev in devices:
+            label = dev.get("name") or f"Webcam Index {dev.get('index')}"
+            values.append(label)
+            self._webcam_display_to_index[label] = dev.get("index")
+        values.append("Simulator (Standby Sample Feed)")
+        self._webcam_display_to_index["Simulator (Standby Sample Feed)"] = "sim"
+        try:
+            self.opt_webcam_device.configure(values=values)
+        except Exception:
+            pass
+        # Select current / preferred device
+        try:
+            active = getattr(self.ctx.camera_manager, "_active_adapter", None)
+            cur_idx: object = None
+            if active is not None and getattr(active, "device_index", None) is not None \
+                    and active.__class__.__name__ == "WebcamAdapter" \
+                    and not getattr(active, "_is_simulated", False):
+                cur_idx = active.device_index
+            else:
+                cur_idx = self.ctx.camera_manager.get_preferred_webcam_index()
+            selected = None
+            for label, idx in self._webcam_display_to_index.items():
+                if str(idx) == str(cur_idx):
+                    selected = label
+                    break
+            if selected is None and values:
+                selected = values[0]
+            if selected:
+                self.opt_webcam_device.set(selected)
+        except Exception:
+            pass
+        if hasattr(self, "lbl_webcam_hint"):
+            if devices:
+                self.lbl_webcam_hint.configure(
+                    text=f"{len(devices)} webcam terdeteksi. Pilih internal/external lalu live view mengikuti otomatis."
+                )
+            else:
+                self.lbl_webcam_hint.configure(
+                    text="Tidak ada webcam fisik terdeteksi. Gunakan Simulator atau hubungkan USB lalu klik Refresh."
+                )
+
+    def _on_refresh_webcam_list(self) -> None:
+        self._refresh_webcam_list()
+        self.lbl_capture_feedback.configure(
+            text="Daftar webcam diperbarui. Pilih device untuk beralih kamera.",
+            text_color=COLOR_TEXT_MUTED,
+        )
+
+    def _switch_to_webcam_index(self, device_id: str) -> None:
+        """Reconnects to the given webcam index and restarts live distribution."""
+        was_subscribed = self._handle_incoming_frame in getattr(self.ctx, "_frame_subscribers", [])
+        try:
+            self.ctx.camera_manager.stop_live_view()
+        except Exception:
+            pass
+        ok = self.ctx.camera_manager.connect_camera("webcam", device_id)
+        if was_subscribed:
+            try:
+                # Re-attach live distribution to the new adapter
+                self.ctx.camera_manager.start_live_view(self.ctx._on_live_frame)
+            except Exception as e:
+                logger.debug("Restart live view after webcam switch failed: %s", e)
+        try:
+            from config.config_manager import get_config
+            cfg = getattr(self.ctx, "config", None) or get_config()
+            cfg.set("camera", "default_adapter", "webcam")
+        except Exception:
+            pass
+        self._refresh_cam_info()
+        self._evaluate_preflight()
+        if ok:
+            # FIX: bedakan standby vs fisik agar user tahu bila device
+            # tidak benar-benar terbuka (mis. index basi / kamera dicabut).
+            try:
+                _active = getattr(self.ctx.camera_manager, "_active_adapter", None)
+                _is_sim = bool(getattr(_active, "_is_simulated", False))
+                _real_idx = getattr(_active, "device_index", device_id)
+            except Exception:
+                _is_sim, _real_idx = False, device_id
+            if _is_sim and str(device_id).lower() != "sim":
+                from ui.theme import COLOR_WARNING
+                self.lbl_capture_feedback.configure(
+                    text=f"Webcam Index {device_id} tidak dapat dibuka (kamera dicabut/sibuk). "
+                         f"Otomatis memakai Index {_real_idx} bila tersedia; bila tetap standby, pilih device lain lalu klik Refresh.",
+                    text_color=COLOR_WARNING,
+                )
+            elif str(device_id).lower() == "sim":
+                self.lbl_capture_feedback.configure(
+                    text="Simulator standby aktif. Pilih webcam fisik untuk live video.",
+                    text_color=COLOR_TEXT_MUTED,
+                )
+            else:
+                self.lbl_capture_feedback.configure(
+                    text=f"Webcam aktif: Index {_real_idx}. Live view mengikuti otomatis.",
+                    text_color=COLOR_SUCCESS,
+                )
+        else:
+            self.lbl_capture_feedback.configure(
+                text=f"Gagal menghubungkan webcam Index {device_id}.",
+                text_color=COLOR_ERROR,
+            )
+
+    def _on_webcam_device_changed(self, choice: str) -> None:
+        """User picked a different physical webcam (internal vs external)."""
+        device_id = self._parse_webcam_index(choice)
+        if hasattr(self, "opt_capture_interface"):
+            try:
+                self.opt_capture_interface.set("Physical USB Webcam")
+            except Exception:
+                pass
+        self._switch_to_webcam_index(device_id)
+
     def _on_capture_interface_changed(self, choice: str) -> None:
         """Allows switching camera connection directly from Capture Screen."""
+        # FIX koneksi: restart distribusi live setelah ganti adapter agar
+        # live view langsung mengikuti (sebelumnya hanya webcam yang restart).
+        was_subscribed = self._handle_incoming_frame in getattr(self.ctx, "_frame_subscribers", [])
+        try:
+            self.ctx.camera_manager.stop_live_view()
+        except Exception:
+            pass
         if "Wi-Fi" in choice:
             self.ctx.camera_manager.connect_camera("wifi_dslr", "wifi_dslr")
         elif "Direct USB" in choice:
             self.ctx.camera_manager.connect_camera("direct_usb", "0")
+        elif "Hot-Folder" in choice or "Hot Folder" in choice or "Universal Hot" in choice:
+            try:
+                hot_dir = self.ctx.storage_manager.base_dir / "HotFolder"
+            except Exception:
+                hot_dir = "hot_folder"
+            try:
+                from config.config_manager import get_config
+                cfg = getattr(self.ctx, "config", None) or get_config()
+                cfg.set("camera", "default_adapter", "hot_folder")
+            except Exception:
+                pass
+            self.ctx.camera_manager.connect_camera("hot_folder", str(hot_dir))
+        elif "Standby" in choice or "Simulator" in choice:
+            self._switch_to_webcam_index("sim")
+            return
         else:
-            self.ctx.camera_manager.connect_camera("webcam", "0")
+            device_id = self._parse_webcam_index(
+                self.opt_webcam_device.get() if hasattr(self, "opt_webcam_device") else "0"
+            )
+            self._switch_to_webcam_index(device_id)
+            return
+        if was_subscribed:
+            try:
+                self.ctx.camera_manager.start_live_view(self.ctx._on_live_frame)
+            except Exception as e:
+                logger.debug("Restart live view after interface switch failed: %s", e)
         self._refresh_cam_info()
         self._evaluate_preflight()
         self.lbl_capture_feedback.configure(
@@ -1100,6 +1326,8 @@ class CaptureView(ctk.CTkFrame):
 
         from camera.adapters.wifi_dslr import WiFiDslrAdapter
         from camera.adapters.direct_usb import DirectUsbAdapter
+        from camera.adapters.hot_folder import HotFolderAdapter
+        from camera.adapters.webcam import WebcamAdapter
 
         if isinstance(active_adapter, WiFiDslrAdapter):
             if hasattr(self, "opt_capture_interface"):
@@ -1115,12 +1343,75 @@ class CaptureView(ctk.CTkFrame):
             self.lbl_dev_model.configure(text=f"Model: {info.model if info else 'Direct USB DSLR'}")
             self.lbl_dev_serial.configure(text=f"Serial No: {info.serial_number if info else 'Cable'}")
             self.lbl_dev_fw.configure(text="Protocol: Windows WIA / PTP")
+        elif isinstance(active_adapter, HotFolderAdapter):
+            # FIX: Hot-Folder sebelumnya salah dilabeli sebagai Physical USB
+            # Webcam sehingga UI menipu (interface webcam tapi model Hot-Folder).
+            if hasattr(self, "opt_capture_interface"):
+                try:
+                    self.opt_capture_interface.set("Universal Hot-Folder Ingest")
+                except Exception:
+                    pass
+            self.lbl_dev_model.configure(text=f"Model: {info.model if info else 'Universal Hot-Folder Ingest'}")
+            self.lbl_dev_serial.configure(text=f"Serial No: {info.serial_number if info else 'HOT_FOLDER_01'}")
+            try:
+                watch_name = Path(str(getattr(active_adapter, 'watch_dir', ''))).name or "HotFolder"
+            except Exception:
+                watch_name = "HotFolder"
+            self.lbl_dev_fw.configure(text=f"Watch Folder: {watch_name}")
+        elif isinstance(active_adapter, WebcamAdapter):
+            if getattr(active_adapter, "_is_simulated", False):
+                if hasattr(self, "opt_capture_interface"):
+                    try:
+                        self.opt_capture_interface.set("Standby / Simulator")
+                    except Exception:
+                        pass
+                self.lbl_dev_model.configure(text=f"Model: {info.model if info else 'Standby (Simulator)'}")
+                self.lbl_dev_serial.configure(text=f"Serial No: {info.serial_number if info else 'STANDBY'}")
+                self.lbl_dev_fw.configure(text=f"Firmware: {info.firmware_version if info else '-'}")
+                try:
+                    if hasattr(self, "opt_webcam_device"):
+                        self.opt_webcam_device.set("Simulator (Standby Sample Feed)")
+                except Exception:
+                    pass
+            else:
+                if hasattr(self, "opt_capture_interface"):
+                    try:
+                        self.opt_capture_interface.set("Physical USB Webcam")
+                    except Exception:
+                        pass
+                self.lbl_dev_model.configure(text=f"Model: {info.model if info else 'USB Webcam'}")
+                self.lbl_dev_serial.configure(text=f"Serial No: {info.serial_number if info else '-'}")
+                self.lbl_dev_fw.configure(text=f"Firmware: {info.firmware_version if info else '-'}")
+                # Sync webcam selector to active index
+                try:
+                    if hasattr(self, "opt_webcam_device"):
+                        idx = getattr(active_adapter, "device_index", None)
+                        for label, mapped in getattr(self, "_webcam_display_to_index", {}).items():
+                            if str(mapped) == str(idx):
+                                self.opt_webcam_device.set(label)
+                                break
+                except Exception:
+                    pass
         elif info and info.model not in ("Unknown Camera", "None"):
             if hasattr(self, "opt_capture_interface"):
                 self.opt_capture_interface.set("Physical USB Webcam")
             self.lbl_dev_model.configure(text=f"Model: {info.model}")
             self.lbl_dev_serial.configure(text=f"Serial No: {info.serial_number}")
             self.lbl_dev_fw.configure(text=f"Firmware: {info.firmware_version}")
+            # Sync webcam selector to active index (incl. simulated)
+            try:
+                from camera.adapters.webcam import WebcamAdapter
+                if isinstance(active_adapter, WebcamAdapter) and hasattr(self, "opt_webcam_device"):
+                    if getattr(active_adapter, "_is_simulated", False):
+                        self.opt_webcam_device.set("Simulator (Standby Sample Feed)")
+                    else:
+                        idx = getattr(active_adapter, "device_index", None)
+                        for label, mapped in getattr(self, "_webcam_display_to_index", {}).items():
+                            if str(mapped) == str(idx):
+                                self.opt_webcam_device.set(label)
+                                break
+            except Exception:
+                pass
         else:
             if hasattr(self, "opt_capture_interface"):
                 self.opt_capture_interface.set("Physical USB Webcam")
@@ -1385,9 +1676,71 @@ class CaptureView(ctk.CTkFrame):
 
     def _on_reconnect_cam(self) -> None:
         self.stream_info_lbl.configure(text="Reconnecting camera adapter...")
-        self.ctx.camera_manager.connect_camera()
-        self._refresh_cam_info()
-        self._evaluate_preflight()
+        try:
+            iface = self.opt_capture_interface.get() if hasattr(self, "opt_capture_interface") else ""
+        except Exception:
+            iface = ""
+        # FIX: Reconnect harus menghormati semua interface (termasuk
+        # Hot-Folder/Simulator) dan me-restart distribusi live.
+        if "Standby" in iface or "Simulator" in iface:
+            device_id = "sim"
+            self._switch_to_webcam_index(device_id)
+            return
+        if "Hot-Folder" in iface or "Hot Folder" in iface or "Universal Hot" in iface:
+            was_sub = self._handle_incoming_frame in getattr(self.ctx, "_frame_subscribers", [])
+            try:
+                self.ctx.camera_manager.stop_live_view()
+            except Exception:
+                pass
+            try:
+                hot_dir = self.ctx.storage_manager.base_dir / "HotFolder"
+            except Exception:
+                hot_dir = "hot_folder"
+            self.ctx.camera_manager.connect_camera("hot_folder", str(hot_dir))
+            if was_sub:
+                try:
+                    self.ctx.camera_manager.start_live_view(self.ctx._on_live_frame)
+                except Exception as e:
+                    logger.debug("Restart live view after reconnect failed: %s", e)
+            self._refresh_cam_info()
+            self._evaluate_preflight()
+            return
+        if "Wi-Fi" in iface:
+            was_sub = self._handle_incoming_frame in getattr(self.ctx, "_frame_subscribers", [])
+            try:
+                self.ctx.camera_manager.stop_live_view()
+            except Exception:
+                pass
+            self.ctx.camera_manager.connect_camera("wifi_dslr", "wifi_dslr")
+            if was_sub:
+                try:
+                    self.ctx.camera_manager.start_live_view(self.ctx._on_live_frame)
+                except Exception as e:
+                    logger.debug("Restart live view after reconnect failed: %s", e)
+            self._refresh_cam_info()
+            self._evaluate_preflight()
+            return
+        elif "Direct USB" in iface:
+            was_sub = self._handle_incoming_frame in getattr(self.ctx, "_frame_subscribers", [])
+            try:
+                self.ctx.camera_manager.stop_live_view()
+            except Exception:
+                pass
+            self.ctx.camera_manager.connect_camera("direct_usb", "0")
+            if was_sub:
+                try:
+                    self.ctx.camera_manager.start_live_view(self.ctx._on_live_frame)
+                except Exception as e:
+                    logger.debug("Restart live view after reconnect failed: %s", e)
+            self._refresh_cam_info()
+            self._evaluate_preflight()
+            return
+        else:
+            device_id = self._parse_webcam_index(
+                self.opt_webcam_device.get() if hasattr(self, "opt_webcam_device") else "0"
+            )
+            self._switch_to_webcam_index(device_id)
+            return
 
     def _evaluate_preflight(self) -> None:
         """Evaluates pre-flight checks and updates UI."""

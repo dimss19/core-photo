@@ -6,10 +6,22 @@ Complies with AI Agent Development Rules:
 
 import json
 import logging
+import sys
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
+
+
+def _base_path() -> Path:
+    """Returns the root path for the config folder.
+
+    When packaged as a frozen exe (PyInstaller), settings are stored next to
+    the executable so the portable single-exe keeps its configuration.
+    """
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent.parent
 
 DEFAULT_CONFIG: Dict[str, Any] = {
     "app": {
@@ -73,8 +85,7 @@ class ConfigManager:
 
     def __init__(self, config_path: Optional[Path] = None):
         if config_path is None:
-            # Default to config/settings.json relative to repository root
-            base_path = Path(__file__).resolve().parent.parent
+            base_path = _base_path()
             self.config_path = base_path / "config" / "settings.json"
         else:
             self.config_path = Path(config_path)

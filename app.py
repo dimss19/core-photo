@@ -423,8 +423,30 @@ class CorePhotoApp(ctk.CTk):
         device_id = str(self.ctx.config.get("camera", "device_id", pref_idx))
         if backend == "wifi_dslr":
             device_id = "wifi_dslr"
+        elif backend == "hot_folder":
+            # FIX: device_id numerik basi ("2") bukan folder. Resolve ke
+            # folder HotFolder standar agar tidak tercipta folder "./2".
+            try:
+                hot_dir = self.ctx.storage_manager.base_dir / "HotFolder"
+                device_id = str(hot_dir)
+            except Exception:
+                device_id = None
+        elif backend == "webcam":
+            # Biarkan manager auto-fallback ke index fisik yang tersedia
+            # bila preferred_index basi (mis. external dicabut).
+            if not device_id or device_id.lower() in ("none", "auto", "default"):
+                device_id = str(pref_idx)
 
         success = self.ctx.camera_manager.connect_camera(backend, device_id)
+        # FIX: bila webcam menghasilkan standby (fisik gagal dibuka),
+        # manager sudah mencoba fallback internal; bila tetap standby,
+        # lanjutkan rantai fallback bawaan (direct -> webcam 0 -> sim).
+        try:
+            _active = getattr(self.ctx.camera_manager, "_active_adapter", None)
+            if success and backend == "webcam" and getattr(_active, "_is_simulated", False) and str(device_id).lower() != "sim":
+                success = False  # paksa coba backend lain di bawah
+        except Exception:
+            pass
         if not success:
             if backend != "wifi_dslr":
                 success = self.ctx.camera_manager.connect_camera("wifi_dslr", "wifi_dslr")
