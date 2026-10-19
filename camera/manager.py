@@ -181,16 +181,7 @@ class CameraManager:
         """Scans system for available camera devices (PRD Section 8)."""
         available: List[Dict[str, Any]] = []
 
-        # 1. Wi-Fi DSLR Camera (Canon / Nikon / Sony / Fuji Tethering & IP Remote)
-        available.append({
-            "id": "wifi_dslr",
-            "name": "Wi-Fi DSLR Wireless Tethering (Canon / Nikon / Sony / Fuji)",
-            "adapter": "wifi_dslr",
-            "supported": True,
-            "status": "Ready"
-        })
-
-        # 2. Direct USB Camera (Native Windows WIA & PTP - 0 DLLs, 0 Software)
+        # 1. Direct USB DSLR (Native Windows WIA & PTP - 0 DLLs, 0 Software)
         available.append({
             "id": "direct_usb",
             "name": "Direct USB DSLR (Canon / Nikon / Sony — Cable)",
@@ -199,16 +190,7 @@ class CameraManager:
             "status": "Ready"
         })
 
-        # 3. Universal Hot-Folder Ingest
-        available.append({
-            "id": "hot_folder",
-            "name": "Universal Hot-Folder Ingest",
-            "adapter": "hot_folder",
-            "supported": True,
-            "status": "Ready"
-        })
-
-        # 4. Physical UVC / DirectShow webcams (integrated + external USB)
+        # 2. Physical UVC / DirectShow webcams (integrated + external USB)
         try:
             for dev in self.list_webcam_devices():
                 available.append({
@@ -222,15 +204,6 @@ class CameraManager:
                 })
         except Exception as e:
             logger.debug("Hardware camera scan exception: %s", e)
-
-        # 5. Technical simulation feed
-        available.append({
-            "id": "sim",
-            "name": "Core Tray Sample Feed (Canon EOS 60D)",
-            "adapter": "webcam",
-            "supported": True,
-            "status": "Ready"
-        })
 
         return available
 

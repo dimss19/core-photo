@@ -292,8 +292,13 @@ class DirectUsbAdapter(AbstractCameraAdapter):
         if not OPENCV_AVAILABLE:
             return
         try:
-            # Probe video indices
-            for idx in (0, 1, 2):
+            # Probe vendor webcam feed (mis. "EOS Webcam Utility") lebih dulu,
+            # lalu index generik sebagai fallback.
+            tried: set = set()
+            for idx in self._preferred_uvc_indices() + [0, 1, 2, 3]:
+                if idx in tried:
+                    continue
+                tried.add(idx)
                 cap = cv2.VideoCapture(idx, cv2.CAP_DSHOW)
                 if cap.isOpened():
                     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
@@ -303,6 +308,31 @@ class DirectUsbAdapter(AbstractCameraAdapter):
                     return
         except Exception as e:
             logger.debug("DirectShow live stream probe: %s", e)
+
+    def _preferred_uvc_indices(self) -> List[int]:
+        """Returns DirectShow indices whose Windows friendly name hints at a
+        Canon/EOS virtual webcam (EOS Webcam Utility). Best-effort, never raises."""
+        indices: List[int] = []
+        try:
+            import subprocess
+            ps = (
+                "Get-PnpDevice -Class Camera -Status OK "
+                "| Select-Object -ExpandProperty FriendlyName"
+            )
+            out = subprocess.run(
+                ["powershell", "-NoProfile", "-Command", ps],
+                capture_output=True, text=True, timeout=6,
+            )
+            if out.returncode == 0 and out.stdout:
+                for i, line in enumerate(out.stdout.splitlines()):
+                    low = line.strip().lower()
+                    if not low or low == "friendlyname":
+                        continue
+                    if "eos" in low or "canon" in low:
+                        indices.append(i)
+        except Exception as e:
+            logger.debug("UVC friendly-name probe failed: %s", e)
+        return indices
 
     def _trigger_wia_capture(self) -> Tuple[bytes, str, int, int, np.ndarray]:
         """Sends Take Picture command over USB to physical camera."""

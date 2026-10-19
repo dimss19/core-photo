@@ -409,20 +409,12 @@ class CorePhotoApp(ctk.CTk):
     def _startup_camera_init(self) -> None:
         """Initializes camera connection on app start."""
         logger.info("Initializing camera on startup...")
-        backend = self.ctx.config.get("camera", "default_adapter", "wifi_dslr")
+        backend = self.ctx.config.get("camera", "default_adapter", "webcam")
         pref_idx = self.ctx.config.get("camera", "preferred_index", 0)
         device_id = str(self.ctx.config.get("camera", "device_id", pref_idx))
-        if backend == "wifi_dslr":
-            device_id = "wifi_dslr"
-        elif backend == "hot_folder":
-            # FIX: device_id numerik basi ("2") bukan folder. Resolve ke
-            # folder HotFolder standar agar tidak tercipta folder "./2".
-            try:
-                hot_dir = self.ctx.storage_manager.base_dir / "HotFolder"
-                device_id = str(hot_dir)
-            except Exception:
-                device_id = None
-        elif backend == "webcam":
+        if backend in ("wifi_dslr", "dslr_wifi", "tether", "hot_folder", "hotfolder"):
+            backend = "webcam"
+        if backend == "webcam":
             # Biarkan manager auto-fallback ke index fisik yang tersedia
             # bila preferred_index basi (mis. external dicabut).
             if not device_id or device_id.lower() in ("none", "auto", "default"):
@@ -439,9 +431,7 @@ class CorePhotoApp(ctk.CTk):
         except Exception:
             pass
         if not success:
-            if backend != "wifi_dslr":
-                success = self.ctx.camera_manager.connect_camera("wifi_dslr", "wifi_dslr")
-            if not success and backend != "direct_usb":
+            if backend != "direct_usb":
                 success = self.ctx.camera_manager.connect_camera("direct_usb", "0")
             if not success and device_id != "0":
                 success = self.ctx.camera_manager.connect_camera("webcam", "0")

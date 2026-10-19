@@ -112,11 +112,8 @@ class SettingsView(ctk.CTkFrame):
         self.opt_adapter_mode = ctk.CTkOptionMenu(
             cam_btns,
             values=[
-                "Wi-Fi DSLR Wireless Tethering (Canon / Nikon / Sony)",
                 "Direct USB DSLR (Canon/Nikon/Sony)",
-                "Universal Hot-Folder (All DSLRs)",
                 "Physical USB / Webcam",
-                "Standby / Simulator",
             ],
             command=self._on_adapter_mode_changed,
             height=32,
@@ -201,117 +198,6 @@ class SettingsView(ctk.CTkFrame):
             text_color=COLOR_TEXT_MUTED,
         )
         self.lbl_settings_webcam_hint.grid(row=3, column=0, columnspan=3, sticky="w", padx=14, pady=(0, 8))
-
-        # Wi-Fi DSLR Tethering Configuration Card
-        wifi_box = ctk.CTkFrame(cam_box, fg_color=COLOR_PANEL_ALT, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
-        wifi_box.pack(fill="x", padx=16, pady=(0, 8))
-        wifi_box.grid_columnconfigure(1, weight=1)
-
-        ctk.CTkLabel(wifi_box, text="Wi-Fi DSLR Wireless Settings (Canon / Nikon / Sony):", font=get_font(11, "bold"), text_color=COLOR_CHARCOAL).grid(row=0, column=0, columnspan=3, sticky="w", padx=14, pady=(10, 6))
-
-        # Camera IP row
-        ctk.CTkLabel(wifi_box, text="Camera IP Address:", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).grid(row=1, column=0, sticky="w", padx=(14, 8), pady=3)
-        f_ip = ctk.CTkFrame(wifi_box, fg_color="transparent")
-        f_ip.grid(row=1, column=1, columnspan=2, sticky="ew", padx=(0, 14), pady=3)
-        f_ip.grid_columnconfigure(0, weight=1)
-
-        self.entry_cam_wifi_ip = ctk.CTkEntry(
-            f_ip,
-            height=28,
-            font=get_font(10),
-            placeholder_text="e.g. 192.168.1.100 (IP kamera di jaringan Wi-Fi)",
-            fg_color=COLOR_PANEL,
-            border_color=COLOR_BORDER,
-            border_width=1,
-        )
-        self.entry_cam_wifi_ip.grid(row=0, column=0, sticky="ew", padx=(0, 6))
-
-        self.btn_cam_test_wifi = ctk.CTkButton(
-            f_ip,
-            text="Ping / Test Wi-Fi",
-            font=get_font(10, "bold"),
-            height=28,
-            width=120,
-            corner_radius=4,
-            fg_color=COLOR_PANEL,
-            hover_color=COLOR_BORDER,
-            text_color=COLOR_CHARCOAL,
-            border_width=1,
-            border_color=COLOR_BORDER,
-            command=self._on_test_wifi_ip,
-        )
-        self.btn_cam_test_wifi.grid(row=0, column=1, sticky="e")
-
-        # Tether Folder row
-        ctk.CTkLabel(wifi_box, text="Wi-Fi Tether Folder:", font=get_font(11), text_color=COLOR_TEXT_PRIMARY).grid(row=2, column=0, sticky="w", padx=(14, 8), pady=3)
-        f_tether = ctk.CTkFrame(wifi_box, fg_color="transparent")
-        f_tether.grid(row=2, column=1, columnspan=2, sticky="ew", padx=(0, 14), pady=3)
-        f_tether.grid_columnconfigure(0, weight=1)
-
-        self.entry_cam_tether_folder = ctk.CTkEntry(
-            f_tether,
-            height=28,
-            font=get_font(10),
-            placeholder_text="Folder Canon EOS Utility / Sony Remote...",
-            fg_color=COLOR_PANEL,
-            border_color=COLOR_BORDER,
-            border_width=1,
-        )
-        self.entry_cam_tether_folder.grid(row=0, column=0, sticky="ew", padx=(0, 6))
-
-        self.btn_browse_cam_tether = ctk.CTkButton(
-            f_tether,
-            text="...",
-            width=28,
-            height=28,
-            font=get_font(10, "bold"),
-            fg_color=COLOR_BORDER,
-            text_color=COLOR_CHARCOAL,
-            hover_color=COLOR_BORDER_STRONG,
-            command=self._on_browse_cam_tether,
-        )
-        self.btn_browse_cam_tether.grid(row=0, column=1, padx=(0, 6))
-
-        self.btn_auto_detect_tether = ctk.CTkButton(
-            f_tether,
-            text="Auto-Detect",
-            height=28,
-            font=get_font(10, "bold"),
-            fg_color=COLOR_PANEL,
-            hover_color=COLOR_BORDER,
-            text_color=COLOR_CHARCOAL,
-            border_width=1,
-            border_color=COLOR_BORDER,
-            command=self._on_auto_detect_tether,
-        )
-        self.btn_auto_detect_tether.grid(row=0, column=2)
-
-        # Wi-Fi Actions / Feedback row
-        f_wifi_actions = ctk.CTkFrame(wifi_box, fg_color="transparent")
-        f_wifi_actions.grid(row=3, column=0, columnspan=3, sticky="ew", padx=14, pady=(4, 10))
-        f_wifi_actions.grid_columnconfigure(0, weight=1)
-
-        self.lbl_wifi_feedback = ctk.CTkLabel(
-            f_wifi_actions,
-            text="Kamera Wi-Fi dapat mengirim foto secara nirkabel via EOS Utility / Sony Remote atau CCAPI socket.",
-            font=get_font(10),
-            text_color=COLOR_TEXT_MUTED,
-            anchor="w",
-        )
-        self.lbl_wifi_feedback.grid(row=0, column=0, sticky="w")
-
-        self.btn_save_wifi_cfg = ctk.CTkButton(
-            f_wifi_actions,
-            text="Save Wi-Fi Setup",
-            font=get_font(10, "bold"),
-            height=26,
-            corner_radius=4,
-            fg_color=COLOR_ACCENT,
-            hover_color=COLOR_ACCENT_HOVER,
-            text_color="#FFFFFF",
-            command=self._on_save_wifi_settings,
-        )
-        self.btn_save_wifi_cfg.grid(row=0, column=1, sticky="e")
 
         # Resolution Controls & Quality Panel
         res_content = ctk.CTkFrame(cam_box, fg_color=COLOR_PANEL_ALT, corner_radius=4, border_width=1, border_color=COLOR_BORDER)
@@ -679,26 +565,6 @@ class SettingsView(ctk.CTkFrame):
         except Exception as e:
             logger.debug("Resolution UI sync exception: %s", e)
 
-        # Update Wi-Fi fields if empty
-        if hasattr(self, "entry_cam_wifi_ip"):
-            from config.config_manager import get_config
-            cfg = getattr(self.ctx, "config", None) or get_config()
-            cfg_ip = cfg.get("camera", "wifi_ip", "")
-            if not self.entry_cam_wifi_ip.get().strip() and cfg_ip:
-                self.entry_cam_wifi_ip.delete(0, "end")
-                self.entry_cam_wifi_ip.insert(0, str(cfg_ip))
-
-            cfg_tether = cfg.get("camera", "tether_folder", "")
-            if hasattr(self, "entry_cam_tether_folder") and not self.entry_cam_tether_folder.get().strip():
-                if cfg_tether:
-                    self.entry_cam_tether_folder.delete(0, "end")
-                    self.entry_cam_tether_folder.insert(0, str(cfg_tether))
-                else:
-                    from camera.adapters.wifi_dslr import WiFiDslrAdapter
-                    discovered = WiFiDslrAdapter._discover_default_tether_dir()
-                    self.entry_cam_tether_folder.delete(0, "end")
-                    self.entry_cam_tether_folder.insert(0, str(discovered))
-
         # Synchronize adapter dropdown with active adapter + webcam list
         try:
             self._refresh_settings_webcam_list()
@@ -706,21 +572,12 @@ class SettingsView(ctk.CTkFrame):
             pass
         active_adapter = getattr(self.ctx.camera_manager, "_active_adapter", None)
         if hasattr(self, "opt_adapter_mode") and active_adapter:
-            from camera.adapters.wifi_dslr import WiFiDslrAdapter
             from camera.adapters.direct_usb import DirectUsbAdapter
-            from camera.adapters.hot_folder import HotFolderAdapter
             from camera.adapters.webcam import WebcamAdapter
-            if isinstance(active_adapter, WiFiDslrAdapter):
-                self.opt_adapter_mode.set("Wi-Fi DSLR Wireless Tethering (Canon / Nikon / Sony)")
-            elif isinstance(active_adapter, DirectUsbAdapter):
+            if isinstance(active_adapter, DirectUsbAdapter):
                 self.opt_adapter_mode.set("Direct USB DSLR (Canon/Nikon/Sony)")
-            elif isinstance(active_adapter, HotFolderAdapter):
-                self.opt_adapter_mode.set("Universal Hot-Folder (All DSLRs)")
-            elif isinstance(active_adapter, WebcamAdapter):
-                if getattr(active_adapter, "_is_simulated", False):
-                    self.opt_adapter_mode.set("Standby / Simulator")
-                else:
-                    self.opt_adapter_mode.set("Physical USB / Webcam")
+            else:
+                self.opt_adapter_mode.set("Physical USB / Webcam")
 
         # Update Storage & Server Configuration fields
         if hasattr(self, "entry_settings_server_folder"):
@@ -742,33 +599,11 @@ class SettingsView(ctk.CTkFrame):
         self._check_recovery()
 
     def _on_adapter_mode_changed(self, mode: str) -> None:
-        """Switches active camera adapter between Wi-Fi DSLR, Direct USB, Hot-Folder, USB, and Standby."""
+        """Switches active camera adapter between Direct USB DSLR and Physical USB Webcam."""
         from config.config_manager import get_config
         cfg = getattr(self.ctx, "config", None) or get_config()
 
-        if "Wi-Fi" in mode or "Wireless" in mode:
-            cfg.set("camera", "default_adapter", "wifi_dslr")
-            tether_folder = self.entry_cam_tether_folder.get().strip() if hasattr(self, "entry_cam_tether_folder") else ""
-            ip = self.entry_cam_wifi_ip.get().strip() if hasattr(self, "entry_cam_wifi_ip") else ""
-            if ip:
-                cfg.set("camera", "wifi_ip", ip)
-            if tether_folder:
-                cfg.set("camera", "tether_folder", tether_folder)
-            cfg.save()
-
-            self.ctx.camera_manager.connect_camera("wifi_dslr", tether_folder or "wifi_dslr")
-            if self.ctx.camera_manager.is_ready():
-                info = self.ctx.camera_manager.get_info()
-                self.lbl_cam_feedback.configure(
-                    text=f"✓ Wi-Fi DSLR Active: {info.model if info else 'Connected'}",
-                    text_color=COLOR_SUCCESS,
-                )
-            else:
-                self.lbl_cam_feedback.configure(
-                    text="✓ Wi-Fi DSLR Active: Menunggu koneksi kamera Wi-Fi...",
-                    text_color=COLOR_TEXT_PRIMARY,
-                )
-        elif "Direct USB" in mode:
+        if "Direct USB" in mode:
             cfg.set("camera", "default_adapter", "direct_usb")
             cfg.save()
             self.ctx.camera_manager.connect_camera("direct_usb", "0")
@@ -783,21 +618,6 @@ class SettingsView(ctk.CTkFrame):
                     text="✓ Direct USB Active: Connect camera with USB cable",
                     text_color=COLOR_TEXT_PRIMARY,
                 )
-        elif "Hot-Folder" in mode:
-            cfg.set("camera", "default_adapter", "hot_folder")
-            cfg.save()
-            hot_dir = self.ctx.storage_manager.base_dir / "HotFolder"
-            self.ctx.camera_manager.connect_camera("hot_folder", str(hot_dir))
-            self.lbl_cam_feedback.configure(
-                text=f"✓ Universal Hot-Folder Active: Watching {hot_dir.name}",
-                text_color=COLOR_SUCCESS,
-            )
-        elif "Standby" in mode:
-            self.ctx.camera_manager.connect_camera("webcam", "sim")
-            self.lbl_cam_feedback.configure(
-                text="✓ Standby Simulator Pattern Active.",
-                text_color=COLOR_TEXT_MUTED,
-            )
         else:
             cfg.set("camera", "default_adapter", "webcam")
             cfg.save()
@@ -844,8 +664,6 @@ class SettingsView(ctk.CTkFrame):
             label = dev.get("name") or f"Webcam Index {dev.get('index')}"
             values.append(label)
             self._webcam_display_to_index[label] = dev.get("index")
-        values.append("Simulator (Standby)")
-        self._webcam_display_to_index["Simulator (Standby)"] = "sim"
         try:
             self.opt_settings_webcam.configure(values=values)
         except Exception:
@@ -905,67 +723,6 @@ class SettingsView(ctk.CTkFrame):
                     cfg.set("camera", "device_id", str(device_id))
             except Exception:
                 pass
-
-    def _on_test_wifi_ip(self) -> None:
-        """Tests Wi-Fi connectivity to camera IP."""
-        ip = self.entry_cam_wifi_ip.get().strip() if hasattr(self, "entry_cam_wifi_ip") else ""
-        if not ip:
-            self.lbl_wifi_feedback.configure(
-                text="Masukkan IP address kamera terlebih dahulu (misal: 192.168.1.100).",
-                text_color=COLOR_WARNING,
-            )
-            return
-
-        self.lbl_wifi_feedback.configure(text=f"Menguji koneksi ke {ip}...", text_color=COLOR_ACCENT)
-        self.update_idletasks()
-
-        reachable, msg = self.ctx.camera_manager.test_wifi_connection(ip)
-        if reachable:
-            self.lbl_wifi_feedback.configure(
-                text=f"✓ Kamera Terhubung di jaringan: {msg}",
-                text_color=COLOR_SUCCESS,
-            )
-        else:
-            self.lbl_wifi_feedback.configure(
-                text=f"✕ Tidak dapat menjangkau {ip} ({msg}). Pastikan kamera & PC di Wi-Fi yang sama.",
-                text_color=COLOR_ERROR,
-            )
-
-    def _on_browse_cam_tether(self) -> None:
-        """Browses for tether directory."""
-        from tkinter import filedialog
-        chosen = filedialog.askdirectory(title="Pilih Folder Tethering Wi-Fi DSLR")
-        if chosen and hasattr(self, "entry_cam_tether_folder"):
-            self.entry_cam_tether_folder.delete(0, "end")
-            self.entry_cam_tether_folder.insert(0, chosen)
-            self._on_save_wifi_settings()
-
-    def _on_auto_detect_tether(self) -> None:
-        """Auto-detects vendor tether folder (Canon EOS Utility, Sony, Nikon)."""
-        from camera.adapters.wifi_dslr import WiFiDslrAdapter
-        discovered = WiFiDslrAdapter._discover_default_tether_dir()
-        if hasattr(self, "entry_cam_tether_folder"):
-            self.entry_cam_tether_folder.delete(0, "end")
-            self.entry_cam_tether_folder.insert(0, str(discovered))
-            self._on_save_wifi_settings()
-            self.lbl_wifi_feedback.configure(
-                text=f"✓ Folder tether ditemukan: {discovered.name}",
-                text_color=COLOR_SUCCESS,
-            )
-
-    def _on_save_wifi_settings(self) -> None:
-        """Saves Wi-Fi IP and tether folder configuration."""
-        from config.config_manager import get_config
-        cfg = getattr(self.ctx, "config", None) or get_config()
-        ip = self.entry_cam_wifi_ip.get().strip() if hasattr(self, "entry_cam_wifi_ip") else ""
-        tether_f = self.entry_cam_tether_folder.get().strip() if hasattr(self, "entry_cam_tether_folder") else ""
-        cfg.set("camera", "wifi_ip", ip)
-        cfg.set("camera", "tether_folder", tether_f)
-        cfg.save()
-        self.lbl_wifi_feedback.configure(
-            text="✓ Pengaturan Wi-Fi DSLR berhasil disimpan.",
-            text_color=COLOR_SUCCESS,
-        )
 
     def _on_detect_camera(self) -> None:
         cur_mode = self.opt_adapter_mode.get() if hasattr(self, "opt_adapter_mode") else "Physical USB / Webcam"

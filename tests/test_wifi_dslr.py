@@ -94,13 +94,7 @@ def test_wifi_dslr_ip_reachability_test():
 def test_camera_manager_wifi_dslr_integration(tmp_path):
     cm = CameraManager.get_instance()
 
-    # 1. Verification in detect_cameras
-    cams = cm.detect_cameras()
-    wifi_cams = [c for c in cams if c.get("adapter") == "wifi_dslr"]
-    assert len(wifi_cams) >= 1
-    assert "Wi-Fi DSLR" in wifi_cams[0]["name"]
-
-    # 2. Connection via CameraManager
+    # 1. Connection via CameraManager
     tether_dir = tmp_path / "CM_WiFiTether"
     assert cm.connect_camera("wifi_dslr", str(tether_dir)) is True
     assert cm.is_ready() is True
@@ -109,7 +103,7 @@ def test_camera_manager_wifi_dslr_integration(tmp_path):
     assert "Wi-Fi DSLR" in summary
     assert "Connected" in summary
 
-    # 3. Wi-Fi IP reachability helper on CameraManager
+    # 2. Wi-Fi IP reachability helper on CameraManager
     reachable, msg = cm.test_wifi_connection("")
     assert reachable is False
 

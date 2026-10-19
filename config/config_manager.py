@@ -39,8 +39,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "server_folder": ""
     },
     "camera": {
-        "default_adapter": "wifi_dslr",
-        "connection_type": "wifi_dslr",
+        "default_adapter": "webcam",
+        "connection_type": "webcam",
         "wifi_ip": "",
         "wifi_port": 15740,
         "tether_folder": "",
